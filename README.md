@@ -255,6 +255,32 @@ Les 4 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorit�
       en `.zip`, davantage de presets et de types de ressources au catalogue.
 - [ ] *(optionnel)* Rôles supplémentaires côté Ansible (bases de données, backup).
 
+### Nouveaux modules envisagés
+
+Tout générateur de config/IaC en Python (inputs → fichier) rentre dans le moule.
+Candidats, du plus prioritaire au moins :
+
+- [ ] **Dockerfile** — réutilise la détection de langage du module CI/CD pour
+      générer un **Dockerfile multi-stage** (stage build + stage runtime léger)
+      par langage. À ne pas confondre avec DockerForge : le Dockerfile *fabrique
+      l'image* d'une appli, alors que DockerForge (docker-compose) *orchestre
+      plusieurs conteneurs*. C'est le chaînon manquant entre le code et l'image
+      poussée par le CI/CD.
+- [ ] **Kubernetes / Helm** — Deployment + Service + Ingress, ou squelette de chart.
+- [ ] **Nginx / reverse-proxy** (+ variantes Caddy, Traefik) — server blocks,
+      HTTPS, load-balancing.
+- [ ] **systemd** — unité `.service` + timer (prolonge le déploiement Ansible).
+- [ ] **Packer** (images de VM) et **cloud-init** (première init) — complètent
+      Vagrant / Terraform.
+- [ ] **Monitoring** — Prometheus (`prometheus.yml`, alertes) + datasources Grafana.
+
+> À intégrer aux modules existants plutôt que comme nouveaux modules : autres
+> systèmes CI (CircleCI, Jenkins, Drone…) = providers du module CI/CD ;
+> CloudFormation/Pulumi = cibles à côté de Terraform.
+>
+> À éviter (doublons d'autres projets) : docker-compose = DockerForge ;
+> réseau/firewall/VLAN = NetForge.
+
 ### Déjà fait (résumé)
 
 Fusion CI/CD + Ansible, ajout des modules Vagrant (portage complet, support
