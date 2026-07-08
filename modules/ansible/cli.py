@@ -67,7 +67,7 @@ def build_parser():
     parser.add_argument(
         "--provisioning",
         nargs="+",
-        choices=["update_system", "base_packages", "timezone", "swap", "unattended_upgrades", "docker", "nginx", "https", "database", "firewall", "ssh_hardening", "fail2ban", "monitoring", "runtime"],
+        choices=["update_system", "base_packages", "timezone", "swap", "unattended_upgrades", "users", "docker", "nginx", "https", "database", "firewall", "ssh_hardening", "fail2ban", "monitoring", "runtime"],
         default=["update_system", "base_packages", "runtime"],
         help="Etapes de provisioning a inclure",
     )
@@ -106,7 +106,8 @@ def build_parser():
         default=None,
         help="Si fourni, genere aussi un fichier inventory.ini avec cet hote",
     )
-    parser.add_argument("--ssh-user", default="deploy", help="Utilisateur SSH (defaut: deploy)")
+    parser.add_argument("--ssh-user", default="deploy", help="Utilisateur SSH / de deploiement (defaut: deploy)")
+    parser.add_argument("--ssh-public-key", default=None, help="Cle SSH publique a autoriser pour l'etape 'users'")
 
     parser.add_argument(
         "--vault-var",
@@ -236,6 +237,8 @@ def main(argv=None):
         "db_name": args.db_name,
         "db_user": args.db_user,
         "notify_webhook_url": args.notify_webhook_url,
+        "deploy_user": args.ssh_user,
+        "ssh_public_key": args.ssh_public_key,
     }
 
     if args.layout == "roles":

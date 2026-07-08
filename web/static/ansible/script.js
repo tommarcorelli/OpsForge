@@ -24,6 +24,8 @@ const el = {
   notifyWebhookGroup: document.getElementById("notify-webhook-group"),
   notifyWebhookUrl: document.getElementById("notify-webhook-url"),
   httpsFieldsGroup: document.getElementById("https-fields-group"),
+  usersFieldsGroup: document.getElementById("users-fields-group"),
+  sshPublicKey: document.getElementById("ssh-public-key"),
   sshHardeningWarning: document.getElementById("ssh-hardening-warning"),
   domainName: document.getElementById("domain-name"),
   letsencryptEmail: document.getElementById("letsencrypt-email"),
@@ -452,6 +454,8 @@ function buildPayload() {
       db_user: el.dbUser.value.trim() || null,
       inventory_host: el.inventoryHost.value.trim() || null,
       ssh_user: el.sshUser.value.trim() || "deploy",
+      deploy_user: el.sshUser.value.trim() || "deploy",
+      ssh_public_key: el.sshPublicKey.value.trim() || null,
       vault_vars: Object.keys(vaultVars).length > 0 ? vaultVars : null,
       vault_password: vaultPassword || null,
     },
@@ -721,6 +725,11 @@ function updateBuildCmdVisibility() {
     'input[name="provisioning"][value="ssh_hardening"]'
   ).checked;
   el.sshHardeningWarning.hidden = !sshHardeningChecked;
+
+  const usersChecked = document.querySelector(
+    'input[name="provisioning"][value="users"]'
+  ).checked;
+  el.usersFieldsGroup.hidden = !usersChecked;
 
   const databaseChecked = document.querySelector(
     'input[name="provisioning"][value="database"]'

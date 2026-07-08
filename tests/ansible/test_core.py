@@ -63,6 +63,22 @@ def test_nouvelles_etapes_provisioning():
     assert "unattended-upgrades" in playbook
 
 
+def test_etape_users_cree_utilisateur_et_cle():
+    config = _base_config(
+        provisioning=["users"],
+        ssh_user="deployer",
+        deploy_user="deployer",
+        ssh_public_key="ssh-ed25519 AAAATESTKEY toi@machine",
+    )
+    playbook = generate_playbook(config)
+    data = yaml.safe_load(playbook)
+    assert isinstance(data, list)
+    assert "deployer" in playbook
+    assert "NOPASSWD:ALL" in playbook
+    assert "authorized_key" in playbook
+    assert "ssh-ed25519 AAAATESTKEY" in playbook
+
+
 # ------------------------------------------------------------------------
 # generate_playbook (mode "flat")
 # ------------------------------------------------------------------------

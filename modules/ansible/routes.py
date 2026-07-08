@@ -45,6 +45,8 @@ def _config_from_payload(data):
         "db_name": data.get("db_name"),
         "db_user": data.get("db_user"),
         "notify_webhook_url": data.get("notify_webhook_url"),
+        "deploy_user": data.get("deploy_user") or data.get("ssh_user"),
+        "ssh_public_key": data.get("ssh_public_key"),
     }, vault_vars
 
 

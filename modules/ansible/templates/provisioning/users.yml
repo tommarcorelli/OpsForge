@@ -1,0 +1,24 @@
+- name: Creer l'utilisateur de deploiement "{{ deploy_user }}"
+  user:
+    name: "{{ deploy_user }}"
+    shell: /bin/bash
+    groups: "{{ 'sudo' if ansible_os_family == 'Debian' else 'wheel' }}"
+    append: true
+    create_home: true
+  become: true
+
+- name: Sudo sans mot de passe pour "{{ deploy_user }}"
+  copy:
+    dest: "/etc/sudoers.d/{{ deploy_user }}"
+    content: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    mode: "0440"
+    validate: "visudo -cf %s"
+  become: true
+
+- name: Deposer la cle SSH publique autorisee
+  authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ ssh_public_key }}"
+    state: present
+  when: ssh_public_key | length > 0
+  become: true
