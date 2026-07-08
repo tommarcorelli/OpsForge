@@ -1,0 +1,9 @@
+    - name: Verifier si une version precedente existe
+      stat:
+        path: "{{ app_dir }}"
+      register: previous_deployment
+
+    - name: Sauvegarder la version precedente avant deploiement (rollback)
+      command: "cp -a {{ app_dir }} {{ app_dir }}.backup-{{ ansible_date_time.iso8601_basic_short }}"
+      when: previous_deployment.stat.exists
+      changed_when: true

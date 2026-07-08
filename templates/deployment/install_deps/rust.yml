@@ -1,0 +1,4 @@
+    - name: Recuperer les dependances Cargo du projet
+      command: "{{ ansible_env.HOME }}/.cargo/bin/cargo fetch"
+      args:
+        chdir: "{{ app_dir }}"

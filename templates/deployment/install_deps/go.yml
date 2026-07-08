@@ -1,0 +1,4 @@
+    - name: Telecharger les dependances Go du projet
+      command: /usr/local/go/bin/go mod download
+      args:
+        chdir: "{{ app_dir }}"

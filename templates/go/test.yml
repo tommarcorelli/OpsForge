@@ -1,0 +1,13 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go {version}
+        uses: actions/setup-go@v5
+        with:
+          go-version: "{version}"
+
+      - name: Install dependencies
+        run: {install_cmd}
+
+      - name: Run tests
+        run: go test ./... -v

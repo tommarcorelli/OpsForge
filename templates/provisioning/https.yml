@@ -1,0 +1,33 @@
+    - name: Installer Certbot (Debian/Ubuntu)
+      apt:
+        name:
+          - certbot
+          - python3-certbot-nginx
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Installer Certbot (RHEL/CentOS)
+      dnf:
+        name:
+          - certbot
+          - python3-certbot-nginx
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Obtenir un certificat Let's Encrypt et configurer Nginx automatiquement
+      command: >
+        certbot --nginx -d {{ domain_name }}
+        --non-interactive --agree-tos -m {{ letsencrypt_email }} --redirect
+      become: true
+      register: certbot_result
+      changed_when: "'Congratulations' in certbot_result.stdout"
+      failed_when: certbot_result.rc != 0
+
+    - name: Activer le renouvellement automatique du certificat (timer systemd)
+      systemd:
+        name: certbot.timer
+        state: started
+        enabled: yes
+      become: true

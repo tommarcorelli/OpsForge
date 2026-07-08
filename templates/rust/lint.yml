@@ -1,0 +1,10 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust {version}
+        uses: dtolnay/rust-toolchain@{version}
+        with:
+          components: clippy
+
+      - name: Run lint (clippy)
+        run: cargo clippy --all-targets --all-features -- -D warnings

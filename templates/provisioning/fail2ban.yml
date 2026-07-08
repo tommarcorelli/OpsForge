@@ -1,0 +1,32 @@
+    - name: Installer Fail2ban (Debian/Ubuntu)
+      apt:
+        name: fail2ban
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Installer Fail2ban (RHEL/CentOS)
+      dnf:
+        name: fail2ban
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Configurer Fail2ban pour la protection SSH
+      copy:
+        dest: /etc/fail2ban/jail.local
+        content: |
+          [sshd]
+          enabled = true
+          port = ssh
+          maxretry = 5
+          bantime = 3600
+          findtime = 600
+      become: true
+
+    - name: Demarrer et activer Fail2ban
+      systemd:
+        name: fail2ban
+        state: started
+        enabled: yes
+      become: true

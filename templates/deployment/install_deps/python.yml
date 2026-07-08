@@ -1,0 +1,5 @@
+    - name: Installer les dependances Python du projet
+      pip:
+        requirements: "{{ app_dir }}/requirements.txt"
+        virtualenv: "{{ app_dir }}/venv"
+        virtualenv_command: python3 -m venv

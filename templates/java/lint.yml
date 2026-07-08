@@ -1,0 +1,12 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java {version}
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "{version}"
+
+      - name: Compile check (lint minimal)
+        run: {install_cmd}
+        # NOTE: pour un vrai lint, ajoute checkstyle ou spotbugs a ton pom.xml/build.gradle

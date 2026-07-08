@@ -1,0 +1,19 @@
+    - name: Desactiver la connexion SSH root
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+      become: true
+
+    - name: Forcer l'authentification par cle SSH (desactive les mots de passe)
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+      become: true
+
+    - name: Redemarrer SSH pour appliquer le durcissement
+      systemd:
+        name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
+        state: restarted
+      become: true

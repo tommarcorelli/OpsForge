@@ -1,0 +1,35 @@
+    - name: "Health check : attendre que le port applicatif reponde"
+      wait_for:
+        host: "127.0.0.1"
+        port: "{{ health_check_port }}"
+        timeout: 30
+        state: started
+      register: health_check_result
+      ignore_errors: true
+
+    - name: "Rollback : chercher une sauvegarde disponible si le health check a echoue"
+      find:
+        paths: "{{ app_dir | dirname }}"
+        patterns: "{{ app_dir | basename }}.backup-*"
+        file_type: directory
+      register: available_backups
+      when: health_check_result is failed
+
+    - name: "Rollback : restaurer la derniere sauvegarde disponible"
+      command: "cp -a {{ (available_backups.files | sort(attribute='mtime') | last).path }} {{ app_dir }}"
+      when: health_check_result is failed and available_backups.files is defined and available_backups.files | length > 0
+      changed_when: true
+
+    - name: "Rollback : redemarrer le service avec la version restauree"
+      systemd:
+        name: "{{ service_name }}"
+        state: restarted
+      become: true
+      when: health_check_result is failed and available_backups.files is defined and available_backups.files | length > 0
+
+    - name: "Signaler l'echec du health check (rollback effectue si une sauvegarde existait)"
+      fail:
+        msg: >-
+          Le service ne repond pas sur le port {{ health_check_port }}.
+          {{ 'Rollback effectue vers la derniere sauvegarde.' if (available_backups.files is defined and available_backups.files | length > 0) else 'Aucune sauvegarde disponible pour un rollback (etape backup_previous non executee ou premier deploiement).' }}
+      when: health_check_result is failed

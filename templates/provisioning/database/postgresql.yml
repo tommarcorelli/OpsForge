@@ -1,0 +1,57 @@
+    - name: Installer PostgreSQL (Debian/Ubuntu)
+      apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Installer PostgreSQL (RHEL/CentOS)
+      dnf:
+        name:
+          - postgresql-server
+          - postgresql-contrib
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Initialiser la base PostgreSQL (RHEL/CentOS uniquement)
+      command: postgresql-setup --initdb
+      become: true
+      when: ansible_os_family == "RedHat"
+      args:
+        creates: /var/lib/pgsql/data/PG_VERSION
+
+    - name: Demarrer et activer PostgreSQL
+      systemd:
+        name: postgresql
+        state: started
+        enabled: yes
+      become: true
+
+    - name: Verifier si la base applicative existe deja
+      become: true
+      become_user: postgres
+      command: psql -tAc "SELECT 1 FROM pg_database WHERE datname = '{{ db_name }}'"
+      register: pg_db_check
+      changed_when: false
+
+    - name: Creer la base de donnees applicative
+      become: true
+      become_user: postgres
+      command: "createdb {{ db_name }}"
+      when: pg_db_check.stdout != "1"
+
+    - name: Creer l'utilisateur applicatif et lui donner les droits
+      become: true
+      become_user: postgres
+      command: >
+        psql -c "DO $$ BEGIN CREATE ROLE {{ db_user }} LOGIN PASSWORD '{{ db_password }}'; EXCEPTION WHEN duplicate_object THEN NULL; END $$;"
+      changed_when: true
+
+    - name: Donner tous les droits sur la base a l'utilisateur applicatif
+      become: true
+      become_user: postgres
+      command: "psql -c \"GRANT ALL PRIVILEGES ON DATABASE {{ db_name }} TO {{ db_user }};\""
+      changed_when: true

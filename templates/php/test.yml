@@ -1,0 +1,13 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP {version}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "{version}"
+
+      - name: Install dependencies
+        run: {install_cmd}
+
+      - name: Run tests (PHPUnit)
+        run: vendor/bin/phpunit

@@ -1,0 +1,17 @@
+    - name: Telecharger l'archive Go {{ runtime_version }}
+      get_url:
+        url: "https://go.dev/dl/go{{ runtime_version }}.linux-amd64.tar.gz"
+        dest: /tmp/go.tar.gz
+
+    - name: Extraire Go dans /usr/local
+      unarchive:
+        src: /tmp/go.tar.gz
+        dest: /usr/local
+        remote_src: yes
+      become: true
+
+    - name: Ajouter Go au PATH global
+      copy:
+        dest: /etc/profile.d/go.sh
+        content: 'export PATH=$PATH:/usr/local/go/bin'
+      become: true

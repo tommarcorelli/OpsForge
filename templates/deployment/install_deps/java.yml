@@ -1,0 +1,4 @@
+    - name: Installer les dependances Maven du projet
+      command: mvn install -DskipTests
+      args:
+        chdir: "{{ app_dir }}"

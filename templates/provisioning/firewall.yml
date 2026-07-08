@@ -1,0 +1,47 @@
+    - name: Installer UFW (Debian/Ubuntu)
+      apt:
+        name: ufw
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Autoriser les ports necessaires (UFW)
+      command: "ufw allow {{ item }}"
+      loop: ["22", "80", "443", "{{ health_check_port }}"]
+      become: true
+      when: ansible_os_family == "Debian"
+      changed_when: true
+
+    - name: Activer UFW (Debian/Ubuntu)
+      command: ufw --force enable
+      become: true
+      when: ansible_os_family == "Debian"
+      changed_when: true
+
+    - name: Installer firewalld (RHEL/CentOS)
+      dnf:
+        name: firewalld
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Demarrer et activer firewalld
+      systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Autoriser les ports necessaires (firewalld)
+      command: "firewall-cmd --permanent --add-port={{ item }}/tcp"
+      loop: ["22", "80", "443", "{{ health_check_port }}"]
+      become: true
+      when: ansible_os_family == "RedHat"
+      changed_when: true
+
+    - name: Recharger firewalld
+      command: firewall-cmd --reload
+      become: true
+      when: ansible_os_family == "RedHat"
+      changed_when: true

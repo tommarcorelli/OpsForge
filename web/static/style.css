@@ -1,0 +1,745 @@
+/* ==========================================================================
+   TOKENS — theme inspire de CasaOS (clair, cartes arrondies, degrades)
+   ========================================================================== */
+:root {
+  --bg: #F0F2F7;
+  --card-bg: #FFFFFF;
+  --card-bg-hover: #FFFFFF;
+  --card-bg-soft: #F7F8FC;
+  --card-border: #E6E9F0;
+
+  --text-primary: #1A1D29;
+  --text-secondary: #6B7385;
+  --text-muted: #9AA1B2;
+
+  --gradient-start: #5B8DFF;
+  --gradient-end: #9B6DFF;
+  --primary: #5B8DFF;
+  --primary-dark: #3E6BDE;
+
+  --accent-green: #2ECC8F;
+  --accent-orange: #FF9B54;
+  --accent-red: #FF6B6B;
+
+  --border-soft: #E6E9F0;
+
+  --font-display: "Poppins", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 2px 8px rgba(30, 41, 59, 0.04), 0 12px 32px -12px rgba(30, 41, 59, 0.08);
+  --shadow-card-hover: 0 4px 12px rgba(30, 41, 59, 0.06), 0 20px 40px -14px rgba(30, 41, 59, 0.14);
+  --shadow-dock: 0 12px 40px -10px rgba(30, 41, 59, 0.18);
+}
+
+/* ==========================================================================
+   THEME SOMBRE — active via [data-theme="dark"] sur <html>
+   (bascule manuelle + respect de prefers-color-scheme au premier chargement)
+   ========================================================================== */
+html[data-theme="dark"] {
+  --card-bg: #1B1D2B;
+  --card-bg-hover: #20222F;
+  --card-bg-soft: #14151F;
+  --card-border: rgba(255, 255, 255, 0.08);
+
+  --text-primary: #F1F3FA;
+  --text-secondary: #A9AFC7;
+  --text-muted: #767CA0;
+
+  --border-soft: rgba(255, 255, 255, 0.10);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #EEF1F7;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+html[data-theme="dark"] body {
+  background: #14151F;
+}
+
+/* ==========================================================================
+   CALQUE DE FOND — desormais gere directement sur html/body (wallpaper).
+   Cet element ne sert plus qu'a un leger voile complementaire optionnel.
+   ========================================================================== */
+.blueprint-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   BASCULE THEME CLAIR/SOMBRE
+   ========================================================================== */
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 3;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: var(--shadow-card);
+  font-size: 19px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.08) rotate(-8deg);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.install-btn {
+  position: fixed;
+  top: 20px;
+  right: 78px;
+  z-index: 3;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 11px 18px;
+  border-radius: var(--radius-pill);
+  border: none;
+  color: white;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  box-shadow: 0 8px 20px -6px rgba(91, 109, 255, 0.5);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.install-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px -6px rgba(91, 109, 255, 0.6);
+}
+
+@media (max-width: 640px) {
+  .install-btn span {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+.page-header {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 56px 24px 28px;
+  text-align: center;
+}
+
+.logo-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  box-shadow: 0 10px 24px -8px rgba(91, 109, 255, 0.45);
+  margin-bottom: 22px;
+  animation: logo-float 5s ease-in-out infinite;
+}
+
+.logo-mark img {
+  display: block;
+  width: 36px;
+  height: 36px;
+}
+
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--primary-dark);
+  background: rgba(91, 141, 255, 0.1);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  margin: 0 0 20px;
+  text-transform: uppercase;
+}
+
+.page-header h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 42px;
+  line-height: 1.15;
+  margin: 0 0 16px;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-family: var(--font-body);
+  font-size: 15.5px;
+  color: var(--text-secondary);
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ==========================================================================
+   LAYOUT PRINCIPAL
+   ========================================================================== */
+.layout {
+  position: relative;
+  z-index: 1;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 24px 160px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--card-bg);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 30px;
+  position: relative;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.25s ease, transform 0.25s ease, background 0.25s ease;
+}
+
+.panel:hover {
+  box-shadow: var(--shadow-card-hover);
+  background: var(--card-bg-hover);
+}
+
+.panel::before {
+  content: none;
+}
+
+/* ==========================================================================
+   BADGES NUMEROTES (icone degrade devant chaque section, style app CasaOS)
+   ========================================================================== */
+.field-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.field-label::before {
+  content: attr(data-step);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.field-label[data-step="1"]::before { background: linear-gradient(135deg, #5B8DFF, #3E6BDE); }
+.field-label[data-step="2"]::before { background: linear-gradient(135deg, #9B6DFF, #7B4FE8); }
+.field-label[data-step="3"]::before { background: linear-gradient(135deg, #2ECC8F, #22B37D); }
+.field-label[data-step="4"]::before { background: linear-gradient(135deg, #FF9B54, #F0791F); }
+.field-label[data-step="5"]::before { background: linear-gradient(135deg, #FF6B9D, #E8437D); }
+
+.field-hint {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   FORMULAIRE
+   ========================================================================== */
+.field-group {
+  margin-bottom: 24px;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.text-input,
+.input-row input[type="text"] {
+  flex: 1;
+  background: var(--card-bg-soft);
+  border: 1.5px solid var(--border-soft);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  width: 100%;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.text-input:focus,
+.input-row input[type="text"]:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--card-bg);
+}
+
+.stack-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stack-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card-bg-soft);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 11px 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.stack-item:hover {
+  border-color: var(--primary);
+  transform: translateX(2px);
+}
+
+.stack-item.detected {
+  border-color: var(--accent-green);
+  background: rgba(46, 204, 143, 0.06);
+}
+
+.stack-item .stack-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* ==========================================================================
+   CHIPS (jobs / deploiement) — remplace les checkboxes brutes
+   ========================================================================== */
+.jobs-toggles {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: var(--card-bg-soft);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: 9px 16px 9px 12px;
+  transition: all 0.15s ease;
+}
+
+.toggle:hover {
+  border-color: var(--primary);
+  color: var(--text-primary);
+}
+
+.toggle:has(input:checked) {
+  background: linear-gradient(135deg, rgba(91, 141, 255, 0.12), rgba(155, 109, 255, 0.12));
+  border-color: var(--primary);
+  color: var(--primary-dark);
+}
+
+.toggle input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   BOUTONS
+   ========================================================================== */
+.btn {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  border: 1.5px solid var(--border-soft);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.btn-ghost:hover {
+  border-color: var(--primary);
+  color: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn-stamp {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  color: white;
+  border: none;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  box-shadow: 0 10px 24px -8px rgba(91, 109, 255, 0.5);
+}
+
+.btn-stamp:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px -8px rgba(91, 109, 255, 0.6);
+}
+
+.btn-stamp:active {
+  transform: translateY(0);
+}
+
+.btn-stamp:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.error-msg {
+  color: var(--accent-red);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  margin-top: 14px;
+  min-height: 16px;
+}
+
+.error-msg.visible {
+  padding: 12px 14px;
+  border: 1.5px solid rgba(255, 107, 107, 0.3);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 107, 107, 0.06);
+}
+
+/* ==========================================================================
+   SELECTEUR DE PROVIDER
+   ========================================================================== */
+.provider-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 28px;
+  background: var(--card-bg-soft);
+  padding: 5px;
+  border-radius: var(--radius-pill);
+}
+
+.provider-switch button {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+  transition: all 0.2s ease;
+}
+
+.provider-switch button.active {
+  color: white;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  box-shadow: 0 4px 12px -2px rgba(91, 109, 255, 0.4);
+}
+
+/* ==========================================================================
+   SCHEMA DE PIPELINE
+   ========================================================================== */
+.pipeline-schematic {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 76px;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.node.active {
+  opacity: 1;
+}
+
+.node-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--card-bg-soft);
+  border: 1.5px solid var(--border-soft);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.node.active .node-num {
+  border-color: transparent;
+  color: white;
+  background: linear-gradient(135deg, var(--accent-green), #22B37D);
+  box-shadow: 0 4px 12px -3px rgba(46, 204, 143, 0.5);
+}
+
+.node-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.connector {
+  flex: 1;
+  height: 2.5px;
+  min-width: 20px;
+  background: var(--border-soft);
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.connector::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
+  background-size: 60% 100%;
+  background-repeat: no-repeat;
+  background-position: -60% 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.connector.flowing::after {
+  opacity: 1;
+  animation: flow 1.8s linear infinite;
+}
+
+@keyframes flow {
+  0% { background-position: -60% 0; }
+  100% { background-position: 160% 0; }
+}
+
+/* ==========================================================================
+   RESULTAT — reste en "mode code sombre" (contraste voulu, cote terminal)
+   ========================================================================== */
+.result-box {
+  background: #1B1E2B;
+  border: 1.5px solid #2A2E42;
+  border-radius: var(--radius-md);
+  padding: 20px;
+  min-height: 280px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.result-box pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #E4E7F5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.yaml-key {
+  color: #7FB3FF;
+}
+
+.yaml-string {
+  color: #FFB577;
+}
+
+.yaml-comment {
+  color: #7A8099;
+  font-style: italic;
+}
+
+.result-placeholder {
+  color: #7A8099;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.result-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.badge-box {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.badge-box pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #E4E7F5;
+}
+
+/* ==========================================================================
+   CARTOUCHE — "dock" flottant en bas, style CasaOS
+   ========================================================================== */
+.title-block {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  background: var(--card-bg);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-dock);
+  max-width: calc(100% - 40px);
+  width: 1080px;
+  overflow: hidden;
+}
+
+.tb-cell {
+  flex: 1;
+  padding: 14px 20px;
+  border-right: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tb-cell:last-child {
+  border-right: none;
+}
+
+.tb-key {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+}
+
+.tb-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .title-block {
+    display: none;
+  }
+  .layout {
+    padding-bottom: 40px;
+  }
+}
+
+/* Accessibilite : focus visible clavier */
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+/* ==========================================================================
+   DEPLOIEMENT
+   ========================================================================== */
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--border-soft);
+  margin: 24px 0;
+}
+
+.deploy-fields {
+  background: var(--card-bg-soft);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-top: -8px;
+}
+
+.deploy-fields .text-input {
+  margin-top: 8px;
+}

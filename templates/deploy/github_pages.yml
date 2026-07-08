@@ -1,0 +1,20 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node {version}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "{version}"
+          cache: "{cache_key}"
+
+      - name: Install dependencies
+        run: {install_cmd}
+
+      - name: Build site
+        run: {build_cmd}
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: {pages_dir}

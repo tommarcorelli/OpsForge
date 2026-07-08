@@ -1,0 +1,4 @@
+    - name: Executer la commande de build
+      command: "{{ build_cmd }}"
+      args:
+        chdir: "{{ app_dir }}"

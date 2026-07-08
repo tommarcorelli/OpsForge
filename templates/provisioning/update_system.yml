@@ -1,0 +1,25 @@
+    - name: Mettre a jour le cache apt (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Mettre a jour les paquets systeme (Debian/Ubuntu)
+      apt:
+        upgrade: dist
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Mettre a jour le cache dnf (RHEL/CentOS)
+      dnf:
+        update_cache: yes
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Mettre a jour les paquets systeme (RHEL/CentOS)
+      dnf:
+        name: "*"
+        state: latest
+      become: true
+      when: ansible_os_family == "RedHat"

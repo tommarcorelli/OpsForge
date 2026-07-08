@@ -1,0 +1,5 @@
+    - name: Installer le JDK {{ runtime_version }} (Temurin)
+      package:
+        name: "temurin-{{ runtime_version }}-jdk"
+        state: present
+      become: true

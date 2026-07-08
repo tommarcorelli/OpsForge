@@ -1,0 +1,10 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP {version}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "{version}"
+
+      - name: Syntax check
+        run: find . -name "*.php" -not -path "./vendor/*" -exec php -l {} \;

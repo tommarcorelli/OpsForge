@@ -1,0 +1,20 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deployer les fichiers via rsync (SSH)
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzr --delete
+          path: ./
+          remote_path: {deploy_path}
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_user: ${{ secrets.SSH_USER }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Redemarrer le service distant
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: sudo systemctl restart {service_name}

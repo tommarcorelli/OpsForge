@@ -1,0 +1,35 @@
+    - name: Installer MariaDB (Debian/Ubuntu)
+      apt:
+        name:
+          - mariadb-server
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Installer MariaDB (RHEL/CentOS)
+      dnf:
+        name:
+          - mariadb-server
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Demarrer et activer MariaDB
+      systemd:
+        name: mariadb
+        state: started
+        enabled: yes
+      become: true
+
+    - name: Creer la base de donnees applicative
+      become: true
+      command: >
+        mysql -e "CREATE DATABASE IF NOT EXISTS {{ db_name }};"
+      changed_when: true
+
+    - name: Creer l'utilisateur applicatif et donner les droits
+      become: true
+      command: >
+        mysql -e "CREATE USER IF NOT EXISTS '{{ db_user }}'@'localhost' IDENTIFIED BY '{{ db_password }}';
+        GRANT ALL PRIVILEGES ON {{ db_name }}.* TO '{{ db_user }}'@'localhost'; FLUSH PRIVILEGES;"
+      changed_when: true

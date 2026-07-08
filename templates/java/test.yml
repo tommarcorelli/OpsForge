@@ -1,0 +1,11 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java {version}
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "{version}"
+
+      - name: Run tests
+        run: mvn test

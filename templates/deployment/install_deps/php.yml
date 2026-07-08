@@ -1,0 +1,4 @@
+    - name: Installer les dependances Composer du projet
+      command: composer install --no-interaction --no-dev --optimize-autoloader
+      args:
+        chdir: "{{ app_dir }}"

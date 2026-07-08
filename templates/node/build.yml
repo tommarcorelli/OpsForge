@@ -1,0 +1,14 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node {version}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "{version}"
+          cache: "{cache_key}"
+
+      - name: Install dependencies
+        run: {install_cmd}
+
+      - name: Build project
+        run: npm run build --if-present

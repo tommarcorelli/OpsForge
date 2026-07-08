@@ -1,0 +1,19 @@
+    - name: Installer le depot EPEL (CentOS uniquement)
+      dnf:
+        name: epel-release
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat" and ansible_distribution == "CentOS"
+
+    - name: Installer Nginx
+      package:
+        name: nginx
+        state: present
+      become: true
+
+    - name: Demarrer et activer Nginx
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+      become: true

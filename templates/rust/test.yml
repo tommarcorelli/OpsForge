@@ -1,0 +1,8 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust {version}
+        uses: dtolnay/rust-toolchain@{version}
+
+      - name: Run tests
+        run: cargo test --all-features

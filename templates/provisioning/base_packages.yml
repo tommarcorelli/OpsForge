@@ -1,0 +1,27 @@
+    - name: Installer les paquets de base (Debian/Ubuntu)
+      apt:
+        name:
+          - git
+          - curl
+          - unzip
+          - build-essential
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Installer les paquets de base (RHEL/CentOS)
+      dnf:
+        name:
+          - git
+          - curl
+          - unzip
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Installer le groupe Development Tools (RHEL/CentOS)
+      dnf:
+        name: "@Development Tools"
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"

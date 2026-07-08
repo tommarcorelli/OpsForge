@@ -1,0 +1,18 @@
+    - name: Verifier si Netdata est deja installe
+      stat:
+        path: /opt/netdata/bin/netdata
+      register: netdata_installed
+
+    - name: Installer Netdata (script officiel, detecte l'OS automatiquement)
+      shell: curl -Ss https://my-netdata.io/kickstart.sh | bash -s -- --non-interactive --stable-channel
+      become: true
+      when: not netdata_installed.stat.exists
+      args:
+        creates: /opt/netdata/bin/netdata
+
+    - name: Demarrer et activer Netdata
+      systemd:
+        name: netdata
+        state: started
+        enabled: yes
+      become: true

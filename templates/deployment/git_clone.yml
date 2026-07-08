@@ -1,0 +1,6 @@
+    - name: Cloner ou mettre a jour le depot
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ branch }}"
+        force: yes

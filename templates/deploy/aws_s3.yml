@@ -1,0 +1,24 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node {version}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "{version}"
+          cache: "{cache_key}"
+
+      - name: Install dependencies
+        run: {install_cmd}
+
+      - name: Build site
+        run: {build_cmd}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: {aws_region}
+
+      - name: Synchroniser vers S3
+        run: aws s3 sync {pages_dir} s3://{s3_bucket} --delete

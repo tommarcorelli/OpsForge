@@ -1,0 +1,28 @@
+    - name: Installer PHP {{ runtime_version }} et extensions courantes (Debian/Ubuntu)
+      apt:
+        name:
+          - "php{{ runtime_version }}"
+          - "php{{ runtime_version }}-cli"
+          - "php{{ runtime_version }}-mbstring"
+          - "php{{ runtime_version }}-xml"
+          - "php{{ runtime_version }}-curl"
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Activer le module PHP {{ runtime_version }} (RHEL/CentOS)
+      command: "dnf module enable -y php:{{ runtime_version }}"
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Installer PHP {{ runtime_version }} et extensions courantes (RHEL/CentOS)
+      dnf:
+        name:
+          - php
+          - php-cli
+          - php-mbstring
+          - php-xml
+          - php-curl
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"

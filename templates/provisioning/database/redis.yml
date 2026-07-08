@@ -1,0 +1,20 @@
+    - name: Installer Redis (Debian/Ubuntu)
+      apt:
+        name: redis-server
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Installer Redis (RHEL/CentOS)
+      dnf:
+        name: redis
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Demarrer et activer Redis
+      systemd:
+        name: "{{ 'redis-server' if ansible_os_family == 'Debian' else 'redis' }}"
+        state: started
+        enabled: yes
+      become: true

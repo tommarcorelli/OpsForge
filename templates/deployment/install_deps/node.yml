@@ -1,0 +1,4 @@
+    - name: Installer les dependances Node du projet
+      npm:
+        path: "{{ app_dir }}"
+        ci: true

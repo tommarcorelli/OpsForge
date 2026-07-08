@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Générateur de Pipeline CI/CD</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#5B8DFF" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+  <!-- Fond degrades doux -->
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+    <span id="theme-icon">🌙</span>
+  </button>
+
+  <button type="button" id="install-btn" class="install-btn" hidden>
+    📲 Installer l'app
+  </button>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — GÉNÉRATEUR DE PIPELINE CI/CD</p>
+    <h1>Construis ton pipeline<br />en quelques clics</h1>
+    <p class="subtitle">Décris ton projet, on dessine le plan. Aucun fichier n'est envoyé ailleurs qu'en local.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="provider-switch">
+        <button type="button" class="provider-btn active" data-provider="github">GitHub Actions</button>
+        <button type="button" class="provider-btn" data-provider="gitlab">GitLab CI</button>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="1" for="project-path">Chemin du projet (détection auto)</label>
+        <div class="input-row">
+          <input type="text" id="project-path" placeholder="/home/utilisateur/mon-projet" />
+          <button type="button" id="detect-btn" class="btn btn-ghost">Détecter</button>
+        </div>
+        <p class="field-hint" id="detect-hint">Laisse vide pour choisir un stack manuellement ci-dessous.</p>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="2">Stack(s) détectée(s) ou manuelle(s)</label>
+        <div class="stack-list" id="stack-list">
+          <!-- Cases générées dynamiquement en JS -->
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="3">Jobs à inclure</label>
+        <div class="jobs-toggles">
+          <label class="toggle">
+            <input type="checkbox" name="jobs" value="lint" checked />
+            <span>Lint</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="jobs" value="test" checked />
+            <span>Test</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="jobs" value="build" checked />
+            <span>Build</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="matrix-versions">Matrix build (optionnel)</label>
+        <input type="text" id="matrix-versions" class="text-input" placeholder="ex : 3.10, 3.11, 3.12" />
+        <p class="field-hint">Teste le job "Test" sur plusieurs versions à la fois. Séparées par une virgule.</p>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="4" for="branches">Branches déclenchantes</label>
+        <input type="text" id="branches" value="main" class="text-input" />
+        <p class="field-hint">Séparées par une virgule (ex : main, develop)</p>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="schedule-cron">Déclenchement planifié — cron (optionnel)</label>
+        <input type="text" id="schedule-cron" class="text-input" placeholder="ex : 0 3 * * * (tous les jours à 3h)" />
+        <p class="field-hint" id="cron-hint">Format cron standard. Sur GitLab, une note d'instructions sera ajoutée (à configurer via l'UI).</p>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" data-step="5">Déploiement (optionnel)</label>
+        <div class="jobs-toggles" style="margin-bottom: 14px;">
+          <label class="toggle">
+            <input type="checkbox" name="deploy" value="github_pages" id="deploy-pages-checkbox" />
+            <span id="deploy-pages-label">GitHub Pages</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deploy" value="docker_hub" />
+            <span>Docker Hub</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deploy" value="ssh" />
+            <span>Serveur SSH</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deploy" value="vercel" />
+            <span>Vercel</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deploy" value="aws_s3" />
+            <span>AWS S3</span>
+          </label>
+        </div>
+        <p class="field-hint" id="pages-hint">GitHub Pages et AWS S3 nécessitent une stack Node dans ta sélection ci-dessus.</p>
+      </div>
+
+      <div class="field-group deploy-fields" id="fields-github_pages" hidden>
+        <label class="field-label" for="pages-dir">Dossier du build statique (GitHub Pages)</label>
+        <input type="text" id="pages-dir" class="text-input" value="dist" />
+        <label class="field-label" for="pages-build-cmd" style="margin-top: 12px;">Commande de build</label>
+        <input type="text" id="pages-build-cmd" class="text-input" value="npm run build" />
+      </div>
+
+      <div class="field-group deploy-fields" id="fields-docker_hub" hidden>
+        <label class="field-label" for="docker-image">Nom de l'image Docker Hub</label>
+        <input type="text" id="docker-image" class="text-input" placeholder="monusername/monapp" />
+        <p class="field-hint" id="docker-hint">Nécessite les secrets GitHub : DOCKERHUB_USERNAME, DOCKERHUB_TOKEN</p>
+      </div>
+
+      <div class="field-group deploy-fields" id="fields-ssh" hidden>
+        <label class="field-label" for="deploy-path">Chemin de déploiement sur le serveur</label>
+        <input type="text" id="deploy-path" class="text-input" placeholder="/var/www/monapp" />
+        <label class="field-label" for="service-name" style="margin-top: 12px;">Nom du service systemd</label>
+        <input type="text" id="service-name" class="text-input" placeholder="monapp" />
+        <p class="field-hint" id="ssh-hint">Nécessite les secrets GitHub : SSH_HOST, SSH_USER, SSH_PRIVATE_KEY</p>
+      </div>
+
+      <div class="field-group deploy-fields" id="fields-vercel" hidden>
+        <p class="field-hint" id="vercel-hint">Nécessite les secrets GitHub : VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID</p>
+      </div>
+
+      <div class="field-group deploy-fields" id="fields-aws_s3" hidden>
+        <label class="field-label" for="s3-bucket">Nom du bucket S3</label>
+        <input type="text" id="s3-bucket" class="text-input" placeholder="mon-bucket-s3" />
+        <label class="field-label" for="aws-region" style="margin-top: 12px;">Région AWS</label>
+        <input type="text" id="aws-region" class="text-input" value="us-east-1" />
+        <p class="field-hint" id="s3-hint">Nécessite les secrets GitHub : AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY</p>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" for="badge-repo">Badge de statut pour ton README (optionnel)</label>
+        <input type="text" id="badge-repo" class="text-input" placeholder="monuser/monrepo" />
+        <p class="field-hint">Génère un snippet Markdown à coller dans ton README, en plus du pipeline.</p>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top: 0;">
+          GÉNÉRER →
+        </button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink: 0;">
+          ↺
+        </button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE SCHEMA + RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node" data-job="checkout">
+          <span class="node-num">00</span>
+          <span class="node-label">CHECKOUT</span>
+        </div>
+        <div class="connector"></div>
+        <div class="node" data-job="lint">
+          <span class="node-num">01</span>
+          <span class="node-label">LINT</span>
+        </div>
+        <div class="connector"></div>
+        <div class="node" data-job="test">
+          <span class="node-num">02</span>
+          <span class="node-label">TEST</span>
+        </div>
+        <div class="connector"></div>
+        <div class="node" data-job="build">
+          <span class="node-num">03</span>
+          <span class="node-label">BUILD</span>
+        </div>
+        <div class="connector"></div>
+        <div class="node" data-job="deploy">
+          <span class="node-num">04</span>
+          <span class="node-label">DEPLOY</span>
+        </div>
+      </div>
+
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le fichier généré apparaîtra ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+      <div class="badge-box" id="badge-box" hidden>
+        <label class="field-label" style="margin-bottom: 8px;">Badge pour ton README</label>
+        <div class="result-box" id="badge-result-box" style="min-height: auto; max-height: none; padding: 12px 16px;">
+          <pre id="badge-text" style="font-size: 11.5px;"></pre>
+        </div>
+        <button type="button" id="copy-badge-btn" class="btn btn-ghost" style="margin-top: 8px;">Copier le badge</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============ DOCK FLOTTANT (statut) ============ -->
+  <footer class="title-block" id="title-block">
+    <div class="tb-cell"><span class="tb-key">PROJET</span><span class="tb-value" id="tb-project">—</span></div>
+    <div class="tb-cell"><span class="tb-key">STACK(S)</span><span class="tb-value" id="tb-stacks">—</span></div>
+    <div class="tb-cell"><span class="tb-key">JOBS</span><span class="tb-value" id="tb-jobs">—</span></div>
+    <div class="tb-cell"><span class="tb-key">RÉV.</span><span class="tb-value">A</span></div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

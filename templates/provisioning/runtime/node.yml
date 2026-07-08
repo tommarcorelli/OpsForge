@@ -1,0 +1,23 @@
+    - name: Ajouter le depot NodeSource (Debian/Ubuntu, Node {{ runtime_version }})
+      shell: curl -fsSL https://deb.nodesource.com/setup_{{ runtime_version }}.x | bash -
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Installer Node.js (Debian/Ubuntu)
+      apt:
+        name: nodejs
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Ajouter le depot NodeSource (RHEL/CentOS, Node {{ runtime_version }})
+      shell: curl -fsSL https://rpm.nodesource.com/setup_{{ runtime_version }}.x | bash -
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Installer Node.js (RHEL/CentOS)
+      dnf:
+        name: nodejs
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"
