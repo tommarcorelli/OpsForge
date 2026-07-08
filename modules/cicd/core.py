@@ -52,6 +52,9 @@ INSTALL_COMMANDS = {
     "php": {
         "composer": "composer install --no-interaction",
     },
+    "ruby": {
+        "bundler": "bundle install",
+    },
 }
 
 # Valeurs par defaut si aucune version n'est detectee automatiquement
@@ -62,6 +65,7 @@ DEFAULT_VERSIONS = {
     "rust": "stable",
     "java": "17",
     "php": "8.3",
+    "ruby": "3.3",
 }
 
 # Jobs disponibles par langage
@@ -72,6 +76,7 @@ AVAILABLE_JOBS = {
     "rust": ["lint", "test", "build"],
     "java": ["lint", "test", "build"],
     "php": ["lint", "test", "build"],
+    "ruby": ["lint", "test", "build"],
 }
 
 # Nom de la cle utilisee dans 'strategy.matrix' pour chaque langage
@@ -83,6 +88,7 @@ MATRIX_KEYS = {
     "rust": "rust-version",
     "java": "java-version",
     "php": "php-version",
+    "ruby": "ruby-version",
 }
 
 # --------------------------------------------------------------------------

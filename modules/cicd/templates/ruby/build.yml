@@ -1,0 +1,15 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby {version}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "{version}"
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: {install_cmd}
+
+      - name: Build gem
+        run: |
+          gem build *.gemspec

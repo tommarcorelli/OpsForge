@@ -36,6 +36,18 @@ def test_permissions_elargies_pour_github_pages():
     assert parsed["permissions"]["contents"] == "write"
 
 
+def test_ruby_genere_un_job_valide():
+    stacks = [{"language": "ruby", "version": "3.3", "package_manager": "bundler"}]
+    parsed = _parse(generate_workflow(stacks, jobs=["lint", "test", "build"]))
+    assert "lint-ruby" in parsed["jobs"]
+    assert "test-ruby" in parsed["jobs"]
+    assert "build-ruby" in parsed["jobs"]
+    # utilise bien l'action officielle ruby/setup-ruby
+    yaml_text = generate_workflow(stacks, jobs=["test"])
+    assert "ruby/setup-ruby@v1" in yaml_text
+    assert 'ruby-version: "3.3"' in yaml_text
+
+
 def test_basic_single_stack_generates_valid_yaml():
     stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
     yaml_text = generate_workflow(stacks, jobs=["lint", "test", "build"])

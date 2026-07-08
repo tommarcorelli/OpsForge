@@ -65,6 +65,12 @@ SIGNATURES = {
             "composer.json": "composer",
         },
     },
+    "ruby": {
+        "files": ["Gemfile", "*.gemspec"],
+        "package_managers": {
+            "Gemfile": "bundler",
+        },
+    },
 }
 
 
@@ -240,6 +246,30 @@ def _detect_php_version(project_path):
     return "8.3"  # valeur par defaut
 
 
+def _detect_ruby_version(project_path):
+    """
+    Essaie de deduire la version de Ruby :
+    1. fichier .ruby-version
+    2. directive 'ruby "x.y"' dans le Gemfile
+    3. valeur par defaut
+    """
+    version_file = os.path.join(project_path, ".ruby-version")
+    if os.path.isfile(version_file):
+        with open(version_file, "r", encoding="utf-8") as f:
+            match = re.search(r"\d+\.\d+", f.read())
+            if match:
+                return match.group(0)
+
+    gemfile = os.path.join(project_path, "Gemfile")
+    if os.path.isfile(gemfile):
+        with open(gemfile, "r", encoding="utf-8") as f:
+            match = re.search(r"ruby\s+['\"](\d+\.\d+)", f.read())
+            if match:
+                return match.group(1)
+
+    return "3.3"  # valeur par defaut
+
+
 def _find_package_manager(project_path, managers_map, default_file):
     """
     Parcourt les fichiers presents dans le dossier pour determiner
@@ -306,6 +336,8 @@ def detect_stack(project_path):
             version = _detect_java_version(project_path)
         elif language == "php":
             version = _detect_php_version(project_path)
+        elif language == "ruby":
+            version = _detect_ruby_version(project_path)
         else:
             version = None
 

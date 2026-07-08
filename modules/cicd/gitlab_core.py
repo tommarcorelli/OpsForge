@@ -32,6 +32,7 @@ LANG_IMAGES = {
     "rust": "rust:{version}",
     "java": "eclipse-temurin:{version}-jdk",
     "php": "php:{version}-cli",
+    "ruby": "ruby:{version}",
 }
 
 DEFAULT_VERSIONS = {
@@ -41,6 +42,7 @@ DEFAULT_VERSIONS = {
     "rust": "1.75",
     "java": "17",
     "php": "8.3",
+    "ruby": "3.3",
 }
 
 INSTALL_COMMANDS = {
@@ -61,6 +63,7 @@ INSTALL_COMMANDS = {
         "gradle": "./gradlew build -x test",
     },
     "php": {"composer": "composer install --no-interaction"},
+    "ruby": {"bundler": "bundle install"},
 }
 
 # --------------------------------------------------------------------------
@@ -76,6 +79,7 @@ LINT_COMMANDS = {
     "rust": ["rustup component add clippy", "cargo clippy --all-targets --all-features -- -D warnings"],
     "java": ["echo 'Lint minimal : ajoute checkstyle ou spotbugs a ton pom.xml/build.gradle pour aller plus loin'"],
     "php": ["find . -name '*.php' -not -path './vendor/*' -exec php -l {} \\;"],
+    "ruby": ["gem install rubocop", "rubocop"],
 }
 
 TEST_COMMANDS = {
@@ -85,6 +89,7 @@ TEST_COMMANDS = {
     "rust": ["cargo test --all-features"],
     "java": ["mvn test"],
     "php": ["vendor/bin/phpunit"],
+    "ruby": ["bundle exec rspec || bundle exec rake test"],
 }
 
 BUILD_COMMANDS = {
@@ -94,6 +99,7 @@ BUILD_COMMANDS = {
     "rust": ["cargo build --release"],
     "java": ["mvn package -DskipTests"],
     "php": ["composer install --no-interaction --no-dev --optimize-autoloader"],
+    "ruby": ["gem build *.gemspec"],
 }
 
 COMMANDS_BY_JOB = {"lint": LINT_COMMANDS, "test": TEST_COMMANDS, "build": BUILD_COMMANDS}
@@ -108,6 +114,7 @@ MATRIX_VAR_NAMES = {
     "rust": "RUST_VERSION",
     "java": "JAVA_VERSION",
     "php": "PHP_VERSION",
+    "ruby": "RUBY_VERSION",
 }
 
 # --------------------------------------------------------------------------
