@@ -21,7 +21,7 @@ from modules.cicd.gitlab_core import (
 
 bp = Blueprint("cicd", __name__, url_prefix="/cicd")
 
-SUPPORTED_LANGUAGES = ["python", "node", "go", "rust", "java", "php", "ruby"]
+SUPPORTED_LANGUAGES = ["python", "node", "go", "rust", "java", "php", "ruby", "dotnet"]
 
 
 @bp.route("/")

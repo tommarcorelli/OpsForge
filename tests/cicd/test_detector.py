@@ -23,6 +23,25 @@ def test_invalid_path_raises_value_error():
         detect_stack("/chemin/qui/nexiste/vraiment/pas")
 
 
+def test_detect_ruby_gemfile(tmp_path):
+    (tmp_path / "Gemfile").write_text('ruby "3.2.1"\ngem "rails"\n')
+    result = detect_stack(str(tmp_path))
+    ruby = [s for s in result if s["language"] == "ruby"]
+    assert ruby and ruby[0]["package_manager"] == "bundler"
+    assert ruby[0]["version"] == "3.2"
+
+
+def test_detect_dotnet_csproj_glob(tmp_path):
+    # Detection par glob : un fichier *.csproj (nom arbitraire)
+    (tmp_path / "MonApp.csproj").write_text(
+        "<Project><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>"
+    )
+    result = detect_stack(str(tmp_path))
+    dn = [s for s in result if s["language"] == "dotnet"]
+    assert dn and dn[0]["package_manager"] == "dotnet"
+    assert dn[0]["version"] == "8.0"
+
+
 def test_detect_python_pip(tmp_path):
     (tmp_path / "requirements.txt").write_text("flask==3.0\n")
     result = detect_stack(str(tmp_path))

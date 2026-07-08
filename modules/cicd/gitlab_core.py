@@ -33,6 +33,7 @@ LANG_IMAGES = {
     "java": "eclipse-temurin:{version}-jdk",
     "php": "php:{version}-cli",
     "ruby": "ruby:{version}",
+    "dotnet": "mcr.microsoft.com/dotnet/sdk:{version}",
 }
 
 DEFAULT_VERSIONS = {
@@ -43,6 +44,7 @@ DEFAULT_VERSIONS = {
     "java": "17",
     "php": "8.3",
     "ruby": "3.3",
+    "dotnet": "8.0",
 }
 
 INSTALL_COMMANDS = {
@@ -64,6 +66,7 @@ INSTALL_COMMANDS = {
     },
     "php": {"composer": "composer install --no-interaction"},
     "ruby": {"bundler": "bundle install"},
+    "dotnet": {"dotnet": "dotnet restore"},
 }
 
 # --------------------------------------------------------------------------
@@ -80,6 +83,7 @@ LINT_COMMANDS = {
     "java": ["echo 'Lint minimal : ajoute checkstyle ou spotbugs a ton pom.xml/build.gradle pour aller plus loin'"],
     "php": ["find . -name '*.php' -not -path './vendor/*' -exec php -l {} \\;"],
     "ruby": ["gem install rubocop", "rubocop"],
+    "dotnet": ["dotnet format --verify-no-changes"],
 }
 
 TEST_COMMANDS = {
@@ -90,6 +94,7 @@ TEST_COMMANDS = {
     "java": ["mvn test"],
     "php": ["vendor/bin/phpunit"],
     "ruby": ["bundle exec rspec || bundle exec rake test"],
+    "dotnet": ["dotnet test --verbosity normal"],
 }
 
 BUILD_COMMANDS = {
@@ -100,6 +105,7 @@ BUILD_COMMANDS = {
     "java": ["mvn package -DskipTests"],
     "php": ["composer install --no-interaction --no-dev --optimize-autoloader"],
     "ruby": ["gem build *.gemspec"],
+    "dotnet": ["dotnet build --configuration Release"],
 }
 
 COMMANDS_BY_JOB = {"lint": LINT_COMMANDS, "test": TEST_COMMANDS, "build": BUILD_COMMANDS}
@@ -115,6 +121,7 @@ MATRIX_VAR_NAMES = {
     "java": "JAVA_VERSION",
     "php": "PHP_VERSION",
     "ruby": "RUBY_VERSION",
+    "dotnet": "DOTNET_VERSION",
 }
 
 # --------------------------------------------------------------------------

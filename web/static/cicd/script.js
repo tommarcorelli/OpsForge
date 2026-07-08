@@ -3,7 +3,7 @@
 // Logique cote client : detection, selection manuelle, generation, actions.
 // ============================================================================
 
-const SUPPORTED_LANGUAGES = ["python", "node", "go", "rust", "java", "php", "ruby"];
+const SUPPORTED_LANGUAGES = ["python", "node", "go", "rust", "java", "php", "ruby", "dotnet"];
 
 const state = {
   detectedStacks: null,   // resultat de /api/detect, ou null si pas encore lance

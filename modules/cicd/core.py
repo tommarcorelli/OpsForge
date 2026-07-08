@@ -55,6 +55,9 @@ INSTALL_COMMANDS = {
     "ruby": {
         "bundler": "bundle install",
     },
+    "dotnet": {
+        "dotnet": "dotnet restore",
+    },
 }
 
 # Valeurs par defaut si aucune version n'est detectee automatiquement
@@ -66,6 +69,7 @@ DEFAULT_VERSIONS = {
     "java": "17",
     "php": "8.3",
     "ruby": "3.3",
+    "dotnet": "8.0",
 }
 
 # Jobs disponibles par langage
@@ -77,6 +81,7 @@ AVAILABLE_JOBS = {
     "java": ["lint", "test", "build"],
     "php": ["lint", "test", "build"],
     "ruby": ["lint", "test", "build"],
+    "dotnet": ["lint", "test", "build"],
 }
 
 # Nom de la cle utilisee dans 'strategy.matrix' pour chaque langage
@@ -89,6 +94,7 @@ MATRIX_KEYS = {
     "java": "java-version",
     "php": "php-version",
     "ruby": "ruby-version",
+    "dotnet": "dotnet-version",
 }
 
 # --------------------------------------------------------------------------

@@ -1,0 +1,13 @@
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up .NET {version}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "{version}.x"
+
+      - name: Restore dependencies
+        run: {install_cmd}
+
+      - name: Run lint (dotnet format)
+        run: dotnet format --verify-no-changes

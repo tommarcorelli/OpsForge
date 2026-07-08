@@ -164,7 +164,7 @@ Chaque module est un **blueprint Flask** monté sous son préfixe (`/cicd`,
 
 ## Module CI/CD — détails
 
-Langages supportés : **Python, Node.js, Go, Rust, Java, PHP** (jobs lint / test
+Langages supportés : **Python, Node.js, Go, Rust, Java, PHP, Ruby, .NET** (jobs lint / test
 / build, avec détection du package manager et de la version). Cibles de
 déploiement : **GitHub Pages, Docker Hub, SSH, Vercel, AWS S3** (GitHub) et
 **GitLab Pages, Docker Hub, SSH** (GitLab). Fonctions avancées : matrix builds

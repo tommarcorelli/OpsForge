@@ -48,6 +48,16 @@ def test_ruby_genere_un_job_valide():
     assert 'ruby-version: "3.3"' in yaml_text
 
 
+def test_dotnet_genere_un_job_valide():
+    stacks = [{"language": "dotnet", "version": "8.0", "package_manager": "dotnet"}]
+    parsed = _parse(generate_workflow(stacks, jobs=["test", "build"]))
+    assert "test-dotnet" in parsed["jobs"]
+    assert "build-dotnet" in parsed["jobs"]
+    yaml_text = generate_workflow(stacks, jobs=["build"])
+    assert "actions/setup-dotnet@v4" in yaml_text
+    assert 'dotnet-version: "8.0.x"' in yaml_text
+
+
 def test_basic_single_stack_generates_valid_yaml():
     stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
     yaml_text = generate_workflow(stacks, jobs=["lint", "test", "build"])

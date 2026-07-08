@@ -12,6 +12,7 @@ Usage basique :
 """
 
 import os
+import glob
 import json
 import re
 
@@ -69,6 +70,14 @@ SIGNATURES = {
         "files": ["Gemfile", "*.gemspec"],
         "package_managers": {
             "Gemfile": "bundler",
+        },
+    },
+    "dotnet": {
+        "files": ["*.sln", "*.csproj", "*.fsproj"],
+        "package_managers": {
+            "*.sln": "dotnet",
+            "*.csproj": "dotnet",
+            "*.fsproj": "dotnet",
         },
     },
 }
@@ -270,6 +279,29 @@ def _detect_ruby_version(project_path):
     return "3.3"  # valeur par defaut
 
 
+def _detect_dotnet_version(project_path):
+    """
+    Essaie de deduire la version du SDK .NET :
+    1. champ 'sdk.version' dans global.json
+    2. TargetFramework (netX.Y) dans le premier .csproj/.fsproj
+    3. valeur par defaut
+    """
+    global_json = _read_json_safe(os.path.join(project_path, "global.json"))
+    sdk_version = global_json.get("sdk", {}).get("version", "")
+    if sdk_version:
+        match = re.search(r"\d+\.\d+", sdk_version)
+        if match:
+            return match.group(0)
+
+    for proj in glob.glob(os.path.join(project_path, "*.csproj")) + glob.glob(os.path.join(project_path, "*.fsproj")):
+        with open(proj, "r", encoding="utf-8") as f:
+            match = re.search(r"<TargetFramework>net(\d+\.\d+)", f.read())
+            if match:
+                return match.group(1)
+
+    return "8.0"  # LTS actuelle
+
+
 def _find_package_manager(project_path, managers_map, default_file):
     """
     Parcourt les fichiers presents dans le dossier pour determiner
@@ -312,7 +344,11 @@ def detect_stack(project_path):
         found_file = None
 
         for filename in signature_files:
-            if os.path.isfile(os.path.join(project_path, filename)):
+            target = os.path.join(project_path, filename)
+            matched = glob.glob(target) if "*" in filename else (
+                [target] if os.path.isfile(target) else []
+            )
+            if matched:
                 found_file = filename
                 break
 
@@ -338,6 +374,8 @@ def detect_stack(project_path):
             version = _detect_php_version(project_path)
         elif language == "ruby":
             version = _detect_ruby_version(project_path)
+        elif language == "dotnet":
+            version = _detect_dotnet_version(project_path)
         else:
             version = None
 
