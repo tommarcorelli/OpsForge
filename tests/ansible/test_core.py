@@ -47,6 +47,22 @@ def _base_config(lang="python", **overrides):
     return config
 
 
+def test_nouvelles_etapes_provisioning():
+    """timezone / swap / unattended_upgrades genèrent bien leurs taches + variables."""
+    config = _base_config(
+        provisioning=["update_system", "base_packages", "timezone", "swap", "unattended_upgrades"],
+        server_timezone="Europe/Paris",
+        swap_size="4G",
+    )
+    playbook = generate_playbook(config)
+    data = yaml.safe_load(playbook)  # doit rester un YAML valide
+    assert isinstance(data, list)
+    assert 'Étape : timezone' in playbook
+    assert "server_timezone" in playbook and "Europe/Paris" in playbook
+    assert "/swapfile" in playbook and "4G" in playbook
+    assert "unattended-upgrades" in playbook
+
+
 # ------------------------------------------------------------------------
 # generate_playbook (mode "flat")
 # ------------------------------------------------------------------------

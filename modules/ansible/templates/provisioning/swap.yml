@@ -1,0 +1,38 @@
+- name: Verifier si le fichier de swap existe deja
+  stat:
+    path: /swapfile
+  register: swapfile_stat
+  become: true
+
+- name: Creer le fichier de swap ({{ swap_size }})
+  command: "fallocate -l {{ swap_size }} /swapfile"
+  when: not swapfile_stat.stat.exists
+  become: true
+  changed_when: true
+
+- name: Securiser les permissions du fichier de swap
+  file:
+    path: /swapfile
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+
+- name: Formater le fichier de swap
+  command: mkswap /swapfile
+  when: not swapfile_stat.stat.exists
+  become: true
+  changed_when: true
+
+- name: Activer le swap
+  command: swapon /swapfile
+  when: not swapfile_stat.stat.exists
+  become: true
+  changed_when: true
+
+- name: Rendre le swap permanent (fstab)
+  lineinfile:
+    path: /etc/fstab
+    line: "/swapfile none swap sw 0 0"
+    state: present
+  become: true

@@ -1,0 +1,33 @@
+- name: Installer unattended-upgrades (Debian/Ubuntu)
+  apt:
+    name:
+      - unattended-upgrades
+      - apt-listchanges
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Activer les mises a jour automatiques (Debian/Ubuntu)
+  copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    mode: "0644"
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Installer et activer dnf-automatic (RHEL/CentOS)
+  block:
+    - name: Installer dnf-automatic
+      dnf:
+        name: dnf-automatic
+        state: present
+    - name: Activer le timer dnf-automatic
+      systemd:
+        name: dnf-automatic.timer
+        enabled: true
+        state: started
+  become: true
+  when: ansible_os_family == "RedHat"

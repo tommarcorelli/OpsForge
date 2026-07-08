@@ -67,7 +67,7 @@ def build_parser():
     parser.add_argument(
         "--provisioning",
         nargs="+",
-        choices=["update_system", "base_packages", "docker", "nginx", "https", "database", "firewall", "ssh_hardening", "fail2ban", "monitoring", "runtime"],
+        choices=["update_system", "base_packages", "timezone", "swap", "unattended_upgrades", "docker", "nginx", "https", "database", "firewall", "ssh_hardening", "fail2ban", "monitoring", "runtime"],
         default=["update_system", "base_packages", "runtime"],
         help="Etapes de provisioning a inclure",
     )

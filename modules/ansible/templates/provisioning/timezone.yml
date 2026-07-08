@@ -1,0 +1,4 @@
+- name: Definir le fuseau horaire du serveur
+  timezone:
+    name: "{{ server_timezone }}"
+  become: true

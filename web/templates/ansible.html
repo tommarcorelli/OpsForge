@@ -43,41 +43,47 @@
       <div class="connector"></div>
       <div class="node" data-step="base_packages"><span class="node-num">2</span><span class="node-label">Paquets base</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="firewall"><span class="node-num">3</span><span class="node-label">Firewall</span></div>
+      <div class="node" data-step="timezone"><span class="node-num">3</span><span class="node-label">Fuseau horaire</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="ssh_hardening"><span class="node-num">4</span><span class="node-label">SSH hardening</span></div>
+      <div class="node" data-step="swap"><span class="node-num">4</span><span class="node-label">Swap</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="fail2ban"><span class="node-num">5</span><span class="node-label">Fail2ban</span></div>
+      <div class="node" data-step="unattended_upgrades"><span class="node-num">5</span><span class="node-label">MAJ auto</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="monitoring"><span class="node-num">6</span><span class="node-label">Monitoring</span></div>
+      <div class="node" data-step="firewall"><span class="node-num">6</span><span class="node-label">Firewall</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="docker"><span class="node-num">7</span><span class="node-label">Docker</span></div>
+      <div class="node" data-step="ssh_hardening"><span class="node-num">7</span><span class="node-label">SSH hardening</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="nginx"><span class="node-num">8</span><span class="node-label">Nginx</span></div>
+      <div class="node" data-step="fail2ban"><span class="node-num">8</span><span class="node-label">Fail2ban</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="https"><span class="node-num">9</span><span class="node-label">HTTPS</span></div>
+      <div class="node" data-step="monitoring"><span class="node-num">9</span><span class="node-label">Monitoring</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="database"><span class="node-num">10</span><span class="node-label">Database</span></div>
+      <div class="node" data-step="docker"><span class="node-num">10</span><span class="node-label">Docker</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="runtime"><span class="node-num">11</span><span class="node-label">Runtime</span></div>
+      <div class="node" data-step="nginx"><span class="node-num">11</span><span class="node-label">Nginx</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="https"><span class="node-num">12</span><span class="node-label">HTTPS</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="database"><span class="node-num">13</span><span class="node-label">Database</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="runtime"><span class="node-num">14</span><span class="node-label">Runtime</span></div>
       <div class="connector connector-phase"></div>
-      <div class="node" data-step="backup_previous"><span class="node-num">12</span><span class="node-label">Backup</span></div>
+      <div class="node" data-step="backup_previous"><span class="node-num">15</span><span class="node-label">Backup</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="git_clone"><span class="node-num">13</span><span class="node-label">Git clone</span></div>
+      <div class="node" data-step="git_clone"><span class="node-num">16</span><span class="node-label">Git clone</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="zero_downtime_deploy"><span class="node-num">14</span><span class="node-label">Zero-downtime</span></div>
+      <div class="node" data-step="zero_downtime_deploy"><span class="node-num">17</span><span class="node-label">Zero-downtime</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="install_deps"><span class="node-num">15</span><span class="node-label">Dépendances</span></div>
+      <div class="node" data-step="install_deps"><span class="node-num">18</span><span class="node-label">Dépendances</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="build"><span class="node-num">16</span><span class="node-label">Build</span></div>
+      <div class="node" data-step="build"><span class="node-num">19</span><span class="node-label">Build</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="restart_service"><span class="node-num">17</span><span class="node-label">Restart</span></div>
+      <div class="node" data-step="restart_service"><span class="node-num">20</span><span class="node-label">Restart</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="reload_nginx"><span class="node-num">18</span><span class="node-label">Reload Nginx</span></div>
+      <div class="node" data-step="reload_nginx"><span class="node-num">21</span><span class="node-label">Reload Nginx</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="health_check"><span class="node-num">19</span><span class="node-label">Health check</span></div>
+      <div class="node" data-step="health_check"><span class="node-num">22</span><span class="node-label">Health check</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="notify"><span class="node-num">20</span><span class="node-label">Notify</span></div>
+      <div class="node" data-step="notify"><span class="node-num">23</span><span class="node-label">Notify</span></div>
       <div class="connector connector-phase"></div>
       <div class="node node-target active" id="node-target"><span class="node-num">▣</span><span class="node-label" id="node-target-label">non défini</span></div>
 
@@ -138,6 +144,18 @@
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="base_packages" checked />
             <span>Installer les paquets de base (git, curl, build-essential)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="timezone" />
+            <span>Définir le fuseau horaire (Europe/Paris par défaut)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="swap" />
+            <span>Créer un fichier de swap (2 Go par défaut)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="unattended_upgrades" />
+            <span>Activer les mises à jour de sécurité automatiques</span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="firewall" />

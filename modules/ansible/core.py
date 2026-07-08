@@ -42,6 +42,9 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 PROVISIONING_STEPS = [
     "update_system",
     "base_packages",
+    "timezone",
+    "swap",
+    "unattended_upgrades",
     "firewall",
     "ssh_hardening",
     "fail2ban",
@@ -93,6 +96,9 @@ DEFAULTS = {
 ROLE_DESCRIPTIONS = {
     "update_system": "Met a jour le systeme (apt/dnf update + upgrade).",
     "base_packages": "Installe les paquets de base (git, curl, unzip, outils de compilation).",
+    "timezone": "Definit le fuseau horaire du serveur.",
+    "swap": "Cree et active un fichier de swap (memoire virtuelle sur disque).",
+    "unattended_upgrades": "Active les mises a jour de securite automatiques (unattended-upgrades / dnf-automatic).",
     "docker": "Installe Docker Engine et Docker Compose.",
     "nginx": "Installe et demarre Nginx.",
     "runtime": "Installe le runtime applicatif choisi (langage de l'appli).",
@@ -272,6 +278,8 @@ def _build_vars(config):
         "repo_url": config.get("repo_url") or "",
         "build_cmd": config.get("build_cmd") or "echo 'Aucune commande de build definie'",
         "runtime_version": config.get("runtime_version") or default_version,
+        "server_timezone": config.get("server_timezone") or "Europe/Paris",
+        "swap_size": config.get("swap_size") or "2G",
         "health_check_port": config.get("health_check_port") or "80",
         "domain_name": config.get("domain_name") or "example.com",
         "letsencrypt_email": config.get("letsencrypt_email") or "admin@example.com",
