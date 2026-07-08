@@ -180,10 +180,12 @@ généré est validé avec `pyyaml` avant d'être renvoyé.
 
 ## Module Ansible — détails
 
-- **Provisioning** : `update_system`, `base_packages`, `docker`, `nginx`,
-  `https` (Let's Encrypt), `database` (PostgreSQL/MySQL/Redis), `firewall`
-  (UFW/firewalld), `ssh_hardening`, `fail2ban`, `monitoring` (Netdata),
-  `runtime` (installe le runtime du langage choisi).
+- **Provisioning** : `update_system`, `base_packages`, `timezone`, `swap`,
+  `unattended_upgrades` (MAJ sécurité auto), `users` (utilisateur de déploiement
+  + sudo + clé SSH), `docker`, `nginx`, `https` (Let's Encrypt), `database`
+  (PostgreSQL/MySQL/Redis), `firewall` (UFW/firewalld), `ssh_hardening`,
+  `fail2ban`, `monitoring` (Netdata), `runtime` (installe le runtime du langage
+  choisi).
 - **Déploiement** : `git_clone`, `install_deps`, `build`, `restart_service`,
   `reload_nginx`, `health_check`, `backup_previous`, `zero_downtime_deploy`,
   `notify` (webhook Slack/Discord).
