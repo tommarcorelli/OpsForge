@@ -275,7 +275,7 @@ def construire_sections(config):
     entete.append("# vi: set ft=ruby :")
     entete.append("#")
     entete.append("# " + "=" * 66)
-    entete.append(f"#  Vagrantfile généré par VagrantForge — {date.today().isoformat()}")
+    entete.append(f"#  Vagrantfile généré par OpsForge (module Vagrant) — {date.today().isoformat()}")
     entete.append(f"#  {len(vms)} VM(s) | {total_ram} Mo RAM | {total_cpu} vCPU | provider : {provider_global}")
     entete.append("#  Démarrage : vagrant up   |   État : vagrant status")
     entete.append("# " + "=" * 66)
