@@ -1,12 +1,14 @@
 """
 app.py
 ------
-OpsForge — application web locale (Flask) reunissant deux modules :
+OpsForge — application web locale (Flask) reunissant plusieurs modules :
 
-  - CI/CD  (/cicd)    : generation de pipelines GitHub Actions / GitLab CI
-  - Ansible (/ansible): generation de playbooks de provisioning + deploiement
+  - CI/CD     (/cicd)      : pipelines GitHub Actions / GitLab CI
+  - Ansible   (/ansible)   : playbooks de provisioning + deploiement
+  - Vagrant   (/vagrant)   : Vagrantfile multi-VM (portage de VagrantForge)
+  - Terraform (/terraform) : main.tf (v0, a enrichir)
 
-La page d'accueil (/) est un hub qui renvoie vers les deux modules.
+La page d'accueil (/) est un hub qui renvoie vers les modules.
 Tout tourne 100% en local, rien n'est envoye sur un serveur externe.
 
 Lancement :
@@ -21,11 +23,15 @@ from flask import Flask, render_template, send_from_directory
 
 from modules.cicd.routes import bp as cicd_bp
 from modules.ansible.routes import bp as ansible_bp
+from modules.vagrant.routes import bp as vagrant_bp
+from modules.terraform.routes import bp as terraform_bp
 
 app = Flask(__name__, template_folder="web/templates", static_folder="web/static")
 
 app.register_blueprint(cicd_bp)
 app.register_blueprint(ansible_bp)
+app.register_blueprint(vagrant_bp)
+app.register_blueprint(terraform_bp)
 
 
 @app.route("/")

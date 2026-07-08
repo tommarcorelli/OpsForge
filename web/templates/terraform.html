@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Terraform</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#7c4dff" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='terraform/style.css') }}" />
+</head>
+<body>
+  <a class="back" href="{{ url_for('hub') }}">← Hub OpsForge</a>
+
+  <header class="page-header">
+    <p class="eyebrow">OPSFORGE · MODULE TERRAFORM <span class="v0">v0</span></p>
+    <h1>Génère ton <code>main.tf</code></h1>
+    <p class="subtitle">Choisis un provider, décris tes ressources, récupère un fichier Terraform prêt à l'emploi. Module de base — à enrichir (presets, validation par provider, variables/outputs).</p>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <div class="field">
+        <label for="provider">Provider</label>
+        <select id="provider">
+          {% for p in providers %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="provider-config">Configuration du provider (JSON)</label>
+        <textarea id="provider-config" rows="3" spellcheck="false">{
+  "region": "eu-west-1"
+}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="resources">Ressources (JSON)</label>
+        <textarea id="resources" rows="12" spellcheck="false">[
+  {
+    "type": "aws_instance",
+    "name": "web",
+    "args": {
+      "ami": "ami-0abcd1234",
+      "instance_type": "t3.micro",
+      "tags": { "Name": "serveur-web" }
+    }
+  }
+]</textarea>
+        <p class="hint">Astuce : une valeur commençant par <code>=</code> est écrite sans guillemets (ex. <code>"=var.region"</code> → référence Terraform).</p>
+      </div>
+
+      <button id="generate-btn" class="btn">Générer main.tf</button>
+      <p id="error" class="error" hidden></p>
+    </section>
+
+    <section class="panel result-panel">
+      <div class="result-head">
+        <span>main.tf</span>
+        <button id="copy-btn" class="btn ghost" hidden>Copier</button>
+      </div>
+      <pre id="output" class="output">Le résultat s'affichera ici.</pre>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='terraform/script.js') }}"></script>
+</body>
+</html>

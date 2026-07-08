@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VagrantForge — générateur de Vagrantfile, style CasaOS</title>
+<meta name="description" content="Forge des Vagrantfile multi-VM sans écrire de Ruby : OS au choix, langue, presets, validation en direct. Interface style CasaOS.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='vagrant/css/style.css') }}">
+</head>
+<body data-vue="config">
+
+<!-- Fond façon CasaOS -->
+<div class="wallpaper" aria-hidden="true"></div>
+
+<!-- ── Barre de navigation ── -->
+<nav class="nav" data-testid="main-nav">
+  <span class="logo" data-testid="brand-logo">
+    <span class="logo-badge"><i class="fa-solid fa-hammer"></i></span>
+    <span class="txt">VagrantForge</span>
+  </span>
+  <div class="actions">
+    <button class="btn ghost" id="aide-btn" data-testid="help-btn"><i class="fa-regular fa-circle-question"></i> Comment ça marche</button>
+    <button class="btn ghost" id="import-btn" data-testid="import-btn"><i class="fa-solid fa-file-import"></i> Importer</button>
+    <button class="btn ghost" id="export-btn" data-testid="export-btn"><i class="fa-solid fa-file-export"></i> Exporter</button>
+    <a class="btn primary" href="#app" id="dl-project-btn" data-testid="download-project-btn"><i class="fa-solid fa-download"></i> Télécharger le projet</a>
+    <input type="file" id="import-file" accept="application/json,.json" hidden>
+  </div>
+  <button class="hamburger" id="hamburger" aria-label="menu"><i class="fa-solid fa-bars"></i></button>
+  <div class="menu-mobile" id="menu-mobile">
+    <a class="btn ghost" href="#app" data-testid="download-project-btn-mobile"><i class="fa-solid fa-download"></i> Télécharger le projet</a>
+    <button class="btn ghost" data-menu="aide"><i class="fa-regular fa-circle-question"></i> Comment ça marche</button>
+    <button class="btn ghost" data-menu="import"><i class="fa-solid fa-file-import"></i> Importer JSON</button>
+    <button class="btn ghost" data-menu="export"><i class="fa-solid fa-file-export"></i> Exporter JSON</button>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge" data-testid="hero-badge"><i class="fa-solid fa-hammer"></i> Générateur de Vagrantfile · style CasaOS</div>
+    <h1 class="hero-title">Forge tes labs de VMs<br><span class="grad">sans écrire une ligne de Ruby</span></h1>
+    <p class="hero-sub">Décris tes machines dans le formulaire — VagrantForge écrit le <code>Vagrantfile</code>, validé, commenté et prêt à <code>vagrant up</code>. Tout tourne dans ton navigateur.</p>
+    <div class="hero-cta">
+      <a class="btn primary btn-lg" href="#app" data-testid="start-btn">Commencer <i class="fa-solid fa-arrow-right"></i></a>
+      <a class="btn glass btn-lg" href="#app" data-testid="hero-download-btn"><i class="fa-solid fa-box-archive"></i> Télécharger le projet</a>
+    </div>
+
+    <div class="hero-features">
+      <div class="feature-tile" data-testid="feature-multivm"><span class="ic ic-blue"><i class="fa-solid fa-server"></i></span><b>Multi-VM</b><span>Autant de machines que tu veux</span></div>
+      <div class="feature-tile" data-testid="feature-lang"><span class="ic ic-green"><i class="fa-solid fa-keyboard"></i></span><b>Langue & clavier</b><span>AZERTY réglé au 1er boot</span></div>
+      <div class="feature-tile" data-testid="feature-presets"><span class="ic ic-amber"><i class="fa-solid fa-bolt"></i></span><b>Presets</b><span>Labs prêts à l'emploi</span></div>
+      <div class="feature-tile" data-testid="feature-valid"><span class="ic ic-violet"><i class="fa-solid fa-circle-check"></i></span><b>Validation live</b><span>Erreurs & alertes en direct</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ── Onglets mobile ── -->
+<div class="mobile-tabs">
+  <button data-vue="config" class="actif"><i class="fa-solid fa-sliders"></i> Configuration</button>
+  <button data-vue="apercu"><i class="fa-solid fa-file-code"></i> Aperçu</button>
+</div>
+
+<!-- ── Application ── -->
+<main class="layout" id="app" data-testid="generator-app">
+
+  <div class="config-pane">
+
+    <section class="block" data-testid="global-settings">
+      <div class="block-head"><span class="titre"><span class="num">1</span>Réglages globaux</span></div>
+      <div class="block-body">
+        <label>Logiciel de virtualisation (provider)
+          <span class="info" title="Le logiciel qui fait tourner les VMs sur ta machine. VirtualBox est gratuit et le plus répandu — choisis-le en cas de doute.">i</span>
+        </label>
+        <select id="g-provider" data-testid="global-provider">
+          <option value="virtualbox">VirtualBox — gratuit, le plus courant</option>
+          <option value="vmware_desktop">VMware Desktop — payant, rapide</option>
+          <option value="libvirt">libvirt (KVM/QEMU) — Linux</option>
+        </select>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="g-boxcheck">
+          <label>Vérifier les mises à jour des images au démarrage
+            <span class="info" title="Si coché, Vagrant vérifie une nouvelle version de l'image à chaque « vagrant up ». Décoché = démarrage plus rapide et reproductible.">i</span>
+          </label>
+        </div>
+
+        <label>Réseau privé — plage d'adresses
+          <span class="info" title="Les VMs communiquent entre elles et avec ton PC sur ce réseau isolé (host-only). Chaque VM prend une adresse ici : .10, .11, .12…">i</span>
+        </label>
+        <input type="text" id="g-subnet" value="192.168.56" data-testid="global-subnet">
+        <div class="hint">C'est un réseau <b>privé</b> entre ton PC et les VMs (rien à voir avec Internet). Chaque VM ajoutée reçoit l'adresse suivante : 192.168.56.<b>10</b>, .<b>11</b>, .<b>12</b>…</div>
+      </div>
+    </section>
+
+    <section class="block" data-testid="presets-block">
+      <div class="block-head"><span class="titre"><span class="num">2</span>Démarrages rapides</span>
+        <button class="btn ghost small danger" data-preset="clear" data-testid="clear-btn"><i class="fa-solid fa-trash-can"></i> tout vider</button>
+      </div>
+      <div class="block-body">
+        <div class="presets-grid" id="presets-grid"></div>
+      </div>
+    </section>
+
+    <section class="block" data-testid="vms-block">
+      <div class="block-head"><span class="titre"><span class="num">3</span>Machines virtuelles</span></div>
+      <div class="block-body">
+        <div id="vm-list"></div>
+        <button class="btn btn-add" id="add-vm" data-testid="add-vm-btn"><i class="fa-solid fa-plus"></i> ajouter une VM</button>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="preview-pane">
+    <div class="terminal">
+      <div class="term-bar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <span class="filename">Vagrantfile</span>
+        <span class="copied-flash" id="flash">copié ✓</span>
+        <div class="term-actions">
+          <button class="btn ghost small" id="copy-btn" data-testid="copy-btn"><i class="fa-regular fa-copy"></i> copier</button>
+          <button class="btn primary small" id="dl-btn" data-testid="download-vagrantfile-btn"><i class="fa-solid fa-download"></i> télécharger</button>
+        </div>
+      </div>
+      <div class="term-body" id="output" data-testid="vagrantfile-output"></div>
+    </div>
+    <div class="diagnostics" id="diagnostics" data-testid="diagnostics"></div>
+    <div class="status-bar" id="status-bar" data-testid="status-bar"></div>
+  </div>
+
+</main>
+
+<footer class="footer">Forgé avec <span class="grad"><i class="fa-solid fa-hammer"></i> VagrantForge</span> — décris, valide, <code>vagrant up</code>.</footer>
+
+<!-- ── Modale d'aide ── -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2><i class="fa-solid fa-hammer"></i> Comment ça marche</h2>
+      <button class="modal-close" id="modal-close" data-testid="modal-close">×</button>
+    </div>
+    <div class="modal-body">
+      <p>VagrantForge fabrique un <b>Vagrantfile</b> : le plan de montage de tes machines virtuelles. Tu remplis un formulaire, le fichier se génère tout seul à droite.</p>
+
+      <h3>En 4 étapes</h3>
+      <ol class="steps">
+        <li>Choisis ton <b>provider</b> (VirtualBox si tu ne sais pas) dans les réglages globaux.</li>
+        <li><b>Ajoute des VMs</b> : leur OS, leur RAM, leur réseau, leur langue, ce qu'elles installent au démarrage.</li>
+        <li>Le <b>Vagrantfile</b> apparaît à droite, coloré et validé en temps réel.</li>
+        <li><b>Télécharge-le</b> dans un dossier vide, ouvre un terminal dedans et lance <code>vagrant up</code>. C'est parti.</li>
+      </ol>
+
+      <h3>Le vocabulaire</h3>
+      <dl class="glossaire">
+        <dt>box (image)</dt><dd>Le disque de départ d'une VM (ex. Debian 12). VagrantForge te propose les vraies images publiques, par leur nom complet.</dd>
+        <dt>provider</dt><dd>Le logiciel qui exécute les VMs sur ton PC : VirtualBox, VMware ou libvirt.</dd>
+        <dt>IP privée (host-only)</dt><dd>L'adresse pour joindre la VM depuis ton PC et pour que les VMs se parlent entre elles, sur un réseau isolé. Ex. <code>192.168.56.10</code>.</dd>
+        <dt>port redirigé</dt><dd>Rend un service de la VM accessible depuis ton PC : « guest 80 → host 8080 » = <code>localhost:8080</code> ouvre le port 80 de la VM.</dd>
+        <dt>provisioning</dt><dd>Les commandes lancées automatiquement au premier démarrage (installer nginx, Docker…). Utilise l'aide « insérer une commande ».</dd>
+      </dl>
+
+      <div class="partage-note"><i class="fa-solid fa-share-nodes"></i> <b>Astuce :</b> tu peux exporter ta config en JSON (bouton « Exporter ») pour la sauvegarder ou la partager, et la réimporter plus tard. Le bouton <b>« Télécharger le projet »</b> te donne tout le code (web + CLI + API) dans une archive.</div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='vagrant/js/donnees.js') }}"></script>
+<script src="{{ url_for('static', filename='vagrant/js/generateur.js') }}"></script>
+<script src="{{ url_for('static', filename='vagrant/js/validation.js') }}"></script>
+<script src="{{ url_for('static', filename='vagrant/js/app.js') }}"></script>
+</body>
+</html>

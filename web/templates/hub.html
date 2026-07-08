@@ -24,6 +24,10 @@
       --accent-cicd-2: #7c6cff;
       --accent-ans: #e5893b;
       --accent-ans-2: #d1543f;
+      --accent-vag: #1aa179;
+      --accent-vag-2: #128a8a;
+      --accent-tf: #7c4dff;
+      --accent-tf-2: #5b8dff;
       --shadow: 0 18px 40px rgba(30, 40, 70, 0.12);
     }
     @media (prefers-color-scheme: dark) {
@@ -85,6 +89,8 @@
     }
     .card.cicd::before { background: linear-gradient(90deg, var(--accent-cicd), var(--accent-cicd-2)); }
     .card.ansible::before { background: linear-gradient(90deg, var(--accent-ans), var(--accent-ans-2)); }
+    .card.vagrant::before { background: linear-gradient(90deg, var(--accent-vag), var(--accent-vag-2)); }
+    .card.terraform::before { background: linear-gradient(90deg, var(--accent-tf), var(--accent-tf-2)); }
     .card:hover { transform: translateY(-5px); box-shadow: 0 26px 50px rgba(30, 40, 70, 0.18); }
     .card .icon { font-size: 34px; margin-bottom: 16px; }
     .card h2 { font-family: "Poppins", sans-serif; font-size: 21px; margin-bottom: 10px; }
@@ -100,6 +106,8 @@
     }
     .card.cicd .go { color: var(--accent-cicd); }
     .card.ansible .go { color: var(--accent-ans); }
+    .card.vagrant .go { color: var(--accent-vag); }
+    .card.terraform .go { color: var(--accent-tf); }
     footer { margin-top: 40px; color: var(--muted); font-size: 12.5px; text-align: center; }
     footer a { color: inherit; }
   </style>
@@ -109,7 +117,7 @@
     <div class="logo">⚒️</div>
     <p class="eyebrow">Suite Forge · outillage DevOps local</p>
     <h1>OpsForge</h1>
-    <p>Deux forges en un seul atelier : génère tes <strong>pipelines CI/CD</strong> et tes <strong>playbooks Ansible</strong> à partir de ton stack. 100&nbsp;% local, rien n'est envoyé ailleurs.</p>
+    <p>Plusieurs forges en un seul atelier : génère tes <strong>pipelines CI/CD</strong>, tes <strong>playbooks Ansible</strong>, tes <strong>Vagrantfile</strong> et ton <strong>Terraform</strong> à partir de ton stack. 100&nbsp;% local, rien n'est envoyé ailleurs.</p>
   </header>
 
   <main class="cards">
@@ -135,6 +143,32 @@
         <span class="tag">Déploiement</span>
         <span class="tag">Rôles</span>
         <span class="tag">Vault · multi-serveurs</span>
+      </div>
+      <span class="go">Ouvrir le module →</span>
+    </a>
+
+    <a class="card vagrant" href="{{ url_for('vagrant.index') }}">
+      <div class="icon">📦</div>
+      <h2>Vagrantfile</h2>
+      <p>Décris tes machines virtuelles (providers, réseau, provisioning) et génère un Vagrantfile multi-VM propre, avec presets prêts à l'emploi (k3s, LAMP, pentest…).</p>
+      <div class="tags">
+        <span class="tag">Multi-VM</span>
+        <span class="tag">VirtualBox / libvirt</span>
+        <span class="tag">Presets</span>
+        <span class="tag">Lint intégré</span>
+      </div>
+      <span class="go">Ouvrir le module →</span>
+    </a>
+
+    <a class="card terraform" href="{{ url_for('terraform.index') }}">
+      <div class="icon">🌍</div>
+      <h2>Terraform <span style="font-size:12px;vertical-align:middle;opacity:.7;">v0</span></h2>
+      <p>Génère un <code>main.tf</code> à partir d'un provider et d'une liste de ressources. Module de base, à enrichir (presets, validation par provider, variables/outputs).</p>
+      <div class="tags">
+        <span class="tag">AWS / GCP / Azure</span>
+        <span class="tag">Docker</span>
+        <span class="tag">HCL</span>
+        <span class="tag">à enrichir</span>
       </div>
       <span class="go">Ouvrir le module →</span>
     </a>
