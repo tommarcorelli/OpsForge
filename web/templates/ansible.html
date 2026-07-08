@@ -10,7 +10,9 @@
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="{{ url_for('static', filename='ansible/style.css') }}" />
 </head>
 <body>
@@ -18,8 +20,16 @@
   <div class="blueprint-grid" aria-hidden="true"></div>
   <div class="grain-overlay" aria-hidden="true"></div>
 
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· Ansible</span></span>
+    </a>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
   <header class="page-header">
-    <p class="eyebrow">GÉNÉRATEUR — PLAYBOOK ANSIBLE</p>
+    <p class="eyebrow"><i class="fa-solid fa-server"></i> OpsForge · Module Ansible</p>
     <h1>Provisionne et déploie<br />ton serveur en un clic</h1>
     <p class="subtitle">Décris ton serveur cible et ton appli, on dessine le plan. Aucun fichier n'est envoyé ailleurs qu'en local.</p>
   </header>
