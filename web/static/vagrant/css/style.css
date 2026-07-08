@@ -50,8 +50,9 @@ body{
 }
 .wallpaper::after{
   content:'';position:absolute;inset:0;
-  background-image:url("https://images.unsplash.com/photo-1557683316-973673baf926?crop=entropy&cs=srgb&fm=jpg&q=70&w=1920&auto=format");
-  background-size:cover;background-position:center;opacity:.55;filter:blur(2px) saturate(1.1);
+  background:
+    radial-gradient(600px 400px at 80% 20%, rgba(255,255,255,.18), transparent 60%),
+    radial-gradient(500px 360px at 20% 80%, rgba(255,255,255,.12), transparent 60%);
 }
 ::selection{background:rgba(0,122,255,.22);}
 ::-webkit-scrollbar{width:11px;height:11px;}

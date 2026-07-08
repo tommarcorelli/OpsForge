@@ -23,10 +23,10 @@
 
 <!-- ── Barre de navigation ── -->
 <nav class="nav" data-testid="main-nav">
-  <span class="logo" data-testid="brand-logo">
-    <span class="logo-badge"><i class="fa-solid fa-hammer"></i></span>
-    <span class="txt">VagrantForge</span>
-  </span>
+  <a class="logo" href="{{ url_for('hub') }}" data-testid="brand-logo" title="Retour au hub OpsForge">
+    <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38" style="border-radius:11px;display:block;box-shadow:0 6px 16px rgba(91,141,255,.4);">
+    <span class="txt">OpsForge <span style="opacity:.55;font-weight:600;">· Vagrant</span></span>
+  </a>
   <div class="actions">
     <button class="btn ghost" id="aide-btn" data-testid="help-btn"><i class="fa-regular fa-circle-question"></i> Comment ça marche</button>
     <button class="btn ghost" id="import-btn" data-testid="import-btn"><i class="fa-solid fa-file-import"></i> Importer</button>
@@ -46,9 +46,9 @@
 <!-- ── Hero ── -->
 <header class="hero">
   <div class="hero-inner">
-    <div class="hero-badge" data-testid="hero-badge"><i class="fa-solid fa-hammer"></i> Générateur de Vagrantfile · style CasaOS</div>
+    <div class="hero-badge" data-testid="hero-badge"><i class="fa-solid fa-hammer"></i> OpsForge · Module Vagrant</div>
     <h1 class="hero-title">Forge tes labs de VMs<br><span class="grad">sans écrire une ligne de Ruby</span></h1>
-    <p class="hero-sub">Décris tes machines dans le formulaire — VagrantForge écrit le <code>Vagrantfile</code>, validé, commenté et prêt à <code>vagrant up</code>. Tout tourne dans ton navigateur.</p>
+    <p class="hero-sub">Décris tes machines dans le formulaire — OpsForge écrit le <code>Vagrantfile</code>, validé, commenté et prêt à <code>vagrant up</code>. Tout tourne dans ton navigateur.</p>
     <div class="hero-cta">
       <a class="btn primary btn-lg" href="#app" data-testid="start-btn">Commencer <i class="fa-solid fa-arrow-right"></i></a>
       <a class="btn glass btn-lg" href="#app" data-testid="hero-download-btn"><i class="fa-solid fa-box-archive"></i> Télécharger le projet</a>
@@ -139,7 +139,7 @@
 
 </main>
 
-<footer class="footer">Forgé avec <span class="grad"><i class="fa-solid fa-hammer"></i> VagrantForge</span> — décris, valide, <code>vagrant up</code>.</footer>
+<footer class="footer">Forgé avec <span class="grad"><i class="fa-solid fa-hammer"></i> OpsForge</span> — décris, valide, <code>vagrant up</code>.</footer>
 
 <!-- ── Modale d'aide ── -->
 <div class="overlay" id="overlay">
@@ -149,7 +149,7 @@
       <button class="modal-close" id="modal-close" data-testid="modal-close">×</button>
     </div>
     <div class="modal-body">
-      <p>VagrantForge fabrique un <b>Vagrantfile</b> : le plan de montage de tes machines virtuelles. Tu remplis un formulaire, le fichier se génère tout seul à droite.</p>
+      <p>OpsForge fabrique un <b>Vagrantfile</b> : le plan de montage de tes machines virtuelles. Tu remplis un formulaire, le fichier se génère tout seul à droite.</p>
 
       <h3>En 4 étapes</h3>
       <ol class="steps">
@@ -161,7 +161,7 @@
 
       <h3>Le vocabulaire</h3>
       <dl class="glossaire">
-        <dt>box (image)</dt><dd>Le disque de départ d'une VM (ex. Debian 12). VagrantForge te propose les vraies images publiques, par leur nom complet.</dd>
+        <dt>box (image)</dt><dd>Le disque de départ d'une VM (ex. Debian 12). OpsForge te propose les vraies images publiques, par leur nom complet.</dd>
         <dt>provider</dt><dd>Le logiciel qui exécute les VMs sur ton PC : VirtualBox, VMware ou libvirt.</dd>
         <dt>IP privée (host-only)</dt><dd>L'adresse pour joindre la VM depuis ton PC et pour que les VMs se parlent entre elles, sur un réseau isolé. Ex. <code>192.168.56.10</code>.</dd>
         <dt>port redirigé</dt><dd>Rend un service de la VM accessible depuis ton PC : « guest 80 → host 8080 » = <code>localhost:8080</code> ouvre le port 80 de la VM.</dd>
