@@ -4,6 +4,13 @@
 function escRuby(s){ return String(s).replace(/"/g,'\\"'); }
 function nomVariable(nom){ let v=String(nom||'vm').replace(/[^a-zA-Z0-9_]/g,'_'); if(/^[0-9]/.test(v)) v='vm_'+v; return v; }
 
+const PREFIXES_BOX_WINDOWS = ['gusztavvargadr/', 'StefanScherer/'];
+function estBoxWindows(v){
+  if(v.guestOs) return v.guestOs === 'windows';
+  const box = v.box || '';
+  return PREFIXES_BOX_WINDOWS.some(p => box.startsWith(p));
+}
+
 function blocLocale(vn, locale, keymap){
   if(!locale && !keymap) return '';
   let s = '      # ── Langue & clavier (familles Debian/Ubuntu) ──\n      export DEBIAN_FRONTEND=noninteractive\n';
@@ -39,8 +46,15 @@ function buildVagrantfile(cfg){
     (v.ports||[]).forEach(p=>{ o += `    ${vn}.vm.network "forwarded_port", guest: ${p.guest}, host: ${p.host}, auto_correct: true, id: "port-${p.guest}"\n`; });
     if(v.disableSyncedFolder) o += `    ${vn}.vm.synced_folder ".", "/vagrant", disabled: true\n`;
     else if(v.syncedFolder){ const ft = prov==='vmware_desktop'?'vmware':(prov==='virtualbox'?'virtualbox':null); o += `    ${vn}.vm.synced_folder "${escRuby(v.syncedFolder)}", "/vagrant"${ft?`, type: "${ft}"`:''}\n`; }
-    if(v.sshUsername) o += `    ${vn}.ssh.username = "${escRuby(v.sshUsername)}"\n`;
-    if(v.sshPassword){ o += `    ${vn}.ssh.password = "${escRuby(v.sshPassword)}"\n    ${vn}.ssh.insert_key = false\n`; }
+    const windows = estBoxWindows(v);
+    if(windows){
+      o += `    ${vn}.vm.guest = :windows\n    ${vn}.vm.communicator = "winrm"\n    ${vn}.vm.boot_timeout = 600\n`;
+      if(v.winrmUsername) o += `    ${vn}.winrm.username = "${escRuby(v.winrmUsername)}"\n`;
+      if(v.winrmPassword) o += `    ${vn}.winrm.password = "${escRuby(v.winrmPassword)}"\n`;
+    } else {
+      if(v.sshUsername) o += `    ${vn}.ssh.username = "${escRuby(v.sshUsername)}"\n`;
+      if(v.sshPassword){ o += `    ${vn}.ssh.password = "${escRuby(v.sshPassword)}"\n    ${vn}.ssh.insert_key = false\n`; }
+    }
 
     if(prov==='virtualbox'){
       o += `    ${vn}.vm.provider "virtualbox" do |vb|\n      vb.name = "${escRuby(v.name)}"\n      vb.memory = ${v.memory}\n      vb.cpus = ${v.cpus}\n      vb.gui = ${v.gui?'true':'false'}\n    end\n`;
@@ -52,11 +66,16 @@ function buildVagrantfile(cfg){
       o += `    ${vn}.vm.provider "libvirt" do |lv|\n      lv.memory = ${v.memory}\n      lv.cpus = ${v.cpus}\n    end\n`;
     }
 
-    o += blocLocale(vn, v.locale, v.keymap);
+    if(!windows) o += blocLocale(vn, v.locale, v.keymap);
 
     if(v.provisionType==='shell'){
       let full = v.provisionScript||'';
-      if(v.rootPassword) full = `echo "root:${escRuby(v.rootPassword)}" | chpasswd\n` + full;
+      if(v.rootPassword){
+        full = windows
+          ? `$mdp = ConvertTo-SecureString "${escRuby(v.rootPassword)}" -AsPlainText -Force\nSet-LocalUser -Name "Administrator" -Password $mdp\n` + full
+          : `echo "root:${escRuby(v.rootPassword)}" | chpasswd\n` + full;
+      }
+      if(windows) full = '#ps1_sysnative\n' + full;
       const sc = full.split('\n').map(l=>'      '+l).join('\n');
       o += `    ${vn}.vm.provision "shell", inline: <<-SHELL\n${sc}\n    SHELL\n`;
     } else if(v.provisionType==='ansible'){

@@ -51,6 +51,34 @@ def recuperer_providers_distants(nom_box, timeout=10):
     return (sorted(providers), None)
 
 
+def recuperer_versions_distantes(nom_box, limite=15, timeout=10):
+    """Liste les numéros de version publiés pour une box (les plus récents d'abord).
+
+    Retourne (versions, erreur), même contrat que `recuperer_providers_distants`.
+    Utile pour remplir le champ « Version de l'image » avec de vrais numéros
+    plutôt que de deviner un format (ex : Debian utilise « 12.20240905.1 »,
+    Ubuntu « 20240701.0.0 »… chaque box a sa propre convention).
+    """
+    url = API_BOX.format(nom=nom_box)
+    try:
+        requete = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(requete, timeout=timeout) as reponse:
+            data = json.loads(reponse.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return (None, "introuvable sur Vagrant Cloud (404) — box retirée ou renommée ?")
+        return (None, f"HTTP {e.code}")
+    except urllib.error.URLError as e:
+        return (None, f"réseau indisponible : {e.reason}")
+    except (TimeoutError, OSError) as e:
+        return (None, f"réseau indisponible : {e}")
+    except json.JSONDecodeError:
+        return (None, "réponse JSON invalide")
+
+    versions = [v.get("version") for v in data.get("versions", []) if v.get("version")]
+    return (versions[:limite], None)
+
+
 def verifier_catalogue(box_providers, timeout=10):
     """Compare le catalogue local `{box: [providers]}` à Vagrant Cloud.
 

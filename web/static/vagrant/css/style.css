@@ -159,6 +159,15 @@ textarea{resize:vertical;min-height:96px;line-height:1.55;}
 .info{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--faint);color:var(--dim);font-size:9px;font-style:normal;cursor:help;flex-shrink:0;font-weight:700;}
 .info:hover{border-color:var(--primary);color:var(--primary);background:rgba(0,122,255,.08);}
 
+.btn-secondaire{
+  white-space:nowrap;background:var(--glass-soft);border:1px solid var(--border-2);color:var(--ink-2);
+  font-family:var(--ui);font-size:13px;font-weight:600;padding:0 14px;border-radius:13px;cursor:pointer;
+  transition:background .15s,color .15s;
+}
+.btn-secondaire:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
+.versions-statut{font-size:12px;color:var(--dim);margin-top:4px;min-height:1.4em;}
+.notice-windows{background:rgba(50,173,230,.12);border:1px solid rgba(50,173,230,.35);color:var(--ink-2);}
+
 .checkbox-row{display:flex;align-items:flex-start;gap:10px;margin-top:14px;}
 .checkbox-row input{width:auto;margin-top:2px;accent-color:var(--primary);width:17px;height:17px;}
 .checkbox-row label{margin:0;line-height:1.45;font-weight:500;}

@@ -51,6 +51,11 @@ const CATALOGUE = [
     { id:'generic/freebsd14', nom:'FreeBSD 14 — BSD' },
     { id:'generic/freebsd13', nom:'FreeBSD 13 — BSD' },
   ]},
+  { famille:'Windows (WinRM)', boxes:[
+    { id:'gusztavvargadr/windows-server', nom:'Windows Server — WinRM' },
+    { id:'gusztavvargadr/windows-11',     nom:'Windows 11 — WinRM' },
+    { id:'gusztavvargadr/windows-10',     nom:'Windows 10 — WinRM' },
+  ]},
 ];
 const NOM_BOX = {};
 CATALOGUE.forEach(g => g.boxes.forEach(b => NOM_BOX[b.id] = b.nom));
@@ -91,6 +96,9 @@ const BOX_PROVIDERS = {
   'archlinux/archlinux':['virtualbox','libvirt','hyperv','vmware_desktop'],
   'opensuse/Leap-15.5.x86_64':['virtualbox','libvirt','hyperv'],
   'opensuse/Leap-15.4.x86_64':['virtualbox','libvirt','hyperv'],
+  'gusztavvargadr/windows-10':['virtualbox','hyperv','vmware_desktop'],
+  'gusztavvargadr/windows-11':['virtualbox','hyperv','vmware_desktop'],
+  'gusztavvargadr/windows-server':['virtualbox','hyperv','vmware_desktop'],
 };
 function boxSupportsProvider(box, provider){
   const l = BOX_PROVIDERS[box];

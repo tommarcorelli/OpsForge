@@ -32,7 +32,13 @@ function valider(pg, vms){
       const h=parseInt(p.host); if(Number.isInteger(h)){ if(portsHote[h]) avert.push(`Port hôte ${h} partagé (${portsHote[h]} & ${n}) — auto_correct le décalera.`); else portsHote[h]=n; }
     });
     if(v.provisionType==='ansible'&&!v.provisionScript){ erreurs.push(`${n} : Ansible sans chemin de playbook.`); nomsErr[v.id]=true; }
-    if(v.sshPassword||v.rootPassword) avert.push(`${n} : mot de passe en clair — OK pour un lab jetable seulement.`);
+    if(v.sshPassword||v.rootPassword||v.winrmPassword) avert.push(`${n} : mot de passe en clair — OK pour un lab jetable seulement.`);
+    if(estBoxWindows(v)){
+      if(v.locale||v.keymap) avert.push(`${n} : « locale »/« keymap » ignorés sur un invité Windows.`);
+      if(v.sshUsername||v.sshPassword) avert.push(`${n} : « SSH »/« mot de passe SSH » ignorés sur un invité Windows — utilise WinRM.`);
+      if(!v.winrmPassword) avert.push(`${n} : invité Windows sans mot de passe WinRM — identifiants par défaut de la box utilisés.`);
+      if(v.provisionType==='ansible') avert.push(`${n} : Ansible sur Windows nécessite WinRM côté contrôleur Ansible.`);
+    }
   });
   if(ram>32768) avert.push(`RAM totale : ${ram} Mo — vérifie que ton PC encaisse.`);
   return {erreurs, avert, nomsErr};

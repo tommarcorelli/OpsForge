@@ -34,6 +34,23 @@ from string import Template
 
 PROVIDERS_CONNUS = ("virtualbox", "vmware_desktop", "libvirt")
 
+# Namespaces/box connus qui publient des images Windows (WinRM, pas SSH).
+PREFIXES_BOX_WINDOWS = ("gusztavvargadr/", "StefanScherer/")
+
+
+def est_box_windows(vm):
+    """Détermine si une VM doit être traitée comme un invité Windows.
+
+    Priorité au champ explicite `guest_os` (« windows » ou « linux » /
+    absent). À défaut, déduit du nom de la box via les namespaces Windows
+    connus — pratique pour les configs qui ne renseignent pas `guest_os`.
+    """
+    guest_os = vm.get("guest_os")
+    if guest_os:
+        return guest_os == "windows"
+    box = vm.get("box", "") or ""
+    return box.startswith(PREFIXES_BOX_WINDOWS)
+
 
 def echapper(valeur):
     """Échappe les guillemets doubles pour insertion dans une string Ruby."""
@@ -107,15 +124,30 @@ def bloc_locale(var, locale, keymap):
     )
 
 
-def bloc_provision(var, provision, mdp_root=""):
-    """Bloc(s) de provisioning (shell inline, ansible, ou juste le mot de passe root)."""
+def bloc_provision(var, provision, mdp_root="", windows=False):
+    """Bloc(s) de provisioning (shell inline, ansible, ou juste le mot de passe root).
+
+    `windows=True` bascule le script inline en PowerShell (marqueur
+    `#ps1_sysnative` reconnu par Vagrant) au lieu de Bash, et adapte le
+    changement de mot de passe root/administrateur en conséquence.
+    """
     provision = provision or {}
     type_prov = provision.get("type", "none")
     script = provision.get("script", "")
 
     if type_prov == "shell":
         if mdp_root:
-            script = f'echo "root:{echapper(mdp_root)}" | chpasswd\n' + script
+            if windows:
+                script = (
+                    f"$mdp = ConvertTo-SecureString \"{echapper(mdp_root)}\" -AsPlainText -Force\n"
+                    f"Set-LocalUser -Name \"Administrator\" -Password $mdp\n"
+                ) + script
+            else:
+                script = f'echo "root:{echapper(mdp_root)}" | chpasswd\n' + script
+        if windows:
+            # #ps1_sysnative en première ligne : convention Vagrant pour faire
+            # exécuter le script inline par PowerShell plutôt que cmd.exe.
+            script = "#ps1_sysnative\n" + script
         indente = "\n".join("      " + ligne for ligne in script.split("\n"))
         return (
             f'    {var}.vm.provision "shell", inline: <<-SHELL\n'
@@ -183,23 +215,40 @@ def _lignes_vm(vm, provider_global):
         type_str = f', type: "{type_dossier}"' if type_dossier else ""
         lignes.append(f'    {var}.vm.synced_folder "{echapper(dossier_sync)}", "/vagrant"{type_str}')
 
+    windows = est_box_windows(vm)
+
     utilisateur_ssh = vm.get("ssh_username", "")
     mdp_ssh = vm.get("ssh_password", "")
-    if utilisateur_ssh:
-        lignes.append(f'    {var}.ssh.username = "{echapper(utilisateur_ssh)}"')
-    if mdp_ssh:
-        lignes.append(f'    {var}.ssh.password = "{echapper(mdp_ssh)}"')
-        lignes.append(f'    {var}.ssh.insert_key = false')
+    utilisateur_winrm = vm.get("winrm_username", "")
+    mdp_winrm = vm.get("winrm_password", "")
+
+    if windows:
+        # Invité Windows : pas de SSH, on pilote en WinRM. Premier démarrage
+        # souvent lent (Sysprep) → délai de boot généreux.
+        lignes.append(f"    {var}.vm.guest = :windows")
+        lignes.append(f'    {var}.vm.communicator = "winrm"')
+        lignes.append(f"    {var}.vm.boot_timeout = 600")
+        if utilisateur_winrm:
+            lignes.append(f'    {var}.winrm.username = "{echapper(utilisateur_winrm)}"')
+        if mdp_winrm:
+            lignes.append(f'    {var}.winrm.password = "{echapper(mdp_winrm)}"')
+    else:
+        if utilisateur_ssh:
+            lignes.append(f'    {var}.ssh.username = "{echapper(utilisateur_ssh)}"')
+        if mdp_ssh:
+            lignes.append(f'    {var}.ssh.password = "{echapper(mdp_ssh)}"')
+            lignes.append(f'    {var}.ssh.insert_key = false')
 
     bloc_p = bloc_provider(var, provider, memoire, cpus, nom, gui, ip_statique=bool(ip))
     if bloc_p:
         lignes.append(bloc_p.rstrip("\n"))
 
-    bloc_l = bloc_locale(var, vm.get("locale", ""), vm.get("keymap", ""))
-    if bloc_l:
-        lignes.append(bloc_l.rstrip("\n"))
+    if not windows:
+        bloc_l = bloc_locale(var, vm.get("locale", ""), vm.get("keymap", ""))
+        if bloc_l:
+            lignes.append(bloc_l.rstrip("\n"))
 
-    bloc_prov = bloc_provision(var, vm.get("provision"), vm.get("root_password", ""))
+    bloc_prov = bloc_provision(var, vm.get("provision"), vm.get("root_password", ""), windows=windows)
     if bloc_prov:
         lignes.append(bloc_prov.rstrip("\n"))
 

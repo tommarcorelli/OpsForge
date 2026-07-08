@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from modules.vagrant.core.generateur import construire_vagrantfile, nom_variable, echapper, construire_sections
+from modules.vagrant.core.generateur import construire_vagrantfile, nom_variable, echapper, construire_sections, est_box_windows
 from modules.vagrant.core.schema import valider_config
 from modules.vagrant.core.presets import PRESETS, obtenir_preset
 from modules.vagrant.core.lint import linter_vagrantfile
@@ -182,6 +182,48 @@ def test_lint_ignore_do_end_dans_un_heredoc():
 def test_lint_vagrantfile_vide():
     erreurs, _ = linter_vagrantfile("", utiliser_ruby=False)
     assert erreurs == ["le Vagrantfile généré est vide."]
+
+
+def test_windows_detecte_par_namespace_de_box():
+    config = obtenir_preset("solo")
+    config["vms"][0]["box"] = "gusztavvargadr/windows-server"
+    config["vms"][0]["winrm_password"] = "vagrant"
+    contenu = construire_vagrantfile(config)
+    assert ".vm.guest = :windows" in contenu
+    assert '.vm.communicator = "winrm"' in contenu
+    assert ".ssh.username" not in contenu
+    erreurs, _ = valider_config(config)
+    assert erreurs == []
+
+
+def test_windows_provisioning_bascule_en_powershell():
+    config = obtenir_preset("solo")
+    config["vms"][0]["box"] = "gusztavvargadr/windows-10"
+    config["vms"][0]["provision"] = {"type": "shell", "script": "Write-Host 'salut'\n"}
+    contenu = construire_vagrantfile(config)
+    assert "#ps1_sysnative" in contenu
+    erreurs, _ = linter_vagrantfile(contenu, utiliser_ruby=False)
+    assert erreurs == []
+
+
+def test_windows_avertit_si_locale_ou_ssh_renseignes():
+    config = obtenir_preset("solo")
+    config["vms"][0]["box"] = "gusztavvargadr/windows-server"
+    config["vms"][0]["locale"] = "fr_FR.UTF-8"
+    config["vms"][0]["ssh_username"] = "vagrant"
+    config["vms"][0]["winrm_password"] = "vagrant"
+    _, avert = valider_config(config)
+    texte = " ".join(avert)
+    assert "locale" in texte and "ignorés" in texte
+    assert "ssh_username" in texte
+
+
+def test_guest_os_explicite_prend_le_pas_sur_le_nom_de_box():
+    # Un box « generic/whatever » forcé en windows via guest_os doit rester détecté.
+    vm = {"box": "generic/whatever", "guest_os": "windows"}
+    assert est_box_windows(vm)
+    vm2 = {"box": "gusztavvargadr/windows-11", "guest_os": "linux"}
+    assert not est_box_windows(vm2)
 
 
 if __name__ == "__main__":
