@@ -136,10 +136,10 @@ opsforge/
 │   │   ├── routes.py          Blueprint Flask (préfixe /vagrant) + API
 │   │   └── cli.py             sous-commandes generer/preset/valider/presets/verifier-box
 │   │
-│   └── terraform/        → module Terraform (v0, à enrichir)
-│       ├── core.py            rendu HCL générique (provider + ressources)
-│       ├── routes.py          Blueprint Flask (préfixe /terraform)
-│       └── cli.py             génération depuis un JSON de config
+│   └── terraform/        → module Terraform (builder, presets, backend, validation)
+│       ├── core.py            rendu HCL aligné + catalogue de ressources + presets
+│       ├── routes.py          Blueprint Flask (préfixe /terraform) + API
+│       └── cli.py             génération depuis un JSON de config ou un preset
 │
 ├── web/
 │   ├── templates/         → hub.html, cicd.html, ansible.html
@@ -239,3 +239,27 @@ pytest tests/terraform/  # module Terraform uniquement
 > Sous Windows, 3 tests de chiffrement Vault échouent car `ansible-core` a besoin
 > de `fcntl` (module Unix). C'est une limite de plateforme, pas un bug du
 > générateur — ils passent sous Linux/WSL.
+
+---
+
+## Roadmap — reste à faire
+
+Les 4 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+
+- [ ] **Mode sombre unifié** sur toute l'application (bascule clair/sombre +
+      persistance, décliné sur les 5 pages). C'est le principal chantier restant.
+- [ ] *(optionnel)* Cible **Windows / WinRM** pour le module Ansible (comme
+      Vagrant qui gère déjà Windows).
+- [ ] *(optionnel)* Cible **Kubernetes / Helm** pour le module CI/CD.
+- [ ] *(optionnel)* Terraform : export de `variables.tf` / `outputs.tf` séparés
+      en `.zip`, davantage de presets et de types de ressources au catalogue.
+- [ ] *(optionnel)* Rôles supplémentaires côté Ansible (bases de données, backup).
+
+### Déjà fait (résumé)
+
+Fusion CI/CD + Ansible, ajout des modules Vagrant (portage complet, support
+Windows/WinRM) et Terraform (builder, presets, validation, backend distant),
+unification visuelle CasaOS des 5 pages, identité + icône OpsForge, guides
+d'installation par OS, 8 langages CI/CD (Python, Node, Go, Rust, Java, PHP,
+Ruby, .NET), bonnes pratiques workflows (permissions/concurrency), étapes de
+provisioning Ansible étendues (timezone, swap, unattended_upgrades, users).
