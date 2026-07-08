@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Forge tes pipelines et tes serveurs</title>
+
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#5B8DFF" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #eef1f7;
+      --card: #ffffff;
+      --ink: #1c2233;
+      --muted: #5c6580;
+      --line: #e2e7f0;
+      --accent-cicd: #5b8dff;
+      --accent-cicd-2: #7c6cff;
+      --accent-ans: #e5893b;
+      --accent-ans-2: #d1543f;
+      --shadow: 0 18px 40px rgba(30, 40, 70, 0.12);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #14151f;
+        --card: #1c1e2b;
+        --ink: #eef1f7;
+        --muted: #9aa3bd;
+        --line: #2a2d3d;
+        --shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      background-image:
+        radial-gradient(circle at 15% 15%, rgba(91, 141, 255, 0.10), transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(229, 137, 59, 0.10), transparent 40%);
+    }
+    header { text-align: center; margin-bottom: 44px; max-width: 640px; }
+    .logo {
+      width: 64px; height: 64px; margin: 0 auto 18px;
+      display: grid; place-items: center;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--accent-cicd), var(--accent-ans));
+      box-shadow: var(--shadow);
+      font-size: 34px;
+    }
+    .eyebrow {
+      font-size: 12px; letter-spacing: 0.18em; font-weight: 600;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 10px;
+    }
+    h1 {
+      font-family: "Poppins", sans-serif; font-weight: 700;
+      font-size: clamp(28px, 5vw, 40px); line-height: 1.1; margin-bottom: 14px;
+    }
+    header p { color: var(--muted); font-size: 16px; line-height: 1.6; }
+    .cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px; width: 100%; max-width: 780px;
+    }
+    .card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 22px; padding: 30px; text-decoration: none; color: inherit;
+      box-shadow: var(--shadow); position: relative; overflow: hidden;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      display: flex; flex-direction: column;
+    }
+    .card::before {
+      content: ""; position: absolute; inset: 0 0 auto 0; height: 5px;
+    }
+    .card.cicd::before { background: linear-gradient(90deg, var(--accent-cicd), var(--accent-cicd-2)); }
+    .card.ansible::before { background: linear-gradient(90deg, var(--accent-ans), var(--accent-ans-2)); }
+    .card:hover { transform: translateY(-5px); box-shadow: 0 26px 50px rgba(30, 40, 70, 0.18); }
+    .card .icon { font-size: 34px; margin-bottom: 16px; }
+    .card h2 { font-family: "Poppins", sans-serif; font-size: 21px; margin-bottom: 10px; }
+    .card p { color: var(--muted); font-size: 14.5px; line-height: 1.6; flex: 1; }
+    .tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 18px; }
+    .tag {
+      font-size: 11.5px; font-weight: 500; padding: 4px 10px; border-radius: 999px;
+      background: var(--bg); border: 1px solid var(--line); color: var(--muted);
+    }
+    .go {
+      margin-top: 20px; font-weight: 600; font-size: 14px; display: inline-flex;
+      align-items: center; gap: 6px;
+    }
+    .card.cicd .go { color: var(--accent-cicd); }
+    .card.ansible .go { color: var(--accent-ans); }
+    footer { margin-top: 40px; color: var(--muted); font-size: 12.5px; text-align: center; }
+    footer a { color: inherit; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">⚒️</div>
+    <p class="eyebrow">Suite Forge · outillage DevOps local</p>
+    <h1>OpsForge</h1>
+    <p>Deux forges en un seul atelier : génère tes <strong>pipelines CI/CD</strong> et tes <strong>playbooks Ansible</strong> à partir de ton stack. 100&nbsp;% local, rien n'est envoyé ailleurs.</p>
+  </header>
+
+  <main class="cards">
+    <a class="card cicd" href="{{ url_for('cicd.index') }}">
+      <div class="icon">🚀</div>
+      <h2>Pipeline CI/CD</h2>
+      <p>Génère un workflow GitHub Actions ou GitLab CI (lint / test / build / déploiement) depuis la détection automatique de ton projet.</p>
+      <div class="tags">
+        <span class="tag">GitHub Actions</span>
+        <span class="tag">GitLab CI</span>
+        <span class="tag">Matrix builds</span>
+        <span class="tag">Docker / SSH / Pages</span>
+      </div>
+      <span class="go">Ouvrir le module →</span>
+    </a>
+
+    <a class="card ansible" href="{{ url_for('ansible.index') }}">
+      <div class="icon">🛠️</div>
+      <h2>Playbook Ansible</h2>
+      <p>Génère un playbook de provisioning + déploiement serveur : paquets, Docker, Nginx, firewall, fail2ban, bases de données, vault chiffré, multi-serveurs.</p>
+      <div class="tags">
+        <span class="tag">Provisioning</span>
+        <span class="tag">Déploiement</span>
+        <span class="tag">Rôles</span>
+        <span class="tag">Vault · multi-serveurs</span>
+      </div>
+      <span class="go">Ouvrir le module →</span>
+    </a>
+  </main>
+
+  <footer>
+    OpsForge · fait partie de la suite Forge (avec VagrantForge et DockerForge)
+  </footer>
+</body>
+</html>

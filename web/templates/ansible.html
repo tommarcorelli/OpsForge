@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Générateur de Playbook Ansible</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='ansible/style.css') }}" />
+</head>
+<body>
+
+  <div class="blueprint-grid" aria-hidden="true"></div>
+  <div class="grain-overlay" aria-hidden="true"></div>
+
+  <header class="page-header">
+    <p class="eyebrow">GÉNÉRATEUR — PLAYBOOK ANSIBLE</p>
+    <h1>Provisionne et déploie<br />ton serveur en un clic</h1>
+    <p class="subtitle">Décris ton serveur cible et ton appli, on dessine le plan. Aucun fichier n'est envoyé ailleurs qu'en local.</p>
+  </header>
+
+  <!-- ============ SCHEMA DE PIPELINE (vivant) ============ -->
+  <section class="panel schematic-panel">
+    <p class="field-label">SCHÉMA — PLAN D'EXÉCUTION</p>
+    <div class="pipeline-schematic" id="pipeline-schematic">
+
+      <div class="node" data-step="update_system"><span class="node-num">1</span><span class="node-label">MAJ système</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="base_packages"><span class="node-num">2</span><span class="node-label">Paquets base</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="firewall"><span class="node-num">3</span><span class="node-label">Firewall</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="ssh_hardening"><span class="node-num">4</span><span class="node-label">SSH hardening</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="fail2ban"><span class="node-num">5</span><span class="node-label">Fail2ban</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="monitoring"><span class="node-num">6</span><span class="node-label">Monitoring</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="docker"><span class="node-num">7</span><span class="node-label">Docker</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="nginx"><span class="node-num">8</span><span class="node-label">Nginx</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="https"><span class="node-num">9</span><span class="node-label">HTTPS</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="database"><span class="node-num">10</span><span class="node-label">Database</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="runtime"><span class="node-num">11</span><span class="node-label">Runtime</span></div>
+      <div class="connector connector-phase"></div>
+      <div class="node" data-step="backup_previous"><span class="node-num">12</span><span class="node-label">Backup</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="git_clone"><span class="node-num">13</span><span class="node-label">Git clone</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="zero_downtime_deploy"><span class="node-num">14</span><span class="node-label">Zero-downtime</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="install_deps"><span class="node-num">15</span><span class="node-label">Dépendances</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="build"><span class="node-num">16</span><span class="node-label">Build</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="restart_service"><span class="node-num">17</span><span class="node-label">Restart</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="reload_nginx"><span class="node-num">18</span><span class="node-label">Reload Nginx</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="health_check"><span class="node-num">19</span><span class="node-label">Health check</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="notify"><span class="node-num">20</span><span class="node-label">Notify</span></div>
+      <div class="connector connector-phase"></div>
+      <div class="node node-target active" id="node-target"><span class="node-num">▣</span><span class="node-label" id="node-target-label">non défini</span></div>
+
+    </div>
+    <div class="schematic-phases">
+      <span>PROVISIONING</span>
+      <span>DÉPLOIEMENT</span>
+      <span>CIBLE</span>
+    </div>
+  </section>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="field-group">
+        <label class="field-label">00 — Structure du projet généré</label>
+        <div class="segmented segmented-3" id="layout-toggle" role="tablist">
+          <button type="button" class="segmented-btn active" data-layout="flat" role="tab" aria-selected="true">
+            Playbook unique
+            <span class="segmented-hint">simple, un fichier</span>
+          </button>
+          <button type="button" class="segmented-btn" data-layout="roles" role="tab" aria-selected="false">
+            Projet en rôles
+            <span class="segmented-hint">bonnes pratiques Ansible</span>
+          </button>
+          <button type="button" class="segmented-btn" data-layout="multi" role="tab" aria-selected="false">
+            Multi-serveurs
+            <span class="segmented-hint">plusieurs groupes d'hôtes</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Formulaire simple (mode flat / roles) -->
+      <div id="single-target-fields">
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label">01 — Langage / runtime de l'application</label>
+        <select id="language" class="text-input">
+          {% for lang in languages %}
+          <option value="{{ lang }}">{{ lang }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label">02 — Provisioning (préparer le serveur)</label>
+        <div class="checkbox-grid">
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="update_system" checked />
+            <span>Mettre à jour le système (apt update/upgrade)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="base_packages" checked />
+            <span>Installer les paquets de base (git, curl, build-essential)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="firewall" />
+            <span>Configurer le pare-feu (UFW/firewalld : SSH, HTTP, HTTPS uniquement)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="ssh_hardening" />
+            <span>Durcir SSH (désactive le login root et les mots de passe)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="fail2ban" />
+            <span>Installer Fail2ban (anti brute-force SSH)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="monitoring" />
+            <span>Installer l'agent de supervision (Netdata)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="runtime" checked />
+            <span>Installer le runtime applicatif (langage choisi ci-dessus)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="docker" />
+            <span>Installer Docker + Docker Compose</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="nginx" />
+            <span>Installer Nginx</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="https" />
+            <span>HTTPS automatique (Certbot / Let's Encrypt, nécessite Nginx)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="database" />
+            <span>Installer une base de données</span>
+          </label>
+        </div>
+
+        <p class="field-hint" id="ssh-hardening-warning" hidden style="color: var(--copper-stamp); margin-top: 8px;">
+          ⚠ Vérifie que ta clé SSH est bien configurée avant d'exécuter le playbook : le mot de passe SSH sera désactivé, une mauvaise config peut te bloquer dehors.
+        </p>
+
+        <div class="field-group" id="https-fields-group" hidden style="margin-top: 10px;">
+          <input type="text" id="domain-name" class="text-input" placeholder="Nom de domaine (monsite.fr)" style="margin-bottom: 6px;" />
+          <input type="text" id="letsencrypt-email" class="text-input" placeholder="Email Let's Encrypt (admin@monsite.fr)" />
+        </div>
+
+        <div class="field-group" id="database-fields-group" hidden style="margin-top: 10px;">
+          <select id="database-engine" class="text-input" style="margin-bottom: 6px;">
+            <option value="postgresql">PostgreSQL</option>
+            <option value="mysql">MySQL / MariaDB</option>
+            <option value="redis">Redis</option>
+          </select>
+          <div class="group-card-row">
+            <input type="text" id="db-name" class="text-input" placeholder="Nom de la base (app_db)" />
+            <input type="text" id="db-user" class="text-input" placeholder="Utilisateur (app_user)" />
+          </div>
+          <p class="field-hint">Le mot de passe de la base se renseigne comme secret Vault (section 06), clé <code>db_password</code>.</p>
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label">03 — Déploiement (mettre en ligne l'appli)</label>
+        <div class="checkbox-grid">
+          <label class="toggle">
+            <input type="checkbox" name="deployment" value="backup_previous" />
+            <span>Sauvegarder l'ancienne version avant déploiement (rollback)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deployment" value="git_clone" checked />
+            <span>Cloner / mettre à jour le dépôt Git</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deployment" value="zero_downtime_deploy" />
+            <span>Déploiement zero-downtime (releases horodatées + symlink, alternative au clone simple)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deployment" value="install_deps" checked />
+            <span>Installer les dépendances du projet</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deployment" value="build" />
+            <span>Exécuter une commande de build</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deployment" value="restart_service" checked />
+            <span>Redémarrer le service applicatif (systemd)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deployment" value="reload_nginx" />
+            <span>Recharger Nginx</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deployment" value="health_check" />
+            <span>Vérifier que le service répond après déploiement</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" name="deployment" value="notify" />
+            <span>Notifier Slack/Discord à la fin du déploiement</span>
+          </label>
+        </div>
+        <div class="field-group" id="health-check-port-group" hidden style="margin-top: 10px;">
+          <label class="field-label" for="health-check-port">Port à vérifier (health check)</label>
+          <input type="text" id="health-check-port" class="text-input" value="80" placeholder="80" />
+        </div>
+        <div class="field-group" id="notify-webhook-group" hidden style="margin-top: 10px;">
+          <label class="field-label" for="notify-webhook-url">URL webhook Slack/Discord</label>
+          <input type="text" id="notify-webhook-url" class="text-input" placeholder="https://hooks.slack.com/services/..." />
+          <p class="field-hint">Sensible : tu peux aussi la passer en secret Vault (clé <code>notify_webhook_url</code>) plutôt qu'ici.</p>
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" for="repo-url">04 — Dépôt Git</label>
+        <input type="text" id="repo-url" class="text-input" placeholder="git@github.com:moi/mon-projet.git" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="branch">Branche</label>
+        <input type="text" id="branch" class="text-input" value="main" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="app-dir">Dossier de déploiement sur le serveur</label>
+        <input type="text" id="app-dir" class="text-input" value="/opt/mon-application" />
+      </div>
+
+      <div class="field-group" id="build-cmd-group" hidden>
+        <label class="field-label" for="build-cmd">Commande de build</label>
+        <input type="text" id="build-cmd" class="text-input" placeholder="npm run build" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="service-name">Nom du service systemd</label>
+        <input type="text" id="service-name" class="text-input" value="mon-application" />
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label">05 — Inventaire (optionnel)</label>
+        <p class="field-hint">Laisse vide si tu gères déjà ton propre inventory.ini</p>
+        <input type="text" id="inventory-host" class="text-input" placeholder="203.0.113.10" style="margin-bottom: 8px;" />
+        <input type="text" id="ssh-user" class="text-input" value="deploy" placeholder="Utilisateur SSH" />
+      </div>
+
+      </div>
+      <!-- /single-target-fields -->
+
+      <!-- Formulaire multi-serveurs : cartes de groupe guidees -->
+      <div id="multi-target-fields" hidden>
+
+        <hr class="section-divider" />
+
+        <div class="field-group">
+          <label class="field-label">01 — Groupes de serveurs</label>
+          <p class="field-hint">
+            Un groupe = un jeu de serveurs avec son propre provisioning,
+            déploiement, langage et ses propres hôtes (ex : "web", "db").
+            <button type="button" id="load-example-btn" class="link-btn">Charger un exemple (web + db)</button>
+          </p>
+
+          <div id="groups-builder"></div>
+
+          <button type="button" id="add-group-btn" class="btn btn-ghost" style="margin-top: 10px; width: 100%;">
+            + Ajouter un groupe
+          </button>
+
+          <details class="json-preview-details">
+            <summary>Voir le JSON équivalent (lecture seule)</summary>
+            <pre class="result-box" id="groups-json-preview"></pre>
+          </details>
+        </div>
+
+      </div>
+      <!-- /multi-target-fields -->
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label">06 — Secrets (Ansible Vault, optionnel)</label>
+        <p class="field-hint">Une paire CLE=VALEUR par ligne. Ces secrets seront chiffrés (AES256) dans un fichier vault.yml séparé, jamais en clair dans le playbook. Partagés entre tous les groupes en mode multi-serveurs.</p>
+        <textarea id="vault-vars" class="text-input" rows="3" placeholder="db_password=hunter2&#10;api_key=abc123"></textarea>
+        <input type="password" id="vault-password" class="text-input" placeholder="Mot de passe du vault" style="margin-top: 8px;" />
+      </div>
+
+      <div class="config-io-row">
+        <button type="button" id="export-config-btn" class="btn btn-ghost">Exporter cette config</button>
+        <label class="btn btn-ghost" for="import-config-input" style="text-align: center;">
+          Importer une config
+          <input type="file" id="import-config-input" accept="application/json" hidden />
+        </label>
+      </div>
+
+      <button type="button" id="generate-btn" class="btn btn-stamp">
+        GÉNÉRER →
+      </button>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <!-- Vue mode "flat" -->
+      <div id="flat-view">
+        <div class="tab-switch">
+          <button type="button" class="tab-btn active" data-tab="playbook">playbook.yml</button>
+          <button type="button" class="tab-btn" data-tab="inventory">inventory.ini</button>
+          <button type="button" class="tab-btn" data-tab="vault">vault.yml</button>
+        </div>
+
+        <div class="result-box" id="result-box">
+          <p class="result-placeholder">Le fichier <code>playbook.yml</code> généré apparaîtra ici.</p>
+        </div>
+
+        <div class="result-actions" id="result-actions" hidden>
+          <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+          <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+        </div>
+      </div>
+
+      <!-- Vue mode "roles" -->
+      <div id="roles-view" hidden>
+        <p class="field-label">NOMENCLATURE — FICHIERS DU PROJET</p>
+        <div class="nomenclature" id="nomenclature">
+          <p class="result-placeholder">La liste des fichiers apparaîtra ici après génération.</p>
+        </div>
+
+        <div class="result-box" id="roles-result-box" hidden>
+          <pre id="roles-file-content"></pre>
+        </div>
+
+        <button type="button" id="download-zip-btn" class="btn btn-stamp" hidden>
+          TÉLÉCHARGER LE PROJET (.ZIP) →
+        </button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="title-block" id="title-block">
+    <div class="tb-cell"><span class="tb-key">STRUCTURE</span><span class="tb-value" id="tb-layout">Playbook unique</span></div>
+    <div class="tb-cell"><span class="tb-key">LANGAGE</span><span class="tb-value" id="tb-language">—</span></div>
+    <div class="tb-cell"><span class="tb-key">DÉPÔT</span><span class="tb-value" id="tb-repo">—</span></div>
+    <div class="tb-cell"><span class="tb-key">SERVEUR</span><span class="tb-value" id="tb-server">—</span></div>
+    <div class="tb-cell"><span class="tb-key">RÉV.</span><span class="tb-value">B</span></div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='ansible/script.js') }}"></script>
+</body>
+</html>

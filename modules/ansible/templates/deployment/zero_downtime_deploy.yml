@@ -1,0 +1,30 @@
+    - name: Definir le dossier de release horodate
+      set_fact:
+        release_dir: "{{ app_dir }}_releases/{{ ansible_date_time.iso8601_basic_short }}"
+
+    - name: Cloner le depot dans le nouveau dossier de release
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ release_dir }}"
+        version: "{{ branch }}"
+        force: yes
+
+    - name: Basculer le lien symbolique vers la nouvelle release (zero-downtime)
+      file:
+        src: "{{ release_dir }}"
+        dest: "{{ app_dir }}"
+        state: link
+        force: yes
+
+    - name: Lister les releases existantes
+      find:
+        paths: "{{ app_dir }}_releases"
+        file_type: directory
+      register: existing_releases
+
+    - name: Nettoyer les anciennes releases (garder les 5 dernieres)
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ (existing_releases.files | sort(attribute='mtime') | reverse)[5:] }}"
+      when: existing_releases.files | length > 5

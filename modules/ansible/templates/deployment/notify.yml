@@ -1,0 +1,12 @@
+    - name: Envoyer une notification de fin de deploiement (Slack/Discord)
+      uri:
+        url: "{{ notify_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          text: "Deploiement termine sur {{ inventory_hostname }} ({{ app_dir }}, branche {{ branch }})"
+          content: "Deploiement termine sur {{ inventory_hostname }} ({{ app_dir }}, branche {{ branch }})"
+        status_code: [200, 204]
+      delegate_to: localhost
+      become: false
+      when: notify_webhook_url is defined and notify_webhook_url | length > 0

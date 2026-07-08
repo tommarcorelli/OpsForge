@@ -6,12 +6,16 @@
 // la generation doit toujours utiliser des donnees fraiches.
 // ============================================================================
 
-const CACHE_NAME = "opsforge-v1";
+const CACHE_NAME = "opsforge-v2";
 
 const STATIC_ASSETS = [
   "/",
-  "/static/style.css",
-  "/static/script.js",
+  "/cicd",
+  "/ansible",
+  "/static/cicd/style.css",
+  "/static/cicd/script.js",
+  "/static/ansible/style.css",
+  "/static/ansible/script.js",
   "/static/logo.svg",
   "/static/manifest.json",
   "/static/icons/icon-192.png",
@@ -43,7 +47,7 @@ self.addEventListener("fetch", (event) => {
 
   // Les appels API doivent toujours passer par le reseau : jamais de
   // generation "perimee" servie depuis un cache.
-  if (url.pathname.startsWith("/api/")) {
+  if (url.pathname.includes("/api/")) {
     event.respondWith(
       fetch(event.request).catch(() =>
         new Response(

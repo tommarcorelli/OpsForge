@@ -1,7 +1,7 @@
 {
   "name": "OpsForge",
   "short_name": "OpsForge",
-  "description": "Forge tes pipelines CI/CD (GitHub Actions, GitLab CI) à partir de ton stack technique.",
+  "description": "Forge tes pipelines CI/CD (GitHub Actions, GitLab CI) et tes playbooks Ansible (provisioning + déploiement), 100 % en local.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

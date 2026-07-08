@@ -8,7 +8,7 @@ Lancer avec : pytest tests/test_detector.py -v
 
 import pytest
 
-from generator.detector import detect_stack
+from modules.cicd.detector import detect_stack
 
 
 def test_no_stack_detected_on_empty_folder(tmp_path):

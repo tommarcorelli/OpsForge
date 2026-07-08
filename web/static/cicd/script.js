@@ -270,7 +270,7 @@ async function handleDetect() {
   el.detectBtn.textContent = "…";
 
   try {
-    const res = await fetch("/api/detect", {
+    const res = await fetch("/cicd/api/detect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path }),
@@ -471,7 +471,7 @@ async function handleGenerate() {
   el.generateBtn.textContent = "GÉNÉRATION…";
 
   try {
-    const res = await fetch("/api/generate", {
+    const res = await fetch("/cicd/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

@@ -9,7 +9,7 @@ Lancer avec : pytest tests/test_gitlab_core.py -v
 import pytest
 import yaml
 
-from generator.gitlab_core import generate_gitlab_ci
+from modules.cicd.gitlab_core import generate_gitlab_ci
 
 
 def _parse(yaml_text):

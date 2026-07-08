@@ -9,7 +9,7 @@ Lancer avec : pytest tests/test_core.py -v
 import pytest
 import yaml
 
-from generator.core import generate_workflow
+from modules.cicd.core import generate_workflow
 
 
 def _parse(yaml_text):

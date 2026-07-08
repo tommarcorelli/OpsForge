@@ -13,8 +13,8 @@ Lancer avec : pytest tests/test_advanced_features.py -v
 import pytest
 import yaml
 
-from generator.core import generate_workflow, generate_badge_markdown
-from generator.gitlab_core import (
+from modules.cicd.core import generate_workflow, generate_badge_markdown
+from modules.cicd.gitlab_core import (
     generate_gitlab_ci,
     generate_badge_markdown as generate_gitlab_badge_markdown,
 )
