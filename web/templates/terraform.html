@@ -27,18 +27,27 @@
   </nav>
 
   <header class="hero">
-    <div class="hero-badge"><i class="fa-solid fa-earth-americas"></i> OpsForge · Module Terraform <span class="v0">v0</span></div>
+    <div class="hero-badge"><i class="fa-solid fa-earth-americas"></i> OpsForge · Module Terraform</div>
     <h1>Génère ton <span class="grad">main.tf</span></h1>
-    <p class="hero-sub">Choisis un provider, décris tes ressources, récupère un fichier Terraform prêt à l'emploi. Module de base — à enrichir (presets, validation par provider, variables/outputs).</p>
+    <p class="hero-sub">Choisis un provider, ajoute tes ressources (ou pars d'un preset), et récupère un fichier Terraform validé et aligné, prêt à <code>terraform init</code>.</p>
   </header>
 
   <main class="layout">
     <section class="panel">
-      <div class="field">
-        <label for="provider">Provider</label>
-        <select id="provider">
-          {% for p in providers %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-        </select>
+      <div class="field two">
+        <div>
+          <label for="provider">Provider</label>
+          <select id="provider">
+            {% for p in providers %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="preset-select">Preset</label>
+          <select id="preset-select">
+            <option value="">— partir de zéro —</option>
+            {% for k, label in presets.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
       </div>
 
       <div class="field">
@@ -49,23 +58,28 @@
       </div>
 
       <div class="field">
-        <label for="resources">Ressources (JSON)</label>
-        <textarea id="resources" rows="12" spellcheck="false">[
-  {
-    "type": "aws_instance",
-    "name": "web",
-    "args": {
-      "ami": "ami-0abcd1234",
-      "instance_type": "t3.micro",
-      "tags": { "Name": "serveur-web" }
-    }
-  }
-]</textarea>
-        <p class="hint">Astuce : une valeur commençant par <code>=</code> est écrite sans guillemets (ex. <code>"=var.region"</code> → référence Terraform).</p>
+        <div class="field-head">
+          <label>Ressources</label>
+          <button type="button" id="add-resource-btn" class="btn ghost small"><i class="fa-solid fa-plus"></i> Ajouter</button>
+        </div>
+        <div id="resources-builder"></div>
       </div>
+
+      <details class="advanced">
+        <summary>Variables &amp; outputs (avancé)</summary>
+        <div class="field">
+          <label for="variables">Variables (JSON)</label>
+          <textarea id="variables" rows="3" spellcheck="false" placeholder='{ "region": { "type": "=string", "default": "eu-west-1" } }'></textarea>
+        </div>
+        <div class="field">
+          <label for="outputs">Outputs (JSON)</label>
+          <textarea id="outputs" rows="3" spellcheck="false" placeholder='{ "ip": { "value": "=aws_instance.web.public_ip" } }'></textarea>
+        </div>
+      </details>
 
       <button id="generate-btn" class="btn primary"><i class="fa-solid fa-bolt"></i> Générer main.tf</button>
       <p id="error" class="error" hidden></p>
+      <p id="warn" class="warn" hidden></p>
     </section>
 
     <section class="panel result-panel">
@@ -79,6 +93,9 @@
 
   <footer class="footer">Forgé avec <span class="grad"><i class="fa-solid fa-hammer"></i> OpsForge</span> — module Terraform.</footer>
 
+  <script>
+    window.TF_CATALOG = {{ catalog|tojson }};
+  </script>
   <script src="{{ url_for('static', filename='terraform/script.js') }}"></script>
 </body>
 </html>

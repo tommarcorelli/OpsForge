@@ -18,7 +18,9 @@ import sys
 from modules.terraform.core import (
     generate_terraform,
     valider_config,
+    obtenir_preset,
     SUPPORTED_PROVIDERS,
+    PRESETS,
 )
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "output")
@@ -27,13 +29,16 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "output")
 def build_parser():
     p = argparse.ArgumentParser(
         prog="opsforge terraform",
-        description="Genere un main.tf a partir d'une config JSON (provider + ressources).",
+        description="Genere un main.tf a partir d'une config JSON, ou d'un preset.",
     )
     p.add_argument("config", nargs="?", help="Chemin du JSON de config, ou '-' pour stdin.")
     p.add_argument("-o", "--output", default=None,
                    help="Fichier de sortie (defaut : output/main.tf ; '-' pour stdout).")
+    p.add_argument("--preset", default=None, help="Genere depuis un preset (voir --list-presets).")
     p.add_argument("--providers", action="store_true",
                    help="Liste les providers connus et quitte.")
+    p.add_argument("--list-presets", action="store_true",
+                   help="Liste les presets disponibles et quitte.")
     return p
 
 
@@ -44,17 +49,29 @@ def main(argv=None):
         print("Providers connus :", ", ".join(SUPPORTED_PROVIDERS))
         return 0
 
-    if not args.config:
-        print("Erreur : fournis un fichier de config JSON (ou '-' pour stdin), "
-              "ou utilise --providers.", file=sys.stderr)
-        sys.exit(2)
+    if args.list_presets:
+        print("Presets disponibles :")
+        for k, v in PRESETS.items():
+            print(f"  {k:<14} {v['label']}")
+        return 0
 
-    brut = sys.stdin.read() if args.config == "-" else _lire(args.config)
-    try:
-        config = json.loads(brut)
-    except json.JSONDecodeError as e:
-        print(f"Erreur : JSON invalide ({e})", file=sys.stderr)
-        sys.exit(2)
+    if args.preset:
+        try:
+            config = obtenir_preset(args.preset)
+        except KeyError:
+            print(f"Erreur : preset inconnu « {args.preset} ». Voir --list-presets.", file=sys.stderr)
+            sys.exit(2)
+    else:
+        if not args.config:
+            print("Erreur : fournis un fichier de config JSON (ou '-' pour stdin), "
+                  "un --preset, ou utilise --providers / --list-presets.", file=sys.stderr)
+            sys.exit(2)
+        brut = sys.stdin.read() if args.config == "-" else _lire(args.config)
+        try:
+            config = json.loads(brut)
+        except json.JSONDecodeError as e:
+            print(f"Erreur : JSON invalide ({e})", file=sys.stderr)
+            sys.exit(2)
 
     erreurs, avertissements = valider_config(config)
     for a in avertissements:

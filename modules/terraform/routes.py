@@ -1,7 +1,7 @@
 """
 modules/terraform/routes.py
 ---------------------------
-Blueprint Flask du module Terraform (monte sous /terraform). v0 — a enrichir.
+Blueprint Flask du module Terraform (monté sous /terraform).
 """
 
 from flask import Blueprint, render_template, request, jsonify
@@ -9,7 +9,10 @@ from flask import Blueprint, render_template, request, jsonify
 from modules.terraform.core import (
     generate_terraform,
     valider_config,
+    obtenir_preset,
     SUPPORTED_PROVIDERS,
+    RESOURCE_CATALOG,
+    PRESETS,
 )
 
 bp = Blueprint("terraform", __name__, url_prefix="/terraform")
@@ -17,7 +20,31 @@ bp = Blueprint("terraform", __name__, url_prefix="/terraform")
 
 @bp.route("/")
 def index():
-    return render_template("terraform.html", providers=list(SUPPORTED_PROVIDERS))
+    return render_template(
+        "terraform.html",
+        providers=list(SUPPORTED_PROVIDERS),
+        catalog=RESOURCE_CATALOG,
+        presets={k: v["label"] for k, v in PRESETS.items()},
+    )
+
+
+@bp.get("/api/catalog")
+def api_catalog():
+    """Catalogue des types de ressources par provider (pour le builder)."""
+    return jsonify(RESOURCE_CATALOG)
+
+
+@bp.get("/api/presets")
+def api_presets():
+    return jsonify({k: v["label"] for k, v in PRESETS.items()})
+
+
+@bp.get("/api/preset/<nom>")
+def api_preset(nom):
+    try:
+        return jsonify(obtenir_preset(nom))
+    except KeyError:
+        return jsonify({"error": f"Preset inconnu : {nom}"}), 404
 
 
 @bp.post("/api/generate")

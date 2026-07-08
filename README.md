@@ -7,7 +7,7 @@
 | **CI/CD** | Pipelines **GitHub Actions** (`.github/workflows/ci.yml`) et **GitLab CI** (`.gitlab-ci.yml`) | `/cicd` | `python main.py cicd …` |
 | **Ansible** | Playbooks de **provisioning + déploiement** serveur (paquets, Docker, Nginx, firewall, fail2ban, bases de données, vault chiffré, multi-serveurs) | `/ansible` | `python main.py ansible …` |
 | **Vagrant** | **Vagrantfile multi-VM** (providers, réseau, provisioning, presets, lint) — portage de VagrantForge | `/vagrant` | `python main.py vagrant …` |
-| **Terraform** | **`main.tf`** à partir d'un provider + ressources (**v0**, à enrichir) | `/terraform` | `python main.py terraform …` |
+| **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs | `/terraform` | `python main.py terraform …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -202,15 +202,24 @@ vérification du catalogue de box face à Vagrant Cloud. L'interface web
 (`/vagrant`) est le frontend autonome de VagrantForge, qui génère **côté client**
 en JS ; l'API `/vagrant/api/*` est un bonus pour scripter via HTTP.
 
-## Module Terraform — détails (v0)
+## Module Terraform — détails
 
-Module de base : à partir d'un provider (`aws`, `google`, `azurerm`, `docker`,
-`local`) et d'une liste de ressources `{type, name, args}`, génère un `main.tf`
-(bloc `terraform{}` + `provider{}` + `resource{}`), avec un rendu HCL générique
-(chaînes, booléens, listes, blocs imbriqués). Une valeur préfixée par `=` est
-écrite sans guillemets (pour injecter des références Terraform, ex.
-`"=var.region"`). **À enrichir** : presets, validation par provider, variables /
-outputs / modules, `terraform fmt` du résultat.
+À partir d'un provider (`aws`, `google`, `azurerm`, `docker`, `local`) et de
+ressources, génère un `main.tf` (bloc `terraform{}` + `provider{}` +
+`resource{}`). Fonctionnalités :
+
+- **Builder de ressources** (web) : ajoute des ressources par cartes (type
+  choisi dans un catalogue par provider, nom, arguments) ; un template
+  d'arguments est pré-rempli selon le type.
+- **Presets** prêts à l'emploi (`ec2-web`, `s3-static`, `docker-nginx`,
+  `gcp-vm`) — sélectionnables dans l'UI ou en CLI (`--preset`, `--list-presets`).
+- **Validation par provider** : vérifie les arguments requis de chaque type de
+  ressource connu (`RESOURCE_CATALOG`), les noms dupliqués, le provider.
+- **Sortie alignée** façon `terraform fmt` (les `=` d'un même bloc sont alignés).
+- **variables** et **outputs** (section avancée de l'UI).
+- Rendu HCL générique (chaînes, booléens, nombres, listes, blocs imbriqués).
+  Une valeur préfixée par `=` est écrite **sans guillemets** — pour injecter une
+  référence Terraform, ex. `"=aws_instance.web.id"` → `aws_instance.web.id`.
 
 ---
 
@@ -222,6 +231,7 @@ pytest tests/            # tous les modules
 pytest tests/cicd/       # module CI/CD uniquement
 pytest tests/ansible/    # module Ansible uniquement
 pytest tests/vagrant/    # module Vagrant uniquement
+pytest tests/terraform/  # module Terraform uniquement
 ```
 
 > Sous Windows, 3 tests de chiffrement Vault échouent car `ansible-core` a besoin
