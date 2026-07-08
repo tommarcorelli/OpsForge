@@ -178,24 +178,33 @@
 
 <script>
 window.INSTALL_GUIDE = {
-  tool: "Vagrant + VirtualBox",
+  tool: "Vagrant + un provider",
   icon: "fa-box-open",
-  intro: "Vagrant pilote des machines virtuelles via un « provider » (VirtualBox est gratuit et le plus courant). Installe les deux, puis lance <code>vagrant up</code> dans le dossier du Vagrantfile généré.",
+  intro: "Vagrant pilote des VMs via un « provider ». Choisis-en un selon ta plateforme — <b>VirtualBox</b> (gratuit, multiplateforme), <b>libvirt/KVM</b> (natif Linux), <b>Hyper-V</b> (Windows Pro), <b>VMware</b> — puis sélectionne le même provider dans le formulaire et lance <code>vagrant up</code>.",
   os: [
     { id: "windows", label: "Windows", icon: "fa-brands fa-windows", color: "#0078D6", steps: [
-      { title: "Avec winget (recommandé)", cmd: "winget install Oracle.VirtualBox\nwinget install Hashicorp.Vagrant", note: "Sinon, télécharge les installeurs sur virtualbox.org puis vagrantup.com." },
+      { title: "Vagrant", cmd: "winget install Hashicorp.Vagrant" },
+      { title: "Provider — VirtualBox (recommandé)", cmd: "winget install Oracle.VirtualBox", note: "Sinon, installeurs sur vagrantup.com et virtualbox.org." },
+      { title: "Provider alternatif — Hyper-V (intégré à Windows Pro/Entreprise)", cmd: "# PowerShell en administrateur :\nEnable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All", note: "Puis choisis « hyperv » comme provider dans le formulaire (redémarrage requis)." },
       { title: "Vérifier", cmd: "vagrant --version" },
     ]},
     { id: "macos", label: "macOS", icon: "fa-brands fa-apple", color: "#555555", steps: [
-      { title: "Avec Homebrew", cmd: "brew install --cask virtualbox\nbrew install --cask vagrant", note: "Sur Mac Apple Silicon, VirtualBox nécessite une version récente (7+)." },
+      { title: "Vagrant + VirtualBox", cmd: "brew install --cask virtualbox\nbrew install --cask vagrant", note: "Sur Mac Apple Silicon, VirtualBox 7+ requis. Alternative payante : VMware Fusion (provider « vmware_desktop »)." },
       { title: "Vérifier", cmd: "vagrant --version" },
     ]},
     { id: "debian", label: "Debian / Ubuntu", icon: "fa-brands fa-ubuntu", color: "#E95420", steps: [
-      { title: "Ajouter le dépôt HashiCorp", cmd: "wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg\necho \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/hashicorp.list" },
-      { title: "Installer Vagrant + VirtualBox", cmd: "sudo apt update && sudo apt install -y vagrant virtualbox" },
+      { title: "Ajouter le dépôt HashiCorp", cmd: "wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg\necho \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/hashicorp.list\nsudo apt update && sudo apt install -y vagrant" },
+      { title: "Provider — VirtualBox", cmd: "sudo apt install -y virtualbox" },
+      { title: "Provider natif Linux — libvirt / KVM (plus léger)", cmd: "sudo apt install -y qemu-kvm libvirt-daemon-system\nvagrant plugin install vagrant-libvirt", note: "Puis choisis « libvirt » comme provider dans le formulaire." },
     ]},
     { id: "fedora", label: "Fedora / RHEL", icon: "fa-brands fa-redhat", color: "#EE0000", steps: [
-      { title: "Ajouter le dépôt + installer", cmd: "sudo dnf install -y dnf-plugins-core\nsudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo\nsudo dnf install -y vagrant VirtualBox" },
+      { title: "Vagrant (dépôt HashiCorp)", cmd: "sudo dnf install -y dnf-plugins-core\nsudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo\nsudo dnf install -y vagrant" },
+      { title: "Provider — VirtualBox", cmd: "sudo dnf install -y VirtualBox" },
+      { title: "Provider natif Linux — libvirt / KVM", cmd: "sudo dnf install -y @virtualization\nvagrant plugin install vagrant-libvirt", note: "Puis choisis « libvirt » comme provider." },
+    ]},
+    { id: "arch", label: "Arch Linux", icon: "fa-brands fa-linux", color: "#1793D1", steps: [
+      { title: "Avec pacman — Vagrant + VirtualBox", cmd: "sudo pacman -S vagrant virtualbox" },
+      { title: "Provider natif — libvirt / KVM", cmd: "sudo pacman -S libvirt qemu-full\nvagrant plugin install vagrant-libvirt", note: "Puis choisis « libvirt » comme provider." },
     ]},
   ],
 };
