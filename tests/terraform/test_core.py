@@ -118,3 +118,24 @@ def test_tous_les_presets_generent():
 def test_catalogue_coherent_avec_providers():
     for provider in RESOURCE_CATALOG:
         assert provider in SUPPORTED_PROVIDERS
+
+
+def test_backend_distant_dans_bloc_terraform():
+    tf = generate_terraform(_cfg(backend={
+        "type": "s3",
+        "config": {"bucket": "mon-tfstate", "key": "prod/terraform.tfstate", "region": "eu-west-1"},
+    }))
+    # Le bloc backend doit être DANS le bloc terraform {}
+    debut = tf.index("terraform {")
+    fin = tf.index("\n}", debut)
+    bloc_terraform = tf[debut:fin]
+    assert 'backend "s3" {' in bloc_terraform
+    assert 'bucket = "mon-tfstate"' in tf
+
+
+def test_nouveaux_types_aws_valides():
+    for rtype in ("aws_vpc", "aws_subnet", "aws_db_instance"):
+        entry = next(e for e in RESOURCE_CATALOG["aws"] if e["type"] == rtype)
+        cfg = _cfg(resources=[{"type": rtype, "name": "x", "args": entry["template"]}])
+        erreurs, _ = valider_config(cfg)
+        assert erreurs == [], f"{rtype} : {erreurs}"

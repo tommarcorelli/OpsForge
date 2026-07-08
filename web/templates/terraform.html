@@ -66,7 +66,11 @@
       </div>
 
       <details class="advanced">
-        <summary>Variables &amp; outputs (avancé)</summary>
+        <summary>Backend, variables &amp; outputs (avancé)</summary>
+        <div class="field">
+          <label for="backend">Backend distant — state (JSON)</label>
+          <textarea id="backend" rows="3" spellcheck="false" placeholder='{ "type": "s3", "config": { "bucket": "mon-tfstate", "key": "prod/terraform.tfstate", "region": "eu-west-1" } }'></textarea>
+        </div>
         <div class="field">
           <label for="variables">Variables (JSON)</label>
           <textarea id="variables" rows="3" spellcheck="false" placeholder='{ "region": { "type": "=string", "default": "eu-west-1" } }'></textarea>

@@ -39,12 +39,21 @@ RESOURCE_CATALOG = {
          "template": {"bucket": "mon-bucket-unique-123", "tags": {"Env": "prod"}}},
         {"type": "aws_security_group", "label": "Security Group", "required": ["name"],
          "template": {"name": "web-sg", "description": "Autorise HTTP/HTTPS"}},
+        {"type": "aws_vpc", "label": "VPC", "required": ["cidr_block"],
+         "template": {"cidr_block": "10.0.0.0/16", "tags": {"Name": "main"}}},
+        {"type": "aws_subnet", "label": "Subnet", "required": ["vpc_id", "cidr_block"],
+         "template": {"vpc_id": "=aws_vpc.main.id", "cidr_block": "10.0.1.0/24"}},
+        {"type": "aws_db_instance", "label": "Base RDS", "required": ["allocated_storage", "engine", "instance_class", "username", "password"],
+         "template": {"allocated_storage": 20, "engine": "postgres", "instance_class": "db.t3.micro",
+                      "username": "admin", "password": "=var.db_password", "db_name": "app", "skip_final_snapshot": True}},
     ],
     "google": [
         {"type": "google_compute_instance", "label": "VM Compute Engine", "required": ["name", "machine_type", "zone"],
          "template": {"name": "vm-1", "machine_type": "e2-micro", "zone": "europe-west1-b"}},
         {"type": "google_storage_bucket", "label": "Bucket Storage", "required": ["name", "location"],
          "template": {"name": "mon-bucket-gcp", "location": "EU"}},
+        {"type": "google_compute_network", "label": "Réseau VPC", "required": ["name"],
+         "template": {"name": "vpc-1", "auto_create_subnetworks": False}},
     ],
     "azurerm": [
         {"type": "azurerm_resource_group", "label": "Resource Group", "required": ["name", "location"],
@@ -254,14 +263,21 @@ def generate_terraform(config):
         provider, {"source": f"hashicorp/{provider}", "version": ">= 0", "defaults": {}}
     )
 
-    # Bloc terraform { required_providers { ... } }
+    # Bloc terraform { required_providers { ... } [backend "..." { ... }] }
     required_body = (
         f'{provider} = {{\n'
         f'  source  = "{infos["source"]}"\n'
         f'  version = "{infos["version"]}"\n'
         f'}}'
     )
-    bloc_terraform = "terraform {\n  required_providers {\n" + _indent(required_body, 4) + "\n  }\n}"
+    corps_terraform = "  required_providers {\n" + _indent(required_body, 4) + "\n  }"
+
+    backend = config.get("backend")
+    if backend and backend.get("type"):
+        backend_block = _render_block("backend", [backend["type"]], backend.get("config") or {})
+        corps_terraform += "\n\n" + _indent(backend_block, 2)
+
+    bloc_terraform = "terraform {\n" + corps_terraform + "\n}"
 
     # Bloc provider
     provider_args = dict(infos.get("defaults", {}))

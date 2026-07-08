@@ -120,8 +120,10 @@ function buildConfig() {
   };
   const vars = parseJSONField("variables", "Variables");
   const outs = parseJSONField("outputs", "Outputs");
+  const backend = parseJSONField("backend", "Backend");
   if (Object.keys(vars).length) config.variables = vars;
   if (Object.keys(outs).length) config.outputs = outs;
+  if (backend && backend.type) config.backend = backend;
   return config;
 }
 
@@ -174,6 +176,7 @@ async function loadPreset(nom) {
   }));
   $("variables").value = cfg.variables ? JSON.stringify(cfg.variables, null, 2) : "";
   $("outputs").value = cfg.outputs ? JSON.stringify(cfg.outputs, null, 2) : "";
+  $("backend").value = cfg.backend ? JSON.stringify(cfg.backend, null, 2) : "";
   renderResources();
 }
 
