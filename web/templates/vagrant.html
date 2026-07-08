@@ -15,6 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='vagrant/css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}">
 </head>
 <body data-vue="config">
 
@@ -27,21 +28,7 @@
     <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38" style="border-radius:11px;display:block;box-shadow:0 6px 16px rgba(91,141,255,.4);">
     <span class="txt">OpsForge <span style="opacity:.55;font-weight:600;">· Vagrant</span></span>
   </a>
-  <div class="actions">
-    <a class="btn ghost" href="{{ url_for('hub') }}" title="Retour au hub OpsForge"><i class="fa-solid fa-arrow-left"></i> Hub</a>
-    <button class="btn ghost" id="aide-btn" data-testid="help-btn"><i class="fa-regular fa-circle-question"></i> Comment ça marche</button>
-    <button class="btn ghost" id="import-btn" data-testid="import-btn"><i class="fa-solid fa-file-import"></i> Importer</button>
-    <button class="btn ghost" id="export-btn" data-testid="export-btn"><i class="fa-solid fa-file-export"></i> Exporter</button>
-    <a class="btn primary" href="#app" id="dl-project-btn" data-testid="download-project-btn"><i class="fa-solid fa-download"></i> Télécharger le projet</a>
-    <input type="file" id="import-file" accept="application/json,.json" hidden>
-  </div>
-  <button class="hamburger" id="hamburger" aria-label="menu"><i class="fa-solid fa-bars"></i></button>
-  <div class="menu-mobile" id="menu-mobile">
-    <a class="btn ghost" href="#app" data-testid="download-project-btn-mobile"><i class="fa-solid fa-download"></i> Télécharger le projet</a>
-    <button class="btn ghost" data-menu="aide"><i class="fa-regular fa-circle-question"></i> Comment ça marche</button>
-    <button class="btn ghost" data-menu="import"><i class="fa-solid fa-file-import"></i> Importer JSON</button>
-    <button class="btn ghost" data-menu="export"><i class="fa-solid fa-file-export"></i> Exporter JSON</button>
-  </div>
+  <a class="btn ghost nav-hub" href="{{ url_for('hub') }}" title="Retour au hub OpsForge"><i class="fa-solid fa-arrow-left"></i> Hub</a>
 </nav>
 
 <!-- ── Hero ── -->
@@ -63,6 +50,16 @@
     </div>
   </div>
 </header>
+
+<!-- ── Barre d'actions ── -->
+<div class="app-toolbar">
+  <button class="btn ghost" id="aide-btn" data-testid="help-btn"><i class="fa-regular fa-circle-question"></i> Comment ça marche</button>
+  <button class="btn ghost" id="guide-install-btn"><i class="fa-solid fa-download"></i> Guide d'installation</button>
+  <button class="btn ghost" id="import-btn" data-testid="import-btn"><i class="fa-solid fa-file-import"></i> Importer</button>
+  <button class="btn ghost" id="export-btn" data-testid="export-btn"><i class="fa-solid fa-file-export"></i> Exporter</button>
+  <a class="btn primary" href="#app" id="dl-project-btn" data-testid="download-project-btn"><i class="fa-solid fa-download"></i> Télécharger le projet</a>
+  <input type="file" id="import-file" accept="application/json,.json" hidden>
+</div>
 
 <!-- ── Onglets mobile ── -->
 <div class="mobile-tabs">
@@ -178,5 +175,32 @@
 <script src="{{ url_for('static', filename='vagrant/js/generateur.js') }}"></script>
 <script src="{{ url_for('static', filename='vagrant/js/validation.js') }}"></script>
 <script src="{{ url_for('static', filename='vagrant/js/app.js') }}"></script>
+
+<script>
+window.INSTALL_GUIDE = {
+  tool: "Vagrant + VirtualBox",
+  icon: "fa-box-open",
+  intro: "Vagrant pilote des machines virtuelles via un « provider » (VirtualBox est gratuit et le plus courant). Installe les deux, puis lance <code>vagrant up</code> dans le dossier du Vagrantfile généré.",
+  os: [
+    { id: "windows", label: "Windows", icon: "fa-brands fa-windows", color: "#0078D6", steps: [
+      { title: "Avec winget (recommandé)", cmd: "winget install Oracle.VirtualBox\nwinget install Hashicorp.Vagrant", note: "Sinon, télécharge les installeurs sur virtualbox.org puis vagrantup.com." },
+      { title: "Vérifier", cmd: "vagrant --version" },
+    ]},
+    { id: "macos", label: "macOS", icon: "fa-brands fa-apple", color: "#555555", steps: [
+      { title: "Avec Homebrew", cmd: "brew install --cask virtualbox\nbrew install --cask vagrant", note: "Sur Mac Apple Silicon, VirtualBox nécessite une version récente (7+)." },
+      { title: "Vérifier", cmd: "vagrant --version" },
+    ]},
+    { id: "debian", label: "Debian / Ubuntu", icon: "fa-brands fa-ubuntu", color: "#E95420", steps: [
+      { title: "Ajouter le dépôt HashiCorp", cmd: "wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg\necho \"deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/hashicorp.list" },
+      { title: "Installer Vagrant + VirtualBox", cmd: "sudo apt update && sudo apt install -y vagrant virtualbox" },
+    ]},
+    { id: "fedora", label: "Fedora / RHEL", icon: "fa-brands fa-redhat", color: "#EE0000", steps: [
+      { title: "Ajouter le dépôt + installer", cmd: "sudo dnf install -y dnf-plugins-core\nsudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo\nsudo dnf install -y vagrant VirtualBox" },
+    ]},
+  ],
+};
+</script>
+<script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+<script>OpsForgeInstallGuide.init("guide-install-btn");</script>
 </body>
 </html>

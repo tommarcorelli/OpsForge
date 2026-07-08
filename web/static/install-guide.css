@@ -1,0 +1,51 @@
+/* ============================================================
+   Guide d'installation par OS — composant partage OpsForge
+   Modal auto-suffisant (classes .ig-*), theme CasaOS clair.
+   ============================================================ */
+.ig-overlay{
+  position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
+  background:rgba(15,23,42,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:20px;
+}
+.ig-overlay.open{display:flex;}
+.ig-modal{
+  font-family:'Figtree',system-ui,sans-serif;color:#334155;
+  background:#fff;border-radius:22px;width:min(720px,100%);max-height:88vh;overflow:hidden;
+  display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(15,23,42,.4);
+}
+.ig-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #eef1f7;}
+.ig-head h2{font-family:'Outfit',sans-serif;font-weight:800;font-size:19px;color:#0f172a;margin:0;display:flex;align-items:center;gap:10px;}
+.ig-close{border:none;background:#f1f4fa;width:34px;height:34px;border-radius:10px;font-size:20px;color:#64748b;cursor:pointer;line-height:1;}
+.ig-close:hover{background:#e5e9f2;color:#0f172a;}
+.ig-intro{padding:16px 24px 0;font-size:14px;color:#64748b;line-height:1.6;}
+.ig-tabs{display:flex;flex-wrap:wrap;gap:8px;padding:16px 24px;}
+.ig-tab{
+  display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:12px;cursor:pointer;
+  border:1px solid #e2e7f0;background:#f7f9fc;color:#334155;font-family:'Figtree',sans-serif;font-weight:600;font-size:13.5px;
+  transition:all .15s ease;
+}
+.ig-tab i{font-size:16px;}
+.ig-tab:hover{border-color:currentColor;}
+.ig-tab.active{color:#fff;border-color:transparent;}
+.ig-body{padding:4px 24px 24px;overflow-y:auto;}
+.ig-step{margin-bottom:16px;}
+.ig-step-title{font-family:'Outfit',sans-serif;font-weight:700;font-size:14px;color:#0f172a;margin:0 0 7px;}
+.ig-cmd{
+  position:relative;background:#0f1117;color:#dfe4f2;border-radius:12px;padding:12px 44px 12px 14px;
+  font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word;
+}
+.ig-copy{
+  position:absolute;top:8px;right:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);
+  color:#dfe4f2;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:12px;
+}
+.ig-copy:hover{background:rgba(255,255,255,.18);}
+.ig-note{font-size:12.5px;color:#64748b;margin-top:6px;line-height:1.5;}
+.ig-note a{color:#5b8dff;}
+@media (prefers-color-scheme:dark){
+  .ig-modal{background:#1c1e2b;color:#cbd3e6;}
+  .ig-head{border-color:#2a2d3d;}
+  .ig-head h2{color:#eef1f7;}
+  .ig-close{background:#262a3a;color:#9aa3bd;}
+  .ig-tab{background:#242838;border-color:#2a2d3d;color:#cbd3e6;}
+  .ig-step-title{color:#eef1f7;}
+  .ig-intro,.ig-note{color:#9aa3bd;}
+}

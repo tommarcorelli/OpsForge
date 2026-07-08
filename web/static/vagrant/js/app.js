@@ -309,8 +309,6 @@ function init(){
   $('#overlay').addEventListener('click',e=>{ if(e.target===$('#overlay')) fermerAide(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') fermerAide(); });
 
-  $('#hamburger').addEventListener('click',()=>$('#menu-mobile').classList.toggle('open'));
-  $('#menu-mobile').querySelectorAll('[data-menu]').forEach(b=>b.addEventListener('click',()=>{ const a=b.getAttribute('data-menu'); $('#menu-mobile').classList.remove('open'); if(a==='aide') ouvrirAide(); if(a==='import') $('#import-file').click(); if(a==='export') exporter(); }));
   document.querySelectorAll('.mobile-tabs button').forEach(b=>b.addEventListener('click',()=>{ document.body.dataset.vue=b.getAttribute('data-vue'); document.querySelectorAll('.mobile-tabs button').forEach(x=>x.classList.remove('actif')); b.classList.add('actif'); }));
 
   if(restaurer()) rendre(); else addVM();

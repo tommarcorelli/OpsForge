@@ -111,6 +111,10 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .hero-sub code{background:rgba(255,255,255,.25);color:#fff;}
 .hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
 
+/* Barre d'actions (ex-boutons de la nav) */
+.nav-hub{margin-left:auto;}
+.app-toolbar{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:1520px;margin:0 auto;padding:4px 26px 10px;position:relative;z-index:1;}
+
 .hero-features{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:44px;}
 .feature-tile{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:22px 16px;
   background:var(--glass);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);
