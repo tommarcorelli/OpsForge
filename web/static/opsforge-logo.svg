@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b8dff"/>
+      <stop offset="0.52" stop-color="#7c6cff"/>
+      <stop offset="1" stop-color="#e5893b"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="116" fill="url(#g)"/>
+  <g fill="#ffffff">
+    <!-- plateau de l'enclume -->
+    <rect x="136" y="196" width="248" height="52" rx="13"/>
+    <!-- corne (pointe a gauche) -->
+    <path d="M136 206 L86 236 L136 262 Z"/>
+    <!-- fut (trapeze) -->
+    <path d="M210 248 L322 248 L298 330 L234 330 Z"/>
+    <!-- socle -->
+    <rect x="150" y="326" width="212" height="40" rx="13"/>
+  </g>
+  <!-- etincelle -->
+  <path fill="#ffe0b3" d="M398 150 l10 26 26 10 -26 10 -10 26 -10 -26 -26 -10 26 -10 z"/>
+</svg>

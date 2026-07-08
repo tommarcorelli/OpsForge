@@ -8,6 +8,7 @@
   <!-- PWA -->
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
   <meta name="theme-color" content="#5B8DFF" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -33,7 +34,7 @@
 
   <header class="page-header">
     <div class="logo-mark">
-      <img src="{{ url_for('static', filename='logo.svg') }}" alt="" width="36" height="36" />
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
     </div>
     <p class="eyebrow">OPSFORGE — GÉNÉRATEUR DE PIPELINE CI/CD</p>
     <h1>Construis ton pipeline<br />en quelques clics</h1>

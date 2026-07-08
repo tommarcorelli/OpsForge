@@ -7,6 +7,7 @@
 
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
   <meta name="theme-color" content="#5B8DFF" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
 
@@ -57,12 +58,9 @@
     }
     header { text-align: center; margin-bottom: 44px; max-width: 640px; }
     .logo {
-      width: 64px; height: 64px; margin: 0 auto 18px;
-      display: grid; place-items: center;
-      border-radius: 18px;
-      background: linear-gradient(135deg, var(--accent-cicd), var(--accent-ans));
+      width: 76px; height: 76px; margin: 0 auto 18px;
+      display: block; border-radius: 20px;
       box-shadow: var(--shadow);
-      font-size: 34px;
     }
     .eyebrow {
       font-size: 12px; letter-spacing: 0.18em; font-weight: 600;
@@ -114,7 +112,7 @@
 </head>
 <body>
   <header>
-    <div class="logo">⚒️</div>
+    <img class="logo" src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="OpsForge" width="76" height="76" />
     <p class="eyebrow">Suite Forge · outillage DevOps local</p>
     <h1>OpsForge</h1>
     <p>Plusieurs forges en un seul atelier : génère tes <strong>pipelines CI/CD</strong>, tes <strong>playbooks Ansible</strong>, tes <strong>Vagrantfile</strong> et ton <strong>Terraform</strong> à partir de ton stack. 100&nbsp;% local, rien n'est envoyé ailleurs.</p>
