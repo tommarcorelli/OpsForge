@@ -21,6 +21,21 @@ def test_no_stacks_raises_error():
         generate_workflow([], jobs=["test"])
 
 
+def test_concurrency_et_permissions_par_defaut():
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    parsed = _parse(generate_workflow(stacks, jobs=["test"]))
+    assert parsed["concurrency"]["cancel-in-progress"] is True
+    assert parsed["permissions"]["contents"] == "read"
+
+
+def test_permissions_elargies_pour_github_pages():
+    stacks = [{"language": "node", "version": "20", "package_manager": "npm"}]
+    parsed = _parse(generate_workflow(
+        stacks, jobs=["build"], deploy={"targets": ["github_pages"]}))
+    assert parsed["permissions"]["pages"] == "write"
+    assert parsed["permissions"]["contents"] == "write"
+
+
 def test_basic_single_stack_generates_valid_yaml():
     stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
     yaml_text = generate_workflow(stacks, jobs=["lint", "test", "build"])

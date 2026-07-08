@@ -401,9 +401,31 @@ def generate_workflow(stacks, jobs=None, triggers=None, deploy=None, workflow_na
     triggers_block = _build_triggers_block(triggers)
     jobs_section = "\n\n".join(all_job_blocks)
 
+    # Bloc permissions (moindre privilege). GitHub Pages a besoin d'ecrire :
+    # on elargit uniquement si cette cible est demandee.
+    deploy_targets = (deploy or {}).get("targets") or []
+    if "github_pages" in deploy_targets:
+        permissions_block = (
+            "permissions:\n"
+            "  contents: write\n"
+            "  pages: write\n"
+            "  id-token: write\n"
+        )
+    else:
+        permissions_block = "permissions:\n  contents: read\n"
+
+    # Annule un run precedent encore en cours sur la meme ref (economise des minutes CI).
+    concurrency_block = (
+        "concurrency:\n"
+        "  group: ${{ github.workflow }}-${{ github.ref }}\n"
+        "  cancel-in-progress: true\n"
+    )
+
     workflow = (
         f"name: {workflow_name}\n\n"
         f"{triggers_block}\n\n"
+        f"{permissions_block}\n"
+        f"{concurrency_block}\n"
         f"jobs:\n"
         f"{jobs_section}\n"
     )
