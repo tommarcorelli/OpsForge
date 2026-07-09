@@ -25,6 +25,7 @@ from modules.cicd.routes import bp as cicd_bp
 from modules.ansible.routes import bp as ansible_bp
 from modules.vagrant.routes import bp as vagrant_bp
 from modules.terraform.routes import bp as terraform_bp
+from modules.dockerfile.routes import bp as dockerfile_bp
 
 app = Flask(__name__, template_folder="web/templates", static_folder="web/static")
 
@@ -32,6 +33,7 @@ app.register_blueprint(cicd_bp)
 app.register_blueprint(ansible_bp)
 app.register_blueprint(vagrant_bp)
 app.register_blueprint(terraform_bp)
+app.register_blueprint(dockerfile_bp)
 
 
 @app.route("/")
@@ -55,5 +57,9 @@ def service_worker():
 if __name__ == "__main__":
     # Port configurable via variable d'environnement : PORT=8080 python app.py
     port = int(os.environ.get("PORT", 5050))
+    # Debug desactive par defaut : le debugger Werkzeug expose une console
+    # Python interactive (RCE potentielle). Active uniquement en dev explicite :
+    # FLASK_DEBUG=1 python app.py
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
     print(f"OpsForge disponible sur : http://127.0.0.1:{port}")
-    app.run(debug=True, port=port)
+    app.run(debug=debug, port=port)

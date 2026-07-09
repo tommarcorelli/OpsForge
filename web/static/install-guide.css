@@ -40,12 +40,10 @@
 .ig-copy:hover{background:rgba(255,255,255,.18);}
 .ig-note{font-size:12.5px;color:#64748b;margin-top:6px;line-height:1.5;}
 .ig-note a{color:#5b8dff;}
-@media (prefers-color-scheme:dark){
-  .ig-modal{background:#1c1e2b;color:#cbd3e6;}
-  .ig-head{border-color:#2a2d3d;}
-  .ig-head h2{color:#eef1f7;}
-  .ig-close{background:#262a3a;color:#9aa3bd;}
-  .ig-tab{background:#242838;border-color:#2a2d3d;color:#cbd3e6;}
-  .ig-step-title{color:#eef1f7;}
-  .ig-intro,.ig-note{color:#9aa3bd;}
-}
+[data-theme="dark"] .ig-modal{background:#1c1e2b;color:#cbd3e6;}
+[data-theme="dark"] .ig-head{border-color:#2a2d3d;}
+[data-theme="dark"] .ig-head h2{color:#eef1f7;}
+[data-theme="dark"] .ig-close{background:#262a3a;color:#9aa3bd;}
+[data-theme="dark"] .ig-tab{background:#242838;border-color:#2a2d3d;color:#cbd3e6;}
+[data-theme="dark"] .ig-step-title{color:#eef1f7;}
+[data-theme="dark"] .ig-intro,[data-theme="dark"] .ig-note{color:#9aa3bd;}

@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OpsForge — Vagrant</title>
 <meta name="description" content="Forge des Vagrantfile multi-VM sans écrire de Ruby : OS au choix, langue, presets, validation en direct.">
@@ -28,7 +29,8 @@
     <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38" style="border-radius:11px;display:block;box-shadow:0 6px 16px rgba(91,141,255,.4);">
     <span class="txt">OpsForge <span style="opacity:.55;font-weight:600;">· Vagrant</span></span>
   </a>
-  <a class="btn ghost nav-hub" href="{{ url_for('hub') }}" title="Retour au hub OpsForge"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair" style="margin-left:auto"><span id="theme-icon">🌙</span></button>
+  <a class="btn ghost nav-hub" href="{{ url_for('hub') }}" title="Retour au hub OpsForge" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
 </nav>
 
 <!-- ── Hero ── -->
@@ -171,6 +173,7 @@
   </div>
 </div>
 
+<script src="{{ url_for('static', filename='theme.js') }}"></script>
 <script src="{{ url_for('static', filename='vagrant/js/donnees.js') }}"></script>
 <script src="{{ url_for('static', filename='vagrant/js/generateur.js') }}"></script>
 <script src="{{ url_for('static', filename='vagrant/js/validation.js') }}"></script>

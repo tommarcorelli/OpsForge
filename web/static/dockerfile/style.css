@@ -1,9 +1,9 @@
 /* ============================================================
-   OpsForge — module CI/CD · thème CasaOS (glassmorphism)
-   Accent : bleu. Structure/IDs inchangés (le JS en dépend).
+   OpsForge — module Dockerfile · thème CasaOS (glassmorphism)
+   Accent : bleu Docker. Structure/IDs inchangés (le JS en depend).
    ============================================================ */
 :root{
-  --primary:#007AFF; --primary-2:#32ADE6; --primary-h:#0056d6;
+  --primary:#2496ED; --primary-2:#0db7ed; --primary-h:#1372c4;
   --ink:#0f172a; --ink-2:#334155; --dim:#64748b; --faint:#94a3b8;
   --glass:rgba(255,255,255,.72); --glass-strong:rgba(255,255,255,.9); --glass-soft:rgba(255,255,255,.55);
   --border:rgba(255,255,255,.6); --border-2:rgba(15,23,42,.08);
@@ -26,19 +26,19 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .install-btn{position:fixed;bottom:16px;right:16px;z-index:60;border:1px solid var(--border);background:var(--glass);backdrop-filter:blur(20px);
   color:var(--ink);padding:10px 16px;border-radius:999px;font-family:var(--ui);font-weight:600;font-size:13px;cursor:pointer;box-shadow:var(--shadow);}
 
-/* Fond CasaOS (bleu) */
+/* Fond CasaOS (bleu Docker) */
 .blueprint-grid{position:fixed;inset:0;z-index:-2;pointer-events:none;
   background:
-    radial-gradient(1200px 800px at 12% -10%, rgba(0,122,255,.55), transparent 60%),
-    radial-gradient(1000px 720px at 92% 6%, rgba(124,108,255,.45), transparent 58%),
-    radial-gradient(1100px 900px at 60% 110%, rgba(50,173,230,.4), transparent 60%),
-    linear-gradient(135deg,#4f8bff 0%,#6f6bff 50%,#7c6cff 100%);}
+    radial-gradient(1200px 800px at 12% -10%, rgba(36,150,237,.55), transparent 60%),
+    radial-gradient(1000px 720px at 92% 6%, rgba(13,183,237,.42), transparent 58%),
+    radial-gradient(1100px 900px at 60% 110%, rgba(124,108,255,.35), transparent 60%),
+    linear-gradient(135deg,#1f7fd6 0%,#2496ED 45%,#0db7ed 100%);}
 
 /* Nav */
 .nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;margin:14px;padding:12px 18px;border-radius:20px;
   background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--border);box-shadow:var(--shadow);}
 .nav .logo{display:flex;align-items:center;gap:11px;font-family:var(--head);font-weight:800;font-size:20px;color:var(--ink);white-space:nowrap;}
-.nav .logo img{border-radius:11px;display:block;box-shadow:0 6px 16px rgba(0,122,255,.4);}
+.nav .logo img{border-radius:11px;display:block;box-shadow:0 6px 16px rgba(36,150,237,.4);}
 .nav .logo .sub{opacity:.55;font-weight:600;}
 .nav-hub{margin-left:auto;}
 
@@ -71,7 +71,7 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .field-hint{font-size:12px;color:var(--dim);margin:6px 0 0;line-height:1.5;}
 .section-divider{border:none;border-top:1px dashed var(--border-2);margin:22px 0;}
 .text-input,.input-row input,input[type=text]{width:100%;padding:11px 13px;border-radius:12px;border:1px solid var(--border-2);background:var(--glass-strong);color:var(--ink);font-size:14px;font-family:inherit;}
-.text-input:focus,.input-row input:focus,input[type=text]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,122,255,.15);}
+.text-input:focus,.input-row input:focus,input[type=text]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(36,150,237,.15);}
 .input-row{display:flex;gap:8px;}
 .input-row input{flex:1;}
 .input-row .btn{flex:0 0 auto;}
@@ -79,8 +79,8 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 /* Stacks */
 .stack-list{display:flex;flex-direction:column;gap:8px;}
 .stack-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border-radius:12px;background:var(--glass-strong);border:1px solid var(--border-2);font-size:14px;color:var(--ink);cursor:pointer;transition:all .15s ease;}
-.stack-item:hover{border-color:rgba(0,122,255,.4);}
-.stack-item.detected{background:rgba(0,122,255,.08);border-color:rgba(0,122,255,.35);cursor:default;}
+.stack-item:hover{border-color:rgba(36,150,237,.4);}
+.stack-item.detected{background:rgba(36,150,237,.08);border-color:rgba(36,150,237,.35);cursor:default;}
 .stack-item input{width:17px;height:17px;accent-color:var(--primary);}
 .stack-meta{font-family:var(--mono);font-size:11.5px;color:var(--dim);}
 
@@ -88,7 +88,7 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .jobs-toggles{display:flex;flex-wrap:wrap;gap:8px;}
 .toggle{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;background:var(--glass-strong);border:1px solid var(--border-2);cursor:pointer;font-size:13.5px;color:var(--ink-2);transition:all .15s ease;}
 .toggle input{width:16px;height:16px;accent-color:var(--primary);cursor:pointer;}
-.toggle:has(input:checked){background:rgba(0,122,255,.09);border-color:rgba(0,122,255,.45);color:var(--ink);}
+.toggle:has(input:checked){background:rgba(36,150,237,.09);border-color:rgba(36,150,237,.45);color:var(--ink);}
 .deploy-fields{background:rgba(15,23,42,.03);border:1px solid var(--border-2);border-radius:14px;padding:16px;}
 
 /* Boutons */
@@ -98,8 +98,8 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .btn-ghost{background:var(--glass-soft);border-color:var(--border-2);color:var(--ink-2);}
 .btn-ghost:hover{background:#fff;transform:translateY(-1px);box-shadow:var(--shadow);}
 .btn-stamp{flex:1;margin-top:8px;padding:15px;font-family:var(--head);font-weight:800;font-size:15px;letter-spacing:.02em;color:#fff;
-  background:linear-gradient(135deg,var(--primary),var(--primary-2));box-shadow:0 12px 26px -8px rgba(0,122,255,.75);border-radius:14px;}
-.btn-stamp:hover{transform:translateY(-2px);box-shadow:0 16px 32px -8px rgba(0,122,255,.85);}
+  background:linear-gradient(135deg,var(--primary),var(--primary-2));box-shadow:0 12px 26px -8px rgba(36,150,237,.75);border-radius:14px;}
+.btn-stamp:hover{transform:translateY(-2px);box-shadow:0 16px 32px -8px rgba(36,150,237,.85);}
 .error-msg{color:#d1543f;font-size:13.5px;margin:12px 0 0;font-weight:500;min-height:0;}
 .error-msg.visible{margin-top:12px;}
 
@@ -108,7 +108,7 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .node{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;background:var(--glass-strong);border:1px solid var(--border-2);
   color:var(--dim);font-size:12px;font-weight:600;font-family:var(--mono);opacity:.5;transition:all .2s ease;}
 .node-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(15,23,42,.10);color:var(--ink-2);font-size:10px;}
-.node.active{opacity:1;color:#fff;background:linear-gradient(135deg,var(--primary),var(--primary-2));border-color:transparent;box-shadow:0 6px 16px -6px rgba(0,122,255,.7);}
+.node.active{opacity:1;color:#fff;background:linear-gradient(135deg,var(--primary),var(--primary-2));border-color:transparent;box-shadow:0 6px 16px -6px rgba(36,150,237,.7);}
 .node.active .node-num{background:rgba(255,255,255,.3);color:#fff;}
 .connector{flex:0 0 14px;height:2px;background:rgba(15,23,42,.14);border-radius:2px;transition:background .2s ease;}
 .connector.flowing{background:linear-gradient(90deg,var(--primary),var(--primary-2));}
@@ -151,3 +151,8 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 [data-theme="dark"] .theme-toggle{background:var(--glass-strong);color:var(--ink);}
 [data-theme="dark"] .theme-toggle:hover{background:rgba(255,255,255,.10);}
 [data-theme="dark"] .text-input,[data-theme="dark"] .input-row input,[data-theme="dark"] input[type=text]{color:var(--ink);}
+
+/* Coloration syntaxique legere du Dockerfile genere */
+.yaml-comment{color:#7c85a0;font-style:italic;}
+.yaml-key{color:#7dc4ff;font-weight:700;}
+[data-theme="dark"] .yaml-comment{color:#8a93ad;}

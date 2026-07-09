@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OpsForge — Générateur de Pipeline CI/CD</title>
 
@@ -31,12 +32,11 @@
       <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
       <span class="txt">OpsForge <span class="sub">· CI/CD</span></span>
     </a>
-    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair" style="margin-left:auto">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
   </nav>
-
-  <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
-    <span id="theme-icon">🌙</span>
-  </button>
 
   <button type="button" id="install-btn" class="install-btn" hidden>
     📲 Installer l'app
@@ -254,6 +254,7 @@
     <div class="tb-cell"><span class="tb-key">RÉV.</span><span class="tb-value">A</span></div>
   </footer>
 
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
   <script src="{{ url_for('static', filename='cicd/script.js') }}"></script>
 </body>
 </html>

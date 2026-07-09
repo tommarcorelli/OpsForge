@@ -80,48 +80,9 @@ function switchProvider(provider) {
 }
 
 // ----------------------------------------------------------------------------
-// Theme clair/sombre : respecte prefers-color-scheme au premier chargement,
-// puis mémorise le choix manuel de l'utilisateur dans localStorage.
+// Theme clair/sombre : gere par web/static/theme.js (partage entre les
+// 5 pages d'OpsForge). Rien a faire ici.
 // ----------------------------------------------------------------------------
-const THEME_KEY = "cicd-generator-theme";
-const themeToggleBtn = document.getElementById("theme-toggle");
-const themeIcon = document.getElementById("theme-icon");
-
-function applyTheme(theme) {
-  document.documentElement.setAttribute("data-theme", theme);
-  themeIcon.textContent = theme === "dark" ? "☀️" : "🌙";
-}
-
-function initTheme() {
-  let saved = null;
-  try {
-    saved = localStorage.getItem(THEME_KEY);
-  } catch (err) {
-    // ignore
-  }
-
-  if (saved === "dark" || saved === "light") {
-    applyTheme(saved);
-    return;
-  }
-
-  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  applyTheme(prefersDark ? "dark" : "light");
-}
-
-function toggleTheme() {
-  const current = document.documentElement.getAttribute("data-theme");
-  const next = current === "dark" ? "light" : "dark";
-  applyTheme(next);
-  try {
-    localStorage.setItem(THEME_KEY, next);
-  } catch (err) {
-    // ignore
-  }
-}
-
-themeToggleBtn.addEventListener("click", toggleTheme);
-initTheme();
 
 // ----------------------------------------------------------------------------
 // PWA : bouton d'installation natif (via beforeinstallprompt)

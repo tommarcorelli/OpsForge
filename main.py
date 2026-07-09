@@ -4,16 +4,18 @@ main.py
 OpsForge — point d'entree CLI unifie.
 
 Sous-commandes :
-    python main.py cicd      ...   -> generateur de pipeline CI/CD
-    python main.py ansible   ...   -> generateur de playbook Ansible
-    python main.py vagrant   ...   -> generateur de Vagrantfile multi-VM
-    python main.py terraform ...   -> generateur de main.tf (v0)
+    python main.py cicd       ...   -> generateur de pipeline CI/CD
+    python main.py ansible    ...   -> generateur de playbook Ansible
+    python main.py vagrant    ...   -> generateur de Vagrantfile multi-VM
+    python main.py terraform  ...   -> generateur de main.tf (v0)
+    python main.py dockerfile ...   -> generateur de Dockerfile multi-stage
 
 Chaque sous-commande accepte ses propres options. Exemples :
     python main.py cicd . --provider gitlab --deploy docker_hub
     python main.py ansible --lang node --repo git@github.com:moi/app.git --layout roles
     python main.py vagrant preset k3s -o Vagrantfile
     python main.py terraform config.json -o main.tf
+    python main.py dockerfile . --port 8000 --entrypoint app.py
 
 Utilise `python main.py <module> --help` pour voir les options d'un module.
 """
@@ -24,22 +26,25 @@ from modules.cicd import cli as cicd_cli
 from modules.ansible import cli as ansible_cli
 from modules.vagrant import cli as vagrant_cli
 from modules.terraform import cli as terraform_cli
+from modules.dockerfile import cli as dockerfile_cli
 
 MODULES = {
     "cicd": cicd_cli.main,
     "ansible": ansible_cli.main,
     "vagrant": vagrant_cli.main,
     "terraform": terraform_cli.main,
+    "dockerfile": dockerfile_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile} [options]")
     print()
     print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
     print("  vagrant    Genere un Vagrantfile multi-VM")
     print("  terraform  Genere un main.tf (v0, a enrichir)")
+    print("  dockerfile Genere un Dockerfile multi-stage (build + runtime allege)")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 

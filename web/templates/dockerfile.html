@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Générateur de Dockerfile</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#2496ED" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='dockerfile/style.css') }}" />
+</head>
+<body>
+
+  <!-- Fond degrades doux -->
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· Dockerfile</span></span>
+    </a>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair" style="margin-left:auto">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — GÉNÉRATEUR DE DOCKERFILE</p>
+    <h1>Conteneurise ton appli<br />en un Dockerfile propre</h1>
+    <p class="subtitle">Détection automatique du langage (comme le module CI/CD), Dockerfile multi-stage prêt pour la prod. Aucun fichier n'est envoyé ailleurs qu'en local.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="field-group">
+        <label class="field-label" data-step="1" for="project-path">Chemin du projet (détection auto)</label>
+        <div class="input-row">
+          <input type="text" id="project-path" placeholder="/home/utilisateur/mon-projet" />
+          <button type="button" id="detect-btn" class="btn btn-ghost">Détecter</button>
+        </div>
+        <p class="field-hint" id="detect-hint">Laisse vide pour choisir un langage manuellement ci-dessous.</p>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="2">Langage</label>
+        <div class="stack-list" id="language-list">
+          <!-- Options generees dynamiquement en JS -->
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="3" for="version-input">Version</label>
+        <input type="text" id="version-input" class="text-input" placeholder="ex : 3.12" />
+        <p class="field-hint">Détectée automatiquement si tu utilises la détection de dossier, sinon valeur par défaut du langage.</p>
+      </div>
+
+      <div class="field-group" id="package-manager-group">
+        <label class="field-label" for="package-manager-select">Package manager</label>
+        <select id="package-manager-select" class="text-input"></select>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="4" for="port-input">Port exposé</label>
+        <input type="number" id="port-input" class="text-input" placeholder="ex : 8000" />
+      </div>
+
+      <div class="field-group" id="entrypoint-group">
+        <label class="field-label" for="entrypoint-input">Point d'entrée</label>
+        <input type="text" id="entrypoint-input" class="text-input" placeholder="ex : app.py, index.js, MonProjet.dll" />
+        <p class="field-hint" id="entrypoint-hint">Fichier, binaire ou DLL de démarrage.</p>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="workdir-input">Dossier de travail dans le conteneur</label>
+        <input type="text" id="workdir-input" class="text-input" value="/app" />
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="toggle" style="width:100%;">
+          <input type="checkbox" id="dockerignore-checkbox" checked />
+          <span>Générer aussi un <code>.dockerignore</code> adapté au langage</span>
+        </label>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top: 0;">
+          GÉNÉRER →
+        </button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink: 0;">
+          ↺
+        </button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="build">
+          <span class="node-num">01</span>
+          <span class="node-label">BUILD</span>
+        </div>
+        <div class="connector flowing"></div>
+        <div class="node active" data-stage="runtime">
+          <span class="node-num">02</span>
+          <span class="node-label">RUNTIME</span>
+        </div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Dockerfile</p>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le fichier généré apparaîtra ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+      <div class="badge-box" id="dockerignore-box" hidden>
+        <label class="field-label" style="margin-bottom: 8px;">.dockerignore</label>
+        <div class="result-box" id="dockerignore-result-box" style="min-height: auto; max-height: 220px; padding: 14px 16px;">
+          <pre id="dockerignore-text" style="font-size: 12.5px;"></pre>
+        </div>
+        <button type="button" id="copy-dockerignore-btn" class="btn btn-ghost" style="margin-top: 8px;">Copier le .dockerignore</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============ DOCK FLOTTANT (statut) ============ -->
+  <footer class="title-block" id="title-block">
+    <div class="tb-cell"><span class="tb-key">PROJET</span><span class="tb-value" id="tb-project">—</span></div>
+    <div class="tb-cell"><span class="tb-key">LANGAGE</span><span class="tb-value" id="tb-language">—</span></div>
+    <div class="tb-cell"><span class="tb-key">PORT</span><span class="tb-value" id="tb-port">—</span></div>
+    <div class="tb-cell"><span class="tb-key">RÉV.</span><span class="tb-value">A</span></div>
+  </footer>
+
+  <script>
+    window.OPSFORGE_DOCKERFILE = {
+      languages: {{ languages | tojson }},
+      defaultPorts: {{ default_ports | tojson }},
+      defaultEntrypoints: {{ default_entrypoints | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='dockerfile/script.js') }}"></script>
+</body>
+</html>

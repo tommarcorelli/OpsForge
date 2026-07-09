@@ -15,7 +15,6 @@ from modules.cicd.core import (
 )
 from modules.cicd.gitlab_core import (
     generate_gitlab_ci,
-    DEPLOY_TARGETS as GITLAB_DEPLOY_TARGETS,
     generate_badge_markdown as generate_gitlab_badge_markdown,
 )
 

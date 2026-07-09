@@ -10,7 +10,6 @@ Couvre les deux providers (GitHub Actions et GitLab CI).
 Lancer avec : pytest tests/test_advanced_features.py -v
 """
 
-import pytest
 import yaml
 
 from modules.cicd.core import generate_workflow, generate_badge_markdown
