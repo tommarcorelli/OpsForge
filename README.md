@@ -1,5 +1,10 @@
 # OpsForge
 
+[![CI](https://github.com/ton-user/OpsForge/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ton-user/OpsForge/actions/workflows/ci.yml)
+
+> Remplace `ton-user` par ton nom d'utilisateur/organisation GitHub une fois
+> le repo poussé (badge généré avec le propre module `cicd` d'OpsForge 🙂).
+
 **Plusieurs forges DevOps dans un seul atelier**, 100 % en local :
 
 | Module | Ce qu'il génère | Accès web | Sous-commande CLI |
@@ -54,6 +59,8 @@ python app.py
 
 Puis ouvre **http://127.0.0.1:5050**. Choisis un module depuis le hub, ou vas
 directement sur `/cicd` ou `/ansible`. Port configurable : `PORT=8080 python app.py`.
+Mode debug (rechargement auto + debugger Werkzeug) désactivé par défaut,
+activable pour le dev : `FLASK_DEBUG=1 python app.py`.
 
 L'interface est installable comme **PWA** (Chrome/Edge : icône dans la barre
 d'adresse ; mobile : « Ajouter à l'écran d'accueil »).
@@ -78,6 +85,9 @@ python main.py cicd . --provider gitlab --deploy docker_hub ssh \
 # Matrix build (teste plusieurs versions) + cron + badge
 python main.py cicd . --matrix-versions 3.10 3.11 3.12 \
   --schedule-cron "0 3 * * *" --badge-repo monuser/monrepo
+
+# Apercu sans rien ecrire sur disque
+python main.py cicd . --dry-run
 ```
 
 ### Module Ansible
@@ -94,6 +104,10 @@ python main.py ansible --lang python --repo git@github.com:moi/app.git \
 
 # Multi-serveurs à partir d'un fichier JSON de groupes
 python main.py ansible --groups-file mes-serveurs.json
+
+# Aperçu sans rien écrire sur disque (layout flat uniquement)
+python main.py ansible --lang node --repo git@github.com:moi/app.git \
+  --provisioning base_packages --deployment git_clone --dry-run
 ```
 
 Sortie par défaut : dossier `output/` à la racine du projet.

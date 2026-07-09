@@ -55,5 +55,9 @@ def service_worker():
 if __name__ == "__main__":
     # Port configurable via variable d'environnement : PORT=8080 python app.py
     port = int(os.environ.get("PORT", 5050))
+    # Debug desactive par defaut : le debugger Werkzeug expose une console
+    # Python interactive (RCE potentielle). Active uniquement en dev explicite :
+    # FLASK_DEBUG=1 python app.py
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
     print(f"OpsForge disponible sur : http://127.0.0.1:{port}")
-    app.run(debug=True, port=port)
+    app.run(debug=debug, port=port)

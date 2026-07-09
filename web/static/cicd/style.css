@@ -19,8 +19,10 @@ body{font-family:var(--ui);color:var(--ink-2);line-height:1.55;-webkit-font-smoo
 a{color:inherit;text-decoration:none;}
 code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;border-radius:6px;color:var(--primary-h);font-size:.9em;}
 
-/* On ignore le theme sombre : CasaOS est clair. Bouton lune masque. */
-.theme-toggle{display:none !important;}
+.theme-toggle{width:38px;height:38px;flex:0 0 auto;border-radius:50%;border:1px solid var(--border-2);background:var(--glass-strong);
+  color:var(--ink);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;margin-left:10px;
+  transition:transform .18s ease,box-shadow .18s ease,background .18s ease;}
+.theme-toggle:hover{background:#fff;transform:translateY(-1px);box-shadow:var(--shadow);}
 .install-btn{position:fixed;bottom:16px;right:16px;z-index:60;border:1px solid var(--border);background:var(--glass);backdrop-filter:blur(20px);
   color:var(--ink);padding:10px 16px;border-radius:999px;font-family:var(--ui);font-weight:600;font-size:13px;cursor:pointer;box-shadow:var(--shadow);}
 
@@ -127,3 +129,25 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .tb-cell:last-child{flex:0 0 auto;border-right:none;}
 .tb-key{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--faint);}
 .tb-value{font-family:var(--head);font-weight:700;font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ============================================================
+   Mode sombre (data-theme="dark", bascule via theme.js)
+   ============================================================ */
+[data-theme="dark"]{
+  --ink:#f1f5f9; --ink-2:#cbd5e1; --dim:#94a3b8; --faint:#64748b;
+  --glass:rgba(24,26,36,.72); --glass-strong:rgba(30,32,44,.88); --glass-soft:rgba(24,26,36,.55);
+  --border:rgba(255,255,255,.10); --border-2:rgba(255,255,255,.08);
+  --shadow:0 8px 32px rgba(0,0,0,.35); --shadow-lg:0 20px 56px rgba(0,0,0,.5);
+}
+[data-theme="dark"] body{background:#0b0d14;}
+[data-theme="dark"] .blueprint-grid{filter:brightness(.5) saturate(.85);}
+[data-theme="dark"] code{background:rgba(255,255,255,.08);}
+[data-theme="dark"] .provider-switch{background:rgba(255,255,255,.05);}
+[data-theme="dark"] .provider-btn.active{background:rgba(255,255,255,.14);color:#fff;}
+[data-theme="dark"] .deploy-fields{background:rgba(255,255,255,.04);}
+[data-theme="dark"] .btn-ghost:hover{background:rgba(255,255,255,.10);}
+[data-theme="dark"] .node-num{background:rgba(255,255,255,.14);}
+[data-theme="dark"] .connector{background:rgba(255,255,255,.14);}
+[data-theme="dark"] .theme-toggle{background:var(--glass-strong);color:var(--ink);}
+[data-theme="dark"] .theme-toggle:hover{background:rgba(255,255,255,.10);}
+[data-theme="dark"] .text-input,[data-theme="dark"] .input-row input,[data-theme="dark"] input[type=text]{color:var(--ink);}

@@ -10,10 +10,10 @@ import os
 import sys
 
 from modules.cicd.detector import detect_stack
-from modules.cicd.core import generate_workflow, write_workflow, DEPLOY_TARGETS, generate_badge_markdown
+from modules.cicd.core import write_workflow, generate_workflow, generate_badge_markdown
 from modules.cicd.gitlab_core import (
     write_gitlab_ci,
-    DEPLOY_TARGETS as GITLAB_DEPLOY_TARGETS,
+    generate_gitlab_ci,
     generate_badge_markdown as generate_gitlab_badge_markdown,
 )
 
@@ -129,6 +129,11 @@ def build_parser():
         help="Si fourni (ex: 'monuser/monrepo'), affiche en plus un "
              "snippet Markdown de badge de statut a coller dans ton README.",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Affiche le pipeline genere dans le terminal sans rien ecrire sur disque.",
+    )
 
     return parser
 
@@ -177,6 +182,21 @@ def main(argv=None):
 
     if args.provider == "gitlab":
         output_path = args.output or os.path.join(OUTPUT_DIR, ".gitlab-ci.yml")
+
+        if args.dry_run:
+            try:
+                content = generate_gitlab_ci(
+                    stacks, jobs=args.jobs, deploy=deploy_config,
+                    schedule_cron=args.schedule_cron,
+                )
+            except ValueError as e:
+                print(f"Erreur : {e}")
+                sys.exit(1)
+            print(f"\n--- Apercu (dry-run) : {output_path} ---\n")
+            print(content)
+            print("--- Fin de l'apercu : rien n'a ete ecrit sur disque ---")
+            return
+
         try:
             write_gitlab_ci(
                 stacks, output_path, jobs=args.jobs, deploy=deploy_config,
@@ -193,11 +213,24 @@ def main(argv=None):
             print("N'oublie pas de configurer les variables CI/CD necessaires dans GitLab "
                   "(Settings > CI/CD > Variables). Voir le README.")
         if args.badge_repo:
-            print(f"\nBadge Markdown pour ton README :")
+            print("\nBadge Markdown pour ton README :")
             print(generate_gitlab_badge_markdown(args.badge_repo, branch=args.branches[0]))
         return
 
     output_path = args.output or os.path.join(OUTPUT_DIR, "ci.yml")
+
+    if args.dry_run:
+        try:
+            content = generate_workflow(
+                stacks, jobs=args.jobs, triggers=triggers, deploy=deploy_config
+            )
+        except ValueError as e:
+            print(f"Erreur : {e}")
+            sys.exit(1)
+        print(f"\n--- Apercu (dry-run) : {output_path} ---\n")
+        print(content)
+        print("--- Fin de l'apercu : rien n'a ete ecrit sur disque ---")
+        return
 
     try:
         write_workflow(
@@ -214,7 +247,7 @@ def main(argv=None):
         print("N'oublie pas de configurer les secrets necessaires dans GitHub "
               "(Settings > Secrets and variables > Actions). Voir le README.")
     if args.badge_repo:
-        print(f"\nBadge Markdown pour ton README :")
+        print("\nBadge Markdown pour ton README :")
         print(generate_badge_markdown(
             args.badge_repo,
             branch=args.branches[0],

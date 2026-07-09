@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OpsForge — Ansible</title>
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
@@ -27,6 +28,7 @@
       <span class="txt">OpsForge <span class="sub">· Ansible</span></span>
     </a>
     <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-download"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair"><span id="theme-icon">🌙</span></button>
     <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
   </nav>
 
@@ -425,6 +427,7 @@
     <div class="tb-cell"><span class="tb-key">RÉV.</span><span class="tb-value">B</span></div>
   </footer>
 
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
   <script src="{{ url_for('static', filename='ansible/script.js') }}"></script>
 
   <script>
