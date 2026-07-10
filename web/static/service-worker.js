@@ -6,18 +6,38 @@
 // la generation doit toujours utiliser des donnees fraiches.
 // ============================================================================
 
-const CACHE_NAME = "opsforge-v2";
+const CACHE_NAME = "opsforge-v3";
 
 const STATIC_ASSETS = [
   "/",
   "/cicd",
   "/ansible",
+  "/vagrant",
+  "/terraform",
+  "/dockerfile",
+  "/k8s",
+  "/static/theme.js",
+  "/static/install-guide.css",
+  "/static/install-guide.js",
   "/static/cicd/style.css",
   "/static/cicd/script.js",
   "/static/ansible/style.css",
   "/static/ansible/script.js",
-  "/static/logo.svg",
+  "/static/vagrant/css/style.css",
+  "/static/vagrant/js/app.js",
+  "/static/vagrant/js/generateur.js",
+  "/static/vagrant/js/donnees.js",
+  "/static/vagrant/js/validation.js",
+  "/static/terraform/style.css",
+  "/static/terraform/script.js",
+  "/static/dockerfile/style.css",
+  "/static/dockerfile/script.js",
+  "/static/k8s/style.css",
+  "/static/k8s/script.js",
+  "/static/opsforge-logo.svg",
+  "/static/favicon.ico",
   "/static/manifest.json",
+  "/static/icons/icon-180.png",
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",
 ];

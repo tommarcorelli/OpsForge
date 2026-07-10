@@ -21,6 +21,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="{{ url_for('static', filename='dockerfile/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
 </head>
 <body>
 
@@ -32,7 +33,8 @@
       <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
       <span class="txt">OpsForge <span class="sub">· Dockerfile</span></span>
     </a>
-    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair" style="margin-left:auto">
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-download"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
       <span id="theme-icon">🌙</span>
     </button>
     <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
@@ -170,5 +172,39 @@
   </script>
   <script src="{{ url_for('static', filename='theme.js') }}"></script>
   <script src="{{ url_for('static', filename='dockerfile/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "Docker",
+    icon: "fa-brands fa-docker",
+    intro: "Le Dockerfile généré nécessite Docker 23+ (support BuildKit et des <code>COPY</code> optionnels). Sur Windows/macOS, installe <b>Docker Desktop</b> ; sur Linux, <b>Docker Engine</b>.",
+    os: [
+      { id: "windows", label: "Windows", icon: "fa-brands fa-windows", color: "#0078D6", steps: [
+        { title: "Docker Desktop", cmd: "winget install Docker.DockerDesktop", note: "Nécessite WSL2 (activé automatiquement si besoin). Redémarrage requis." },
+        { title: "Vérifier", cmd: "docker --version" },
+      ]},
+      { id: "macos", label: "macOS", icon: "fa-brands fa-apple", color: "#555555", steps: [
+        { title: "Docker Desktop", cmd: "brew install --cask docker" },
+        { title: "Vérifier", cmd: "docker --version" },
+      ]},
+      { id: "debian", label: "Debian / Ubuntu", icon: "fa-brands fa-ubuntu", color: "#E95420", steps: [
+        { title: "Dépôt officiel Docker", cmd: "curl -fsSL https://get.docker.com | sudo sh" },
+        { title: "Utiliser Docker sans sudo", cmd: "sudo usermod -aG docker $USER", note: "Déconnecte-toi puis reconnecte-toi pour appliquer le changement de groupe." },
+        { title: "Vérifier", cmd: "docker --version" },
+      ]},
+      { id: "fedora", label: "Fedora / RHEL", icon: "fa-brands fa-redhat", color: "#EE0000", steps: [
+        { title: "Dépôt Docker CE", cmd: "sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo\nsudo dnf install -y docker-ce docker-ce-cli containerd.io" },
+        { title: "Démarrer le service", cmd: "sudo systemctl enable --now docker" },
+        { title: "Vérifier", cmd: "docker --version" },
+      ]},
+      { id: "arch", label: "Arch Linux", icon: "fa-brands fa-linux", color: "#1793D1", steps: [
+        { title: "Avec pacman", cmd: "sudo pacman -S docker\nsudo systemctl enable --now docker" },
+        { title: "Vérifier", cmd: "docker --version" },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
 </body>
 </html>

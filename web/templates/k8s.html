@@ -21,6 +21,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="{{ url_for('static', filename='k8s/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
 </head>
 <body>
 
@@ -32,7 +33,8 @@
       <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
       <span class="txt">OpsForge <span class="sub">· Kubernetes</span></span>
     </a>
-    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair" style="margin-left:auto">
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-download"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
       <span id="theme-icon">🌙</span>
     </button>
     <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
@@ -203,5 +205,40 @@
 
   <script src="{{ url_for('static', filename='theme.js') }}"></script>
   <script src="{{ url_for('static', filename='k8s/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "kubectl + Helm",
+    icon: "fa-solid fa-dharmachakra",
+    intro: "Les manifests bruts s'appliquent avec <code>kubectl</code>, le chart avec <code>helm</code>. Un cluster (k3s, minikube, kind, ou managé) doit déjà tourner à côté.",
+    os: [
+      { id: "windows", label: "Windows", icon: "fa-brands fa-windows", color: "#0078D6", steps: [
+        { title: "kubectl", cmd: "winget install Kubernetes.kubectl" },
+        { title: "Helm", cmd: "winget install Helm.Helm" },
+        { title: "Vérifier", cmd: "kubectl version --client\nhelm version" },
+      ]},
+      { id: "macos", label: "macOS", icon: "fa-brands fa-apple", color: "#555555", steps: [
+        { title: "kubectl + Helm", cmd: "brew install kubectl helm" },
+        { title: "Vérifier", cmd: "kubectl version --client\nhelm version" },
+      ]},
+      { id: "debian", label: "Debian / Ubuntu", icon: "fa-brands fa-ubuntu", color: "#E95420", steps: [
+        { title: "kubectl (dépôt Kubernetes)", cmd: "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg\necho 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list\nsudo apt update && sudo apt install -y kubectl" },
+        { title: "Helm", cmd: "curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash" },
+        { title: "Vérifier", cmd: "kubectl version --client\nhelm version" },
+      ]},
+      { id: "fedora", label: "Fedora / RHEL", icon: "fa-brands fa-redhat", color: "#EE0000", steps: [
+        { title: "kubectl", cmd: "sudo dnf install -y kubectl" },
+        { title: "Helm", cmd: "curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash" },
+        { title: "Vérifier", cmd: "kubectl version --client\nhelm version" },
+      ]},
+      { id: "arch", label: "Arch Linux", icon: "fa-brands fa-linux", color: "#1793D1", steps: [
+        { title: "Avec pacman", cmd: "sudo pacman -S kubectl helm" },
+        { title: "Vérifier", cmd: "kubectl version --client\nhelm version" },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
 </body>
 </html>
