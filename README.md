@@ -1,5 +1,10 @@
 # OpsForge
 
+[![CI](https://github.com/ton-user/OpsForge/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ton-user/OpsForge/actions/workflows/ci.yml)
+
+> Remplace `ton-user` par ton nom d'utilisateur/organisation GitHub une fois
+> le repo poussé (badge généré avec le propre module `cicd` d'OpsForge 🙂).
+
 **Plusieurs forges DevOps dans un seul atelier**, 100 % en local :
 
 | Module | Ce qu'il génère | Accès web | Sous-commande CLI |
@@ -8,6 +13,8 @@
 | **Ansible** | Playbooks de **provisioning + déploiement** serveur (paquets, Docker, Nginx, firewall, fail2ban, bases de données, vault chiffré, multi-serveurs) | `/ansible` | `python main.py ansible …` |
 | **Vagrant** | **Vagrantfile multi-VM** (providers, réseau, provisioning, presets, lint) — portage de VagrantForge | `/vagrant` | `python main.py vagrant …` |
 | **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs | `/terraform` | `python main.py terraform …` |
+| **Dockerfile** | **`Dockerfile`** multi-stage (build + runtime allégé) + `.dockerignore`, 8 langages, bonnes pratiques (utilisateur non-root) | `/dockerfile` | `python main.py dockerfile …` |
+| **Kubernetes / Helm** | **Manifests** (Deployment + Service + Ingress, probes, resources) prêts pour `kubectl apply`, ou **chart Helm** complet, export `.zip` | `/k8s` | `python main.py k8s …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -54,6 +61,8 @@ python app.py
 
 Puis ouvre **http://127.0.0.1:5050**. Choisis un module depuis le hub, ou vas
 directement sur `/cicd` ou `/ansible`. Port configurable : `PORT=8080 python app.py`.
+Mode debug (rechargement auto + debugger Werkzeug) désactivé par défaut,
+activable pour le dev : `FLASK_DEBUG=1 python app.py`.
 
 L'interface est installable comme **PWA** (Chrome/Edge : icône dans la barre
 d'adresse ; mobile : « Ajouter à l'écran d'accueil »).
@@ -78,6 +87,9 @@ python main.py cicd . --provider gitlab --deploy docker_hub ssh \
 # Matrix build (teste plusieurs versions) + cron + badge
 python main.py cicd . --matrix-versions 3.10 3.11 3.12 \
   --schedule-cron "0 3 * * *" --badge-repo monuser/monrepo
+
+# Apercu sans rien ecrire sur disque
+python main.py cicd . --dry-run
 ```
 
 ### Module Ansible
@@ -94,6 +106,10 @@ python main.py ansible --lang python --repo git@github.com:moi/app.git \
 
 # Multi-serveurs à partir d'un fichier JSON de groupes
 python main.py ansible --groups-file mes-serveurs.json
+
+# Aperçu sans rien écrire sur disque (layout flat uniquement)
+python main.py ansible --lang node --repo git@github.com:moi/app.git \
+  --provisioning base_packages --deployment git_clone --dry-run
 ```
 
 Sortie par défaut : dossier `output/` à la racine du projet.
@@ -104,8 +120,8 @@ Sortie par défaut : dossier `output/` à la racine du projet.
 
 ```
 opsforge/
-├── app.py                 → hub Flask : monte les 2 blueprints + page d'accueil
-├── main.py                → CLI unifié : dispatch vers cicd/ ou ansible/
+├── app.py                 → hub Flask : monte les blueprints des modules + page d'accueil
+├── main.py                → CLI unifié : dispatch vers chaque module
 ├── conftest.py            → rend `modules.*` importable par pytest
 ├── requirements.txt
 │
@@ -141,17 +157,37 @@ opsforge/
 │       ├── routes.py          Blueprint Flask (préfixe /terraform) + API
 │       └── cli.py             génération depuis un JSON de config ou un preset
 │
+│   └── dockerfile/       → module Dockerfile (multi-stage, 8 langages)
+│       ├── core.py            assemblage du Dockerfile + .dockerignore par langage
+│       ├── routes.py          Blueprint Flask (préfixe /dockerfile) + API
+│       ├── cli.py             logique CLI du module
+│       └── templates/         un .dockerfile par langage (+ java_maven/java_gradle)
+│           └── dockerignore/  un .dockerignore par langage
+│
+│   └── k8s/              → module Kubernetes/Helm (manifests + chart)
+│       ├── core.py            manifests (dicts → yaml.dump) + chart Helm + validation
+│       ├── routes.py          Blueprint Flask (préfixe /k8s) + API + export .zip
+│       ├── cli.py             logique CLI du module
+│       └── templates/helm/    templates Go statiques du chart (pilotés par values.yaml)
+│
 ├── web/
-│   ├── templates/         → hub.html, cicd.html, ansible.html
+│   ├── templates/         → hub.html, cicd.html, ansible.html, vagrant.html,
+│   │                        terraform.html, dockerfile.html, k8s.html
 │   └── static/
+│       ├── theme.js           bascule clair/sombre partagée par les 7 pages
 │       ├── cicd/{style.css, script.js}
 │       ├── ansible/{style.css, script.js}
+│       ├── dockerfile/{style.css, script.js}
+│       ├── k8s/{style.css, script.js}
 │       ├── manifest.json, service-worker.js, favicon.ico, logo.svg, icons/
 │
 ├── tests/
 │   ├── cicd/              → 4 suites (detector, core, gitlab, features avancées)
 │   ├── ansible/           → génération playbooks/rôles/inventaire/vault
-│   └── vagrant/           → génération Vagrantfile / presets / lint
+│   ├── vagrant/           → génération Vagrantfile / presets / lint
+│   ├── terraform/         → génération main.tf / presets / validation
+│   ├── dockerfile/        → génération Dockerfile multi-stage / .dockerignore, 8 langages
+│   └── k8s/               → manifests K8s / chart Helm, validation DNS-1123
 │
 └── output/               → fichiers générés par défaut (CLI)
 ```
@@ -223,6 +259,52 @@ ressources, génère un `main.tf` (bloc `terraform{}` + `provider{}` +
   Une valeur préfixée par `=` est écrite **sans guillemets** — pour injecter une
   référence Terraform, ex. `"=aws_instance.web.id"` → `aws_instance.web.id`.
 
+## Module Dockerfile — détails
+
+Réutilise le détecteur de stack du module CI/CD (`modules.cicd.detector`) pour
+générer un `Dockerfile` **multi-stage** (stage `build` + stage `runtime`
+allégé) adapté au langage détecté. Langages supportés : **Python, Node.js,
+Go, Rust, Java (Maven/Gradle), PHP, Ruby, .NET**.
+
+- **Multi-stage systématique** : le stage `build` contient les outils de
+  compilation/installation, le stage `runtime` ne garde que le nécessaire
+  (JRE au lieu du JDK+Maven, binaire seul pour Go/Rust, etc.).
+- **Bonnes pratiques intégrées** : utilisateur non-root dans l'image finale,
+  `.dockerignore` assorti au langage, layers cachables (dépendances copiées
+  avant le code source).
+- **Options** : port exposé, point d'entrée (fichier/binaire/DLL), dossier
+  de travail — avec des valeurs par défaut sensées par langage, surchargeables
+  dans l'UI ou en CLI (`--port`, `--entrypoint`, `--workdir`).
+- **Cas particuliers** : Java choisit son template (Maven ou Gradle) selon
+  le package manager détecté ; PHP sert via Apache (port 80 fixe, pas de
+  point d'entrée) ; Java copie le `.jar` par wildcard (pas de point d'entrée
+  à préciser non plus).
+- Nécessite **Docker 23+ / BuildKit** (`# syntax=docker/dockerfile:1` en tête
+  de fichier) pour les `COPY` optionnels (fichiers de lock absents tolérés).
+
+## Module Kubernetes / Helm — détails
+
+Deux modes de génération à partir du même formulaire (nom + image suffisent) :
+
+- **Manifests bruts** : `Deployment` + `Service` (+ `Namespace` et `Ingress`
+  optionnels), numérotés par ordre d'application (`00-` à `30-`) et prêts pour
+  `kubectl apply -f`. Le YAML est **valide par construction** : les objets sont
+  des dicts Python sérialisés par `yaml.dump` (jamais de templating de chaînes).
+- **Chart Helm** : squelette complet (`Chart.yaml`, `values.yaml`,
+  `templates/…`, `_helpers.tpl`, `.helmignore`). `Chart.yaml` et `values.yaml`
+  sont générés depuis la config (l'`appVersion` reprend le tag de l'image) ;
+  les templates Go sont statiques et entièrement pilotés par `values.yaml`.
+  Téléchargeable en `.zip` depuis l'interface web.
+
+Options couvertes : replicas, ports (conteneur/service), type de Service
+(ClusterIP/NodePort/LoadBalancer), namespace, variables d'environnement,
+probes HTTP liveness/readiness, resources requests/limits (défauts sensés),
+Ingress (host, path, class, TLS avec secret `<nom>-tls`).
+
+Validation intégrée : noms DNS-1123 (app et namespace), ports 1-65535,
+Ingress sans host refusé — et avertissement si l'image n'a pas de tag
+explicite (`:latest` implicite non reproductible).
+
 ---
 
 ## Tests
@@ -234,6 +316,8 @@ pytest tests/cicd/       # module CI/CD uniquement
 pytest tests/ansible/    # module Ansible uniquement
 pytest tests/vagrant/    # module Vagrant uniquement
 pytest tests/terraform/  # module Terraform uniquement
+pytest tests/dockerfile/ # module Dockerfile uniquement
+pytest tests/k8s/        # module Kubernetes/Helm uniquement
 ```
 
 > Sous Windows, 3 tests de chiffrement Vault échouent car `ansible-core` a besoin
@@ -244,13 +328,13 @@ pytest tests/terraform/  # module Terraform uniquement
 
 ## Roadmap — reste à faire
 
-Les 4 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+Les 5 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
 
-- [ ] **Mode sombre unifié** sur toute l'application (bascule clair/sombre +
-      persistance, décliné sur les 5 pages). C'est le principal chantier restant.
+- [x] ~~Mode sombre unifié~~ — fait (bascule clair/sombre + persistance sur les 6 pages).
+- [x] ~~Module Dockerfile~~ — fait (multi-stage, 8 langages, `.dockerignore`).
+- [x] ~~Module Kubernetes/Helm~~ — fait (manifests + chart Helm, export .zip).
 - [ ] *(optionnel)* Cible **Windows / WinRM** pour le module Ansible (comme
       Vagrant qui gère déjà Windows).
-- [ ] *(optionnel)* Cible **Kubernetes / Helm** pour le module CI/CD.
 - [ ] *(optionnel)* Terraform : export de `variables.tf` / `outputs.tf` séparés
       en `.zip`, davantage de presets et de types de ressources au catalogue.
 - [ ] *(optionnel)* Rôles supplémentaires côté Ansible (bases de données, backup).
@@ -260,13 +344,6 @@ Les 4 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorit�
 Tout générateur de config/IaC en Python (inputs → fichier) rentre dans le moule.
 Candidats, du plus prioritaire au moins :
 
-- [ ] **Dockerfile** — réutilise la détection de langage du module CI/CD pour
-      générer un **Dockerfile multi-stage** (stage build + stage runtime léger)
-      par langage. À ne pas confondre avec DockerForge : le Dockerfile *fabrique
-      l'image* d'une appli, alors que DockerForge (docker-compose) *orchestre
-      plusieurs conteneurs*. C'est le chaînon manquant entre le code et l'image
-      poussée par le CI/CD.
-- [ ] **Kubernetes / Helm** — Deployment + Service + Ingress, ou squelette de chart.
 - [ ] **Nginx / reverse-proxy** (+ variantes Caddy, Traefik) — server blocks,
       HTTPS, load-balancing.
 - [ ] **systemd** — unité `.service` + timer (prolonge le déploiement Ansible).
@@ -282,6 +359,7 @@ Candidats, du plus prioritaire au moins :
 > réseau/firewall/VLAN = NetForge.
 
 ### Déjà fait (résumé)
+
 
 Fusion CI/CD + Ansible, ajout des modules Vagrant (portage complet, support
 Windows/WinRM) et Terraform (builder, presets, validation, backend distant),

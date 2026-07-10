@@ -1,0 +1,10 @@
+# Fichiers a exclure du paquet Helm — genere par OpsForge
+.DS_Store
+.git/
+.gitignore
+*.swp
+*.bak
+*.tmp
+*.orig
+.vscode/
+.idea/

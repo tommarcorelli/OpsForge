@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OpsForge — Forge tes pipelines et tes serveurs</title>
 
@@ -62,7 +63,7 @@
     header p{color:rgba(255,255,255,.92);font-size:clamp(15px,2vw,18px);font-weight:500;text-shadow:0 1px 12px rgba(15,23,42,.2);}
     header p strong{color:#fff;font-weight:700;}
 
-    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;width:100%;max-width:900px;}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;width:100%;max-width:1180px;}
     .card{
       background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
       border:1px solid var(--border);border-radius:var(--r);padding:28px;
@@ -77,6 +78,7 @@
     .b-amber{background:linear-gradient(135deg,#FF9F0A,#FF6482);box-shadow:0 8px 18px -4px rgba(255,159,10,.6);}
     .b-green{background:linear-gradient(135deg,#34C759,#30D158);box-shadow:0 8px 18px -4px rgba(52,199,89,.6);}
     .b-violet{background:linear-gradient(135deg,#AF52DE,#BF5AF2);box-shadow:0 8px 18px -4px rgba(175,82,222,.6);}
+    .b-cyan{background:linear-gradient(135deg,#2496ED,#0db7ed);box-shadow:0 8px 18px -4px rgba(36,150,237,.6);}
     .card h2{font-family:var(--head);font-weight:800;font-size:21px;color:var(--ink);margin-bottom:9px;}
     .card h2 .v0{font-size:11px;font-weight:700;vertical-align:middle;color:#fff;background:#AF52DE;border-radius:6px;padding:2px 7px;margin-left:6px;}
     .card p{color:var(--dim);font-size:14.5px;line-height:1.6;flex:1;}
@@ -85,16 +87,42 @@
     .go{margin-top:20px;font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:6px;font-family:var(--head);}
     .card.cicd .go{color:#007AFF;} .card.ansible .go{color:#E5720B;}
     .card.vagrant .go{color:#1E9E4A;} .card.terraform .go{color:#9A45D6;}
+    .card.dockerfile .go{color:#2496ED;}
+    .card.k8s .go{color:#326CE5;}
+    .b-k8s{background:linear-gradient(135deg,#326CE5,#54a2f0);box-shadow:0 8px 18px -4px rgba(50,108,229,.6);}
 
     footer{margin-top:42px;color:rgba(255,255,255,.85);font-size:13px;text-align:center;text-shadow:0 1px 10px rgba(15,23,42,.2);}
+
+    .theme-toggle{position:fixed;top:20px;right:20px;z-index:70;width:42px;height:42px;border-radius:50%;
+      border:1px solid var(--border);background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+      color:var(--ink);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;
+      box-shadow:var(--shadow);transition:transform .18s ease,box-shadow .18s ease,background .18s ease;}
+    .theme-toggle:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg);}
 
     @keyframes rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
     .card:nth-child(2){animation-delay:.06s;} .card:nth-child(3){animation-delay:.12s;} .card:nth-child(4){animation-delay:.18s;}
     @media (prefers-reduced-motion: reduce){.card{animation:none;}}
+
+    /* ============================================================
+       Mode sombre (data-theme="dark", bascule via theme.js)
+       ============================================================ */
+    [data-theme="dark"]{
+      --ink:#f1f5f9; --ink-2:#cbd5e1; --dim:#94a3b8;
+      --glass:rgba(24,26,36,.72); --glass-strong:rgba(30,32,44,.9);
+      --border:rgba(255,255,255,.10); --border-2:rgba(255,255,255,.08);
+      --shadow:0 8px 32px rgba(0,0,0,.35); --shadow-lg:0 20px 56px rgba(0,0,0,.5);
+    }
+    [data-theme="dark"] body{background:#0b0d14;}
+    [data-theme="dark"] .wallpaper{filter:brightness(.5) saturate(.85);}
+    [data-theme="dark"] code{background:rgba(255,255,255,.10);}
+    [data-theme="dark"] .tag{background:rgba(255,255,255,.06);}
+    [data-theme="dark"] .theme-toggle:hover{background:rgba(255,255,255,.10);}
   </style>
 </head>
 <body>
   <div class="wallpaper" aria-hidden="true"></div>
+
+  <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair"><span id="theme-icon">🌙</span></button>
 
   <header>
     <img class="logo" src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="OpsForge" width="84" height="84" />
@@ -135,8 +163,26 @@
       <div class="tags"><span class="tag">AWS / GCP / Azure</span><span class="tag">Docker</span><span class="tag">Presets</span><span class="tag">Variables / outputs</span></div>
       <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
     </a>
+
+    <a class="card dockerfile" href="{{ url_for('dockerfile.index') }}">
+      <span class="badge b-cyan"><i class="fa-brands fa-docker"></i></span>
+      <h2>Dockerfile</h2>
+      <p>Génère un <code>Dockerfile</code> multi-stage (build + runtime allégé) à partir de ton langage détecté, avec bonnes pratiques (utilisateur non-root, image finale minimale) et <code>.dockerignore</code> assorti.</p>
+      <div class="tags"><span class="tag">Multi-stage</span><span class="tag">8 langages</span><span class="tag">Non-root</span><span class="tag">.dockerignore</span></div>
+      <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
+    <a class="card k8s" href="{{ url_for('k8s.index') }}">
+      <span class="badge b-k8s"><i class="fa-solid fa-dharmachakra"></i></span>
+      <h2>Kubernetes / Helm</h2>
+      <p>Génère des manifests prêts pour <code>kubectl apply</code> (Deployment + Service + Ingress, probes, resources) ou un squelette de <strong>chart Helm</strong> complet, téléchargeable en .zip.</p>
+      <div class="tags"><span class="tag">Deployment</span><span class="tag">Service / Ingress</span><span class="tag">Chart Helm</span><span class="tag">Export .zip</span></div>
+      <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
   </main>
 
   <footer>OpsForge · fait partie de la suite Forge (avec DockerForge)</footer>
+
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
 </body>
 </html>

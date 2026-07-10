@@ -1,0 +1,9 @@
+[tool.ruff]
+line-length = 100
+exclude = ["output", "__pycache__"]
+
+[tool.ruff.lint]
+# E402 desactive pour vagrant/cli.py : l'ordre (reconfigure stdout/stderr en
+# UTF-8 avant les imports) y est intentionnel, cf. commentaire dans le fichier.
+[tool.ruff.lint.per-file-ignores]
+"modules/vagrant/cli.py" = ["E402"]

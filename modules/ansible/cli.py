@@ -10,8 +10,8 @@ import os
 import sys
 
 from modules.ansible.core import (
-    generate_playbook,
     generate_inventory,
+    generate_playbook,
     write_playbook,
     write_vault_file,
     write_role_based_project,
@@ -145,12 +145,26 @@ def build_parser():
             "et force la structure en roles."
         ),
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Affiche le playbook genere dans le terminal sans rien ecrire sur disque. "
+            "Disponible uniquement pour le layout 'flat' (pas pour --layout roles "
+            "ni --groups-file)."
+        ),
+    )
 
     return parser
 
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+
+    if args.dry_run and (args.groups_file or args.layout == "roles"):
+        print("Erreur : --dry-run n'est disponible que pour le layout 'flat' "
+              "(pas --layout roles ni --groups-file).")
+        sys.exit(1)
 
     vault_vars = {}
     if args.vault_var:
@@ -252,7 +266,7 @@ def main(argv=None):
             sys.exit(1)
 
         print(f"Projet en roles genere dans : {output_dir}/")
-        print(f"  - playbook.yml, vars.yml, ansible.cfg")
+        print("  - playbook.yml, vars.yml, ansible.cfg")
         print(f"  - {len(written) - 3} fichiers de roles ({', '.join(config['provisioning'] + config['deployment'])})")
 
         if vault_vars:
@@ -282,6 +296,23 @@ def main(argv=None):
 
     # -------------------- Mode "flat" (comportement historique) --------------------
     output_path = args.output or os.path.join(OUTPUT_DIR, "playbook.yml")
+
+    if args.dry_run:
+        try:
+            content = generate_playbook(config)
+        except ValueError as e:
+            print(f"Erreur : {e}")
+            sys.exit(1)
+        print(f"\n--- Apercu (dry-run) : {output_path} ---\n")
+        print(content)
+        print("--- Fin de l'apercu : rien n'a ete ecrit sur disque ---")
+        if vault_vars:
+            print(
+                f"\nNote : {len(vault_vars)} variable(s) vault ({', '.join(vault_vars.keys())}) "
+                "ne sont pas chiffrees ni affichees ici. Lance sans --dry-run pour generer "
+                "vault.yml."
+            )
+        return
 
     try:
         write_playbook(config, output_path)
