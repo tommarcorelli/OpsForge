@@ -263,6 +263,22 @@ class TestGenerateInventory:
 # ------------------------------------------------------------------------
 # Vault (chiffrement Ansible Vault reel, AES256)
 # ------------------------------------------------------------------------
+# Le chiffrement Vault s'appuie sur ansible-core, qui importe `fcntl` :
+# ce module n'existe pas sous Windows natif (seulement Unix/WSL). On saute
+# donc proprement les tests qui chiffrent reellement, sans faire echouer la suite.
+try:
+    import fcntl  # noqa: F401
+
+    _HAS_FCNTL = True
+except ImportError:
+    _HAS_FCNTL = False
+
+requires_vault = pytest.mark.skipif(
+    not _HAS_FCNTL,
+    reason="Ansible Vault necessite le module fcntl (Unix/WSL), absent sous Windows natif",
+)
+
+
 class TestVault:
 
     def test_vault_vars_yaml_format(self):
@@ -272,6 +288,7 @@ class TestVault:
     def test_empty_secrets_returns_empty_string(self):
         assert generate_vault_vars_yaml({}) == ""
 
+    @requires_vault
     def test_encrypt_produces_ansible_vault_header(self):
         encrypted = generate_vault_file({"a": "b"}, "mypassword")
         assert encrypted.startswith("$ANSIBLE_VAULT;1.1;AES256")
@@ -280,6 +297,7 @@ class TestVault:
         with pytest.raises(ValueError):
             encrypt_vault_content("a: b\n", "")
 
+    @requires_vault
     def test_decrypt_roundtrip(self):
         from ansible.parsing.vault import VaultLib, VaultSecret
         from ansible.constants import DEFAULT_VAULT_ID_MATCH
@@ -292,6 +310,7 @@ class TestVault:
         parsed = yaml.safe_load(decrypted)
         assert parsed == secrets
 
+    @requires_vault
     def test_wrong_password_fails_to_decrypt(self):
         from ansible.parsing.vault import VaultLib, VaultSecret
         from ansible.constants import DEFAULT_VAULT_ID_MATCH

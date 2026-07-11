@@ -10,6 +10,7 @@ Sous-commandes :
     python main.py terraform  ...   -> generateur de main.tf (v0)
     python main.py dockerfile ...   -> generateur de Dockerfile multi-stage
     python main.py k8s        ...   -> generateur de manifests K8s / chart Helm
+    python main.py nginx      ...   -> generateur de bloc de config Nginx (server/upstream)
 
 Chaque sous-commande accepte ses propres options. Exemples :
     python main.py cicd . --provider gitlab --deploy docker_hub
@@ -18,6 +19,7 @@ Chaque sous-commande accepte ses propres options. Exemples :
     python main.py terraform config.json -o main.tf
     python main.py dockerfile . --port 8000 --entrypoint app.py
     python main.py k8s --name mon-app --image monuser/app:1.0 --ingress-host app.example.com
+    python main.py nginx --preset api-reverse-proxy --server-name api.example.com --https
 
 Utilise `python main.py <module> --help` pour voir les options d'un module.
 """
@@ -30,6 +32,7 @@ from modules.vagrant import cli as vagrant_cli
 from modules.terraform import cli as terraform_cli
 from modules.dockerfile import cli as dockerfile_cli
 from modules.k8s import cli as k8s_cli
+from modules.nginx import cli as nginx_cli
 
 MODULES = {
     "cicd": cicd_cli.main,
@@ -38,11 +41,12 @@ MODULES = {
     "terraform": terraform_cli.main,
     "dockerfile": dockerfile_cli.main,
     "k8s": k8s_cli.main,
+    "nginx": nginx_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx} [options]")
     print()
     print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
@@ -50,6 +54,7 @@ def _usage():
     print("  terraform  Genere un main.tf (v0, a enrichir)")
     print("  dockerfile Genere un Dockerfile multi-stage (build + runtime allege)")
     print("  k8s        Genere des manifests Kubernetes ou un chart Helm")
+    print("  nginx      Genere un bloc de config Nginx (statique / reverse proxy / load balancer)")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 

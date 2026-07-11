@@ -89,7 +89,9 @@
     .card.vagrant .go{color:#1E9E4A;} .card.terraform .go{color:#9A45D6;}
     .card.dockerfile .go{color:#2496ED;}
     .card.k8s .go{color:#326CE5;}
+    .card.nginx .go{color:#009639;}
     .b-k8s{background:linear-gradient(135deg,#326CE5,#54a2f0);box-shadow:0 8px 18px -4px rgba(50,108,229,.6);}
+    .b-nginx{background:linear-gradient(135deg,#009639,#4CC750);box-shadow:0 8px 18px -4px rgba(0,150,57,.6);}
 
     footer{margin-top:42px;color:rgba(255,255,255,.85);font-size:13px;text-align:center;text-shadow:0 1px 10px rgba(15,23,42,.2);}
 
@@ -177,6 +179,14 @@
       <h2>Kubernetes / Helm</h2>
       <p>Génère des manifests prêts pour <code>kubectl apply</code> (Deployment + Service + Ingress, probes, resources) ou un squelette de <strong>chart Helm</strong> complet, téléchargeable en .zip.</p>
       <div class="tags"><span class="tag">Deployment</span><span class="tag">Service / Ingress</span><span class="tag">Chart Helm</span><span class="tag">Export .zip</span></div>
+      <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
+    <a class="card nginx" href="{{ url_for('nginx.index') }}">
+      <span class="badge b-nginx"><i class="fa-solid fa-server"></i></span>
+      <h2>Nginx</h2>
+      <p>Génère un bloc <code>server{}</code> Nginx : site statique (SPA), reverse proxy (WebSocket compris) ou load balancer avec <code>upstream{}</code>, HTTPS et bonnes pratiques en option.</p>
+      <div class="tags"><span class="tag">Reverse proxy</span><span class="tag">Load balancer</span><span class="tag">HTTPS</span><span class="tag">Presets</span></div>
       <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
     </a>
   </main>

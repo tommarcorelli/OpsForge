@@ -15,6 +15,7 @@
 | **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs | `/terraform` | `python main.py terraform …` |
 | **Dockerfile** | **`Dockerfile`** multi-stage (build + runtime allégé) + `.dockerignore`, 8 langages, bonnes pratiques (utilisateur non-root) | `/dockerfile` | `python main.py dockerfile …` |
 | **Kubernetes / Helm** | **Manifests** (Deployment + Service + Ingress, probes, resources) prêts pour `kubectl apply`, ou **chart Helm** complet, export `.zip` | `/k8s` | `python main.py k8s …` |
+| **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option | `/nginx` | `python main.py nginx …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -170,16 +171,22 @@ opsforge/
 │       ├── cli.py             logique CLI du module
 │       └── templates/helm/    templates Go statiques du chart (pilotés par values.yaml)
 │
+│   └── nginx/            → module Nginx (statique / reverse proxy / load balancer)
+│       ├── core.py            assemblage server{}/upstream{} + validation + presets
+│       ├── routes.py          Blueprint Flask (préfixe /nginx) + API
+│       └── cli.py             logique CLI du module
+│
 ├── web/
 │   ├── templates/         → hub.html, cicd.html, ansible.html, vagrant.html,
-│   │                        terraform.html, dockerfile.html, k8s.html
+│   │                        terraform.html, dockerfile.html, k8s.html, nginx.html
 │   └── static/
-│       ├── theme.js           bascule clair/sombre partagée par les 7 pages
+│       ├── theme.js           bascule clair/sombre partagée par les 8 pages
 │       ├── cicd/{style.css, script.js}
 │       ├── ansible/{style.css, script.js}
 │       ├── dockerfile/{style.css, script.js}
 │       ├── k8s/{style.css, script.js}
-│       ├── manifest.json, service-worker.js, favicon.ico, logo.svg, icons/
+│       ├── nginx/{style.css, script.js}
+│       ├── manifest.json, service-worker.js, favicon.ico, opsforge-logo.svg, icons/
 │
 ├── tests/
 │   ├── cicd/              → 4 suites (detector, core, gitlab, features avancées)
@@ -187,7 +194,8 @@ opsforge/
 │   ├── vagrant/           → génération Vagrantfile / presets / lint
 │   ├── terraform/         → génération main.tf / presets / validation
 │   ├── dockerfile/        → génération Dockerfile multi-stage / .dockerignore, 8 langages
-│   └── k8s/               → manifests K8s / chart Helm, validation DNS-1123
+│   ├── k8s/               → manifests K8s / chart Helm, validation DNS-1123
+│   └── nginx/             → génération server{}/upstream{}, validation par mode, presets
 │
 └── output/               → fichiers générés par défaut (CLI)
 ```
@@ -307,6 +315,30 @@ explicite (`:latest` implicite non reproductible).
 
 ---
 
+## Module Nginx — détails
+
+Trois modes, un seul formulaire (nom de domaine + options communes) :
+
+- **Statique** : `root` + `index`, avec bascule **SPA** (`try_files $uri $uri/
+  /index.html`) pour les apps React/Vue/Svelte coté client.
+- **Reverse proxy** : `proxy_pass` vers un backend unique, en-têtes
+  `X-Forwarded-*` inclus, option **WebSocket** (`Upgrade`/`Connection`).
+- **Load balancer** : bloc `upstream{}` avec plusieurs backends (poids
+  optionnel par serveur), algorithme **round robin** (défaut Nginx),
+  **least_conn** ou **ip_hash**.
+
+Options transverses : **HTTPS** (redirection 80→443 + bloc `ssl_certificate`
+Let's Encrypt, pense-bête `certbot certonly --nginx` en commentaire), **gzip**,
+**en-têtes de sécurité** (X-Frame-Options, X-Content-Type-Options…),
+`client_max_body_size`. Presets prêts à l'emploi (`spa`, `static-site`,
+`api-reverse-proxy`, `load-balanced-app`, `https-reverse-proxy`).
+
+Validation intégrée par mode (backend/host/port requis, 2+ backends pour le
+load balancer, algorithme et taille de body reconnus) ; chaque config générée
+est **valide par construction** et a été testée avec `nginx -t` réel.
+
+---
+
 ## Tests
 
 ```bash
@@ -318,6 +350,7 @@ pytest tests/vagrant/    # module Vagrant uniquement
 pytest tests/terraform/  # module Terraform uniquement
 pytest tests/dockerfile/ # module Dockerfile uniquement
 pytest tests/k8s/        # module Kubernetes/Helm uniquement
+pytest tests/nginx/      # module Nginx uniquement
 ```
 
 > Sous Windows, 3 tests de chiffrement Vault échouent car `ansible-core` a besoin
@@ -328,24 +361,25 @@ pytest tests/k8s/        # module Kubernetes/Helm uniquement
 
 ## Roadmap — reste à faire
 
-Les 5 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+Les 7 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
 
 - [x] ~~Mode sombre unifié~~ — fait (bascule clair/sombre + persistance sur les 6 pages).
 - [x] ~~Module Dockerfile~~ — fait (multi-stage, 8 langages, `.dockerignore`).
 - [x] ~~Module Kubernetes/Helm~~ — fait (manifests + chart Helm, export .zip).
+- [x] ~~Module Nginx~~ — fait (statique/reverse proxy/load balancer, HTTPS, presets).
 - [ ] *(optionnel)* Cible **Windows / WinRM** pour le module Ansible (comme
       Vagrant qui gère déjà Windows).
 - [ ] *(optionnel)* Terraform : export de `variables.tf` / `outputs.tf` séparés
       en `.zip`, davantage de presets et de types de ressources au catalogue.
 - [ ] *(optionnel)* Rôles supplémentaires côté Ansible (bases de données, backup).
+- [ ] *(optionnel)* Variantes **Caddy** et **Traefik** pour le module Nginx
+      (même formulaire, sortie adaptée au format de chaque proxy).
 
 ### Nouveaux modules envisagés
 
 Tout générateur de config/IaC en Python (inputs → fichier) rentre dans le moule.
 Candidats, du plus prioritaire au moins :
 
-- [ ] **Nginx / reverse-proxy** (+ variantes Caddy, Traefik) — server blocks,
-      HTTPS, load-balancing.
 - [ ] **systemd** — unité `.service` + timer (prolonge le déploiement Ansible).
 - [ ] **Packer** (images de VM) et **cloud-init** (première init) — complètent
       Vagrant / Terraform.
@@ -362,8 +396,12 @@ Candidats, du plus prioritaire au moins :
 
 
 Fusion CI/CD + Ansible, ajout des modules Vagrant (portage complet, support
-Windows/WinRM) et Terraform (builder, presets, validation, backend distant),
-unification visuelle CasaOS des 5 pages, identité + icône OpsForge, guides
-d'installation par OS, 8 langages CI/CD (Python, Node, Go, Rust, Java, PHP,
-Ruby, .NET), bonnes pratiques workflows (permissions/concurrency), étapes de
-provisioning Ansible étendues (timezone, swap, unattended_upgrades, users).
+Windows/WinRM), Terraform (builder, presets, validation, backend distant),
+Dockerfile (multi-stage, 8 langages) et Kubernetes/Helm (manifests + chart,
+export .zip), unification visuelle CasaOS des pages, identité + icône
+OpsForge, guides d'installation par OS, 8 langages CI/CD (Python, Node, Go,
+Rust, Java, PHP, Ruby, .NET), bonnes pratiques workflows
+(permissions/concurrency), étapes de provisioning Ansible étendues (timezone,
+swap, unattended_upgrades, users), et module Nginx (statique/reverse
+proxy/load balancer, HTTPS, gzip, en-têtes de sécurité, validation par
+`nginx -t` réel).

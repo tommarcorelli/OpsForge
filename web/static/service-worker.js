@@ -6,7 +6,7 @@
 // la generation doit toujours utiliser des donnees fraiches.
 // ============================================================================
 
-const CACHE_NAME = "opsforge-v3";
+const CACHE_NAME = "opsforge-v4";
 
 const STATIC_ASSETS = [
   "/",
@@ -16,6 +16,7 @@ const STATIC_ASSETS = [
   "/terraform",
   "/dockerfile",
   "/k8s",
+  "/nginx",
   "/static/theme.js",
   "/static/install-guide.css",
   "/static/install-guide.js",
@@ -34,6 +35,8 @@ const STATIC_ASSETS = [
   "/static/dockerfile/script.js",
   "/static/k8s/style.css",
   "/static/k8s/script.js",
+  "/static/nginx/style.css",
+  "/static/nginx/script.js",
   "/static/opsforge-logo.svg",
   "/static/favicon.ico",
   "/static/manifest.json",

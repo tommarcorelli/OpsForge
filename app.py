@@ -27,6 +27,7 @@ from modules.vagrant.routes import bp as vagrant_bp
 from modules.terraform.routes import bp as terraform_bp
 from modules.dockerfile.routes import bp as dockerfile_bp
 from modules.k8s.routes import bp as k8s_bp
+from modules.nginx.routes import bp as nginx_bp
 
 app = Flask(__name__, template_folder="web/templates", static_folder="web/static")
 
@@ -36,6 +37,7 @@ app.register_blueprint(vagrant_bp)
 app.register_blueprint(terraform_bp)
 app.register_blueprint(dockerfile_bp)
 app.register_blueprint(k8s_bp)
+app.register_blueprint(nginx_bp)
 
 
 @app.route("/")
