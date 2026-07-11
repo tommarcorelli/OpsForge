@@ -11,6 +11,7 @@ Sous-commandes :
     python main.py dockerfile ...   -> generateur de Dockerfile multi-stage
     python main.py k8s        ...   -> generateur de manifests K8s / chart Helm
     python main.py nginx      ...   -> generateur de bloc de config Nginx (server/upstream)
+    python main.py systemd    ...   -> generateur d'unites systemd (.service / .timer)
 
 Chaque sous-commande accepte ses propres options. Exemples :
     python main.py cicd . --provider gitlab --deploy docker_hub
@@ -20,6 +21,7 @@ Chaque sous-commande accepte ses propres options. Exemples :
     python main.py dockerfile . --port 8000 --entrypoint app.py
     python main.py k8s --name mon-app --image monuser/app:1.0 --ingress-host app.example.com
     python main.py nginx --preset api-reverse-proxy --server-name api.example.com --https
+    python main.py systemd --preset web-app --name myapp
 
 Utilise `python main.py <module> --help` pour voir les options d'un module.
 """
@@ -33,6 +35,7 @@ from modules.terraform import cli as terraform_cli
 from modules.dockerfile import cli as dockerfile_cli
 from modules.k8s import cli as k8s_cli
 from modules.nginx import cli as nginx_cli
+from modules.systemd import cli as systemd_cli
 
 MODULES = {
     "cicd": cicd_cli.main,
@@ -42,11 +45,12 @@ MODULES = {
     "dockerfile": dockerfile_cli.main,
     "k8s": k8s_cli.main,
     "nginx": nginx_cli.main,
+    "systemd": systemd_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd} [options]")
     print()
     print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
@@ -55,6 +59,7 @@ def _usage():
     print("  dockerfile Genere un Dockerfile multi-stage (build + runtime allege)")
     print("  k8s        Genere des manifests Kubernetes ou un chart Helm")
     print("  nginx      Genere un bloc de config Nginx (statique / reverse proxy / load balancer)")
+    print("  systemd    Genere des unites systemd (.service supervise / .timer planifie)")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 

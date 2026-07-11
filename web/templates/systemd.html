@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Générateur d'unités systemd</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#0F9D8C" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='systemd/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+
+  <!-- Fond degrades doux -->
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· systemd</span></span>
+    </a>
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-circle-info"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — GÉNÉRATEUR SYSTEMD</p>
+    <h1>Supervise tes services,<br />planifie tes tâches</h1>
+    <p class="subtitle">Une unité <code>.service</code> durcie prête à superviser ton appli, ou une paire <code>.service</code> + <code>.timer</code> pour remplacer cron. Validé par construction, aucun fichier n'est envoyé ailleurs qu'en local.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="field-group">
+        <label class="field-label" data-step="1">Presets</label>
+        <div class="preset-list" id="preset-list">
+          <!-- Chips generes dynamiquement en JS -->
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" data-step="2">Mode</label>
+        <div class="provider-switch" id="mode-switch">
+          <button type="button" class="provider-btn active" data-mode="service">Service</button>
+          <button type="button" class="provider-btn" data-mode="timer">Timer (planifié)</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="3" for="name-input">Nom de l'unité</label>
+        <input type="text" id="name-input" class="text-input" placeholder="ex : myapp" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="description-input">Description</label>
+        <input type="text" id="description-input" class="text-input" placeholder="ex : Application web (gunicorn)" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="4" for="exec-start-input">Commande à exécuter (ExecStart)</label>
+        <input type="text" id="exec-start-input" class="text-input" placeholder="ex : /opt/myapp/venv/bin/gunicorn app:app" />
+        <p class="field-hint">Chemin absolu recommandé. En mode timer, c'est la commande lancée par le service déclenché.</p>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="type-select">Type de service</label>
+        <select id="type-select" class="text-input">
+          {% for t in service_types %}
+          <option value="{{ t }}">{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="input-row">
+        <div class="field-group" style="flex:1;">
+          <label class="field-label" for="user-input">Utilisateur</label>
+          <input type="text" id="user-input" class="text-input" placeholder="ex : myapp" />
+        </div>
+        <div class="field-group" style="flex:1;">
+          <label class="field-label" for="group-input">Groupe</label>
+          <input type="text" id="group-input" class="text-input" placeholder="ex : myapp" />
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="workdir-input">Répertoire de travail</label>
+        <input type="text" id="workdir-input" class="text-input" placeholder="ex : /opt/myapp" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="envfile-input">Fichier d'environnement</label>
+        <input type="text" id="envfile-input" class="text-input" placeholder="ex : /etc/myapp/env" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Variables d'environnement</label>
+        <div class="env-list" id="env-list"></div>
+        <button type="button" id="add-env-btn" class="btn btn-ghost">+ Ajouter une variable</button>
+      </div>
+
+      <!-- ===== Champs specifiques : service long-running ===== -->
+      <div id="fields-restart">
+        <hr class="section-divider" />
+        <div class="input-row">
+          <div class="field-group" style="flex:2;">
+            <label class="field-label" for="restart-select">Politique de redémarrage</label>
+            <select id="restart-select" class="text-input">
+              {% for r in restart_policies %}
+              <option value="{{ r }}">{{ r }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field-group" style="flex:1;">
+            <label class="field-label" for="restart-sec-input">RestartSec</label>
+            <input type="number" id="restart-sec-input" class="text-input" value="5" min="0" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="after-input">Après (dépendance)</label>
+          <input type="text" id="after-input" class="text-input" placeholder="network.target" />
+        </div>
+      </div>
+
+      <!-- ===== Champs specifiques : timer ===== -->
+      <div id="fields-timer" hidden>
+        <hr class="section-divider" />
+        <div class="field-group">
+          <label class="field-label" for="on-calendar-input">Planification (OnCalendar)</label>
+          <input type="text" id="on-calendar-input" class="text-input" placeholder="ex : *-*-* 02:00:00  ·  daily  ·  Mon *-*-* 03:30" />
+          <p class="field-hint">Syntaxe systemd. Ex : <code>daily</code>, <code>hourly</code>, <code>*-*-* 02:00:00</code>, <code>Mon,Fri 09:00</code>.</p>
+        </div>
+        <div class="field-group">
+          <label class="toggle" style="width:100%;">
+            <input type="checkbox" id="persistent-checkbox" />
+            <span>Persistant (rattrape les exécutions manquées après un arrêt)</span>
+          </label>
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label">Durcissement (bac à sable)</label>
+        <div class="jobs-toggles">
+          <label class="toggle">
+            <input type="checkbox" id="nnp-checkbox" />
+            <span>NoNewPrivileges</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="ptmp-checkbox" />
+            <span>PrivateTmp</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="psys-checkbox" />
+            <span>ProtectSystem</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="phome-checkbox" />
+            <span>ProtectHome</span>
+          </label>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top: 0;">
+          GÉNÉRER →
+        </button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink: 0;">
+          ↺
+        </button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="unit">
+          <span class="node-num">01</span>
+          <span class="node-label">UNIT</span>
+        </div>
+        <div class="connector flowing"></div>
+        <div class="node" data-stage="enable">
+          <span class="node-num">02</span>
+          <span class="node-label">ENABLE</span>
+        </div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Unité(s) systemd</p>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le ou les fichiers générés apparaîtront ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============ DOCK FLOTTANT (statut) ============ -->
+  <footer class="title-block" id="title-block">
+    <div class="tb-cell"><span class="tb-key">MODE</span><span class="tb-value" id="tb-mode">Service</span></div>
+    <div class="tb-cell"><span class="tb-key">UNITÉ</span><span class="tb-value" id="tb-name">—</span></div>
+    <div class="tb-cell"><span class="tb-key">TYPE</span><span class="tb-value" id="tb-type">simple</span></div>
+    <div class="tb-cell"><span class="tb-key">RÉV.</span><span class="tb-value">A</span></div>
+  </footer>
+
+  <script>
+    window.OPSFORGE_SYSTEMD = {
+      modes: {{ modes | tojson }},
+      serviceTypes: {{ service_types | tojson }},
+      restartPolicies: {{ restart_policies | tojson }},
+      presets: {{ presets | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='systemd/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "systemd",
+    icon: "fa-solid fa-gears",
+    intro: "systemd est déjà présent sur toutes les distributions Linux modernes (Debian/Ubuntu, Fedora/RHEL, Arch…). Les unités générées se déposent dans <code>/etc/systemd/system/</code>, puis on recharge le démon. Rien à installer, juste à activer.",
+    os: [
+      { id: "debian", label: "Debian / Ubuntu", icon: "fa-brands fa-ubuntu", color: "#E95420", steps: [
+        { title: "Déposer l'unité", cmd: "sudo cp myapp.service /etc/systemd/system/" },
+        { title: "Recharger systemd", cmd: "sudo systemctl daemon-reload" },
+        { title: "Activer + démarrer", cmd: "sudo systemctl enable --now myapp.service" },
+        { title: "Vérifier", cmd: "systemctl status myapp.service\njournalctl -u myapp.service -f" },
+      ]},
+      { id: "fedora", label: "Fedora / RHEL", icon: "fa-brands fa-redhat", color: "#EE0000", steps: [
+        { title: "Déposer l'unité", cmd: "sudo cp myapp.service /etc/systemd/system/" },
+        { title: "Recharger + activer", cmd: "sudo systemctl daemon-reload\nsudo systemctl enable --now myapp.service" },
+      ]},
+      { id: "arch", label: "Arch Linux", icon: "fa-brands fa-linux", color: "#1793D1", steps: [
+        { title: "Déposer + activer", cmd: "sudo cp myapp.service /etc/systemd/system/\nsudo systemctl daemon-reload\nsudo systemctl enable --now myapp.service" },
+      ]},
+      { id: "timer", label: "Cas d'un timer", icon: "fa-solid fa-clock", color: "#0F9D8C", steps: [
+        { title: "Déposer les DEUX fichiers", cmd: "sudo cp backup.service backup.timer /etc/systemd/system/" },
+        { title: "Activer le TIMER (pas le service)", cmd: "sudo systemctl daemon-reload\nsudo systemctl enable --now backup.timer" },
+        { title: "Lister les timers actifs", cmd: "systemctl list-timers backup.timer" },
+      ]},
+      { id: "windows", label: "Windows", icon: "fa-brands fa-windows", color: "#0078D6", steps: [
+        { title: "systemd n'existe pas sous Windows natif", cmd: "wsl --install -d Ubuntu", note: "Utilise WSL (systemd activé par défaut sur les images récentes) ou une VM Linux, puis suis les étapes Debian/Ubuntu." },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>
