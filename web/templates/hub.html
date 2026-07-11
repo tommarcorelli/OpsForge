@@ -91,9 +91,11 @@
     .card.k8s .go{color:#326CE5;}
     .card.nginx .go{color:#009639;}
     .card.systemd .go{color:#0F9D8C;}
+    .card.monitoring .go{color:#E6522C;}
     .b-k8s{background:linear-gradient(135deg,#326CE5,#54a2f0);box-shadow:0 8px 18px -4px rgba(50,108,229,.6);}
     .b-nginx{background:linear-gradient(135deg,#009639,#4CC750);box-shadow:0 8px 18px -4px rgba(0,150,57,.6);}
     .b-systemd{background:linear-gradient(135deg,#0F9D8C,#2DD4BF);box-shadow:0 8px 18px -4px rgba(15,157,140,.6);}
+    .b-monitoring{background:linear-gradient(135deg,#E6522C,#F46800);box-shadow:0 8px 18px -4px rgba(230,82,44,.6);}
 
     footer{margin-top:42px;color:rgba(255,255,255,.85);font-size:13px;text-align:center;text-shadow:0 1px 10px rgba(15,23,42,.2);}
 
@@ -197,6 +199,14 @@
       <h2>systemd</h2>
       <p>Génère une unité <code>.service</code> durcie (utilisateur dédié, redémarrage auto, bac à sable) ou une paire <code>.service</code> + <code>.timer</code> pour planifier une tâche — le remplaçant moderne de cron.</p>
       <div class="tags"><span class="tag">Service</span><span class="tag">Timer</span><span class="tag">Durcissement</span><span class="tag">OnCalendar</span></div>
+      <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
+    <a class="card monitoring" href="{{ url_for('monitoring.index') }}">
+      <span class="badge b-monitoring"><i class="fa-solid fa-chart-line"></i></span>
+      <h2>Monitoring</h2>
+      <p>Génère un <code>prometheus.yml</code> multi-jobs (scrape + Alertmanager), un jeu de <strong>règles d'alerte</strong> prêtes (CPU, mémoire, disque, instance down) ou le provisioning des <strong>datasources Grafana</strong>.</p>
+      <div class="tags"><span class="tag">Prometheus</span><span class="tag">Alertes</span><span class="tag">Grafana</span><span class="tag">Presets</span></div>
       <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
     </a>
   </main>

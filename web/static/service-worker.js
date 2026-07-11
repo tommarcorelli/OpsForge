@@ -6,7 +6,7 @@
 // la generation doit toujours utiliser des donnees fraiches.
 // ============================================================================
 
-const CACHE_NAME = "opsforge-v5";
+const CACHE_NAME = "opsforge-v6";
 
 const STATIC_ASSETS = [
   "/",
@@ -18,6 +18,7 @@ const STATIC_ASSETS = [
   "/k8s",
   "/nginx",
   "/systemd",
+  "/monitoring",
   "/static/theme.js",
   "/static/install-guide.css",
   "/static/install-guide.js",
@@ -40,6 +41,8 @@ const STATIC_ASSETS = [
   "/static/nginx/script.js",
   "/static/systemd/style.css",
   "/static/systemd/script.js",
+  "/static/monitoring/style.css",
+  "/static/monitoring/script.js",
   "/static/opsforge-logo.svg",
   "/static/favicon.ico",
   "/static/manifest.json",

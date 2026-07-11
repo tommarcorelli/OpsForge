@@ -17,6 +17,7 @@
 | **Kubernetes / Helm** | **Manifests** (Deployment + Service + Ingress, probes, resources) prêts pour `kubectl apply`, ou **chart Helm** complet, export `.zip` | `/k8s` | `python main.py k8s …` |
 | **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option | `/nginx` | `python main.py nginx …` |
 | **systemd** | Unité **`.service`** durcie (utilisateur dédié, redémarrage auto, sandboxing) ou paire **`.service` + `.timer`** planifiée (`OnCalendar`, remplace cron) | `/systemd` | `python main.py systemd …` |
+| **Monitoring** | **`prometheus.yml`** (scrape multi-jobs + Alertmanager), **règles d'alerte** Prometheus (CPU/mém/disque/instance) ou **datasources Grafana** | `/monitoring` | `python main.py monitoring …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -178,23 +179,29 @@ opsforge/
 │   │   ├── routes.py          Blueprint Flask (préfixe /nginx) + API
 │   │   └── cli.py             logique CLI du module
 │   │
-│   └── systemd/          → module systemd (unités .service / .timer)
-│       ├── core.py            assemblage des sections INI + durcissement + presets
-│       ├── routes.py          Blueprint Flask (préfixe /systemd) + API
+│   ├── systemd/          → module systemd (unités .service / .timer)
+│   │   ├── core.py            assemblage des sections INI + durcissement + presets
+│   │   ├── routes.py          Blueprint Flask (préfixe /systemd) + API
+│   │   └── cli.py             logique CLI du module
+│   │
+│   └── monitoring/       → module Monitoring (Prometheus / alertes / Grafana)
+│       ├── core.py            assemblage YAML (PyYAML) + catalogue de règles + presets
+│       ├── routes.py          Blueprint Flask (préfixe /monitoring) + API
 │       └── cli.py             logique CLI du module
 │
 ├── web/
 │   ├── templates/         → hub.html, cicd.html, ansible.html, vagrant.html,
 │   │                        terraform.html, dockerfile.html, k8s.html, nginx.html,
-│   │                        systemd.html
+│   │                        systemd.html, monitoring.html
 │   └── static/
-│       ├── theme.js           bascule clair/sombre partagée par les 9 pages
+│       ├── theme.js           bascule clair/sombre partagée par les 10 pages
 │       ├── cicd/{style.css, script.js}
 │       ├── ansible/{style.css, script.js}
 │       ├── dockerfile/{style.css, script.js}
 │       ├── k8s/{style.css, script.js}
 │       ├── nginx/{style.css, script.js}
 │       ├── systemd/{style.css, script.js}
+│       ├── monitoring/{style.css, script.js}
 │       ├── manifest.json, service-worker.js, favicon.ico, opsforge-logo.svg, icons/
 │
 ├── tests/
@@ -205,7 +212,8 @@ opsforge/
 │   ├── dockerfile/        → génération Dockerfile multi-stage / .dockerignore, 8 langages
 │   ├── k8s/               → manifests K8s / chart Helm, validation DNS-1123
 │   ├── nginx/             → génération server{}/upstream{}, validation par mode, presets
-│   └── systemd/           → génération .service/.timer, durcissement, presets
+│   ├── systemd/           → génération .service/.timer, durcissement, presets
+│   └── monitoring/        → génération prometheus.yml/alertes/datasources, YAML valide
 │
 └── output/               → fichiers générés par défaut (CLI)
 ```
@@ -376,6 +384,31 @@ par construction** et sort avec son pense-bête d'installation (`cp` vers
 
 ---
 
+## Module Monitoring — détails
+
+Trois modes, un seul formulaire. Complète la chaîne : ce que Vagrant/Terraform
+provisionne et que systemd supervise, ce module l'observe. Le YAML est produit
+via **PyYAML** (donc toujours valide) puis préfixé d'un pense-bête
+d'installation.
+
+- **Prometheus** : `prometheus.yml` avec `global` (scrape/evaluation interval),
+  **scrape_configs multi-jobs** (chaque job = un ou plusieurs `hôte:port`),
+  câblage **Alertmanager** et référence **`rule_files`** en option.
+- **Alertes** : fichier de règles d'alerte Prometheus (`alert.rules.yml`) à
+  partir d'un **catalogue** (instance injoignable, CPU/mémoire/disque élevés,
+  charge système), avec **seuils configurables** — les expressions PromQL
+  restent intactes (pas de casse sur les `{label="…"}`).
+- **Grafana** : provisioning de **datasources** (`datasource.yml`, `apiVersion 1`)
+  — Prometheus, Loki, InfluxDB, Tempo… avec datasource par défaut.
+
+Validation intégrée par mode (au moins un job/une règle/une datasource, cibles
+`hôte:port`, durées Prometheus, seuils 1-100, types de datasource reconnus).
+Presets prêts à l'emploi (`prometheus-node`, `prometheus-docker`,
+`alerts-basic`, `grafana-prometheus`, `grafana-prom-loki`). Chaque fichier
+peut être vérifié avec `promtool check`.
+
+---
+
 ## Tests
 
 ```bash
@@ -389,6 +422,7 @@ pytest tests/dockerfile/ # module Dockerfile uniquement
 pytest tests/k8s/        # module Kubernetes/Helm uniquement
 pytest tests/nginx/      # module Nginx uniquement
 pytest tests/systemd/    # module systemd uniquement
+pytest tests/monitoring/ # module Monitoring uniquement
 ```
 
 > Sous Windows, 3 tests de chiffrement Vault échouent car `ansible-core` a besoin
@@ -399,13 +433,14 @@ pytest tests/systemd/    # module systemd uniquement
 
 ## Roadmap — reste à faire
 
-Les 8 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+Les 9 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
 
 - [x] ~~Mode sombre unifié~~ — fait (bascule clair/sombre + persistance sur toutes les pages).
 - [x] ~~Module Dockerfile~~ — fait (multi-stage, 8 langages, `.dockerignore`).
 - [x] ~~Module Kubernetes/Helm~~ — fait (manifests + chart Helm, export .zip).
 - [x] ~~Module Nginx~~ — fait (statique/reverse proxy/load balancer, HTTPS, presets).
 - [x] ~~Module systemd~~ — fait (unités `.service` durcies / `.timer` planifiées, presets).
+- [x] ~~Module Monitoring~~ — fait (prometheus.yml, règles d'alerte, datasources Grafana).
 - [ ] *(optionnel)* Cible **Windows / WinRM** pour le module Ansible (comme
       Vagrant qui gère déjà Windows).
 - [ ] *(optionnel)* Terraform : export de `variables.tf` / `outputs.tf` séparés
@@ -420,9 +455,9 @@ Tout générateur de config/IaC en Python (inputs → fichier) rentre dans le mo
 Candidats, du plus prioritaire au moins :
 
 - [x] ~~**systemd**~~ — fait (unité `.service` + `.timer`, prolonge le déploiement Ansible).
+- [x] ~~**Monitoring**~~ — fait (Prometheus `prometheus.yml` + alertes + datasources Grafana).
 - [ ] **Packer** (images de VM) et **cloud-init** (première init) — complètent
       Vagrant / Terraform.
-- [ ] **Monitoring** — Prometheus (`prometheus.yml`, alertes) + datasources Grafana.
 
 > À intégrer aux modules existants plutôt que comme nouveaux modules : autres
 > systèmes CI (CircleCI, Jenkins, Drone…) = providers du module CI/CD ;
@@ -443,5 +478,7 @@ Rust, Java, PHP, Ruby, .NET), bonnes pratiques workflows
 (permissions/concurrency), étapes de provisioning Ansible étendues (timezone,
 swap, unattended_upgrades, users), module Nginx (statique/reverse
 proxy/load balancer, HTTPS, gzip, en-têtes de sécurité, validation par
-`nginx -t` réel), et module systemd (unités `.service` durcies et `.timer`
-planifiées, durcissement/sandboxing, presets, pense-bête d'installation).
+`nginx -t` réel), module systemd (unités `.service` durcies et `.timer`
+planifiées, durcissement/sandboxing, presets, pense-bête d'installation), et
+module Monitoring (prometheus.yml multi-jobs + Alertmanager, catalogue de
+règles d'alerte à seuils, provisioning de datasources Grafana, YAML valide).

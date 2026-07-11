@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Générateur de config Monitoring</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#E6522C" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='monitoring/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+
+  <!-- Fond degrades doux -->
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· Monitoring</span></span>
+    </a>
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-download"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — GÉNÉRATEUR MONITORING</p>
+    <h1>Scrute, alerte,<br />visualise</h1>
+    <p class="subtitle">Un <code>prometheus.yml</code> multi-jobs, un jeu de règles d'alerte prêtes, ou le provisioning des datasources Grafana. YAML valide par construction, rien n'est envoyé ailleurs qu'en local.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="field-group">
+        <label class="field-label" data-step="1">Presets</label>
+        <div class="preset-list" id="preset-list">
+          <!-- Chips generes dynamiquement en JS -->
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" data-step="2">Mode</label>
+        <div class="provider-switch" id="mode-switch">
+          <button type="button" class="provider-btn active" data-mode="prometheus">Prometheus</button>
+          <button type="button" class="provider-btn" data-mode="alerts">Alertes</button>
+          <button type="button" class="provider-btn" data-mode="grafana">Grafana</button>
+        </div>
+      </div>
+
+      <!-- ===== Champs specifiques : Prometheus ===== -->
+      <div id="fields-prometheus">
+        <div class="input-row">
+          <div class="field-group" style="flex:1;">
+            <label class="field-label" for="scrape-interval-input">scrape_interval</label>
+            <input type="text" id="scrape-interval-input" class="text-input" value="15s" placeholder="15s" />
+          </div>
+          <div class="field-group" style="flex:1;">
+            <label class="field-label" for="eval-interval-input">evaluation_interval</label>
+            <input type="text" id="eval-interval-input" class="text-input" value="15s" placeholder="15s" />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" data-step="3">Jobs de scrape</label>
+          <div class="jobs-list" id="jobs-list"></div>
+          <button type="button" id="add-job-btn" class="btn btn-ghost">+ Ajouter un job</button>
+          <p class="field-hint">Cibles séparées par des virgules, au format <code>hôte:port</code> (ex : <code>localhost:9100, 10.0.0.5:9100</code>).</p>
+        </div>
+
+        <div class="field-group">
+          <div class="jobs-toggles">
+            <label class="toggle">
+              <input type="checkbox" id="alertmanager-checkbox" />
+              <span>Câbler Alertmanager (<code>localhost:9093</code>)</span>
+            </label>
+            <label class="toggle">
+              <input type="checkbox" id="rulefiles-checkbox" />
+              <span>Référencer <code>alert.rules.yml</code></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Champs specifiques : Alertes ===== -->
+      <div id="fields-alerts" hidden>
+        <div class="field-group">
+          <label class="field-label" for="group-name-input">Nom du groupe de règles</label>
+          <input type="text" id="group-name-input" class="text-input" placeholder="opsforge-alerts" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" data-step="3">Règles d'alerte</label>
+          <div class="jobs-toggles" id="rules-list">
+            {% for r in rules %}
+            <label class="toggle">
+              <input type="checkbox" class="rule-check" data-rule="{{ r.key }}" />
+              <span>{{ r.label }} <em class="sev sev-{{ r.severity }}">{{ r.severity }}</em></span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Seuils (%)</label>
+          <div class="input-row">
+            <div style="flex:1;">
+              <label class="mini-label" for="cpu-threshold-input">CPU</label>
+              <input type="number" id="cpu-threshold-input" class="text-input" value="85" min="1" max="100" />
+            </div>
+            <div style="flex:1;">
+              <label class="mini-label" for="mem-threshold-input">Mémoire</label>
+              <input type="number" id="mem-threshold-input" class="text-input" value="85" min="1" max="100" />
+            </div>
+            <div style="flex:1;">
+              <label class="mini-label" for="disk-threshold-input">Disque</label>
+              <input type="number" id="disk-threshold-input" class="text-input" value="85" min="1" max="100" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Champs specifiques : Grafana ===== -->
+      <div id="fields-grafana" hidden>
+        <div class="field-group">
+          <label class="field-label" data-step="3">Datasources</label>
+          <div class="datasources-list" id="datasources-list"></div>
+          <button type="button" id="add-datasource-btn" class="btn btn-ghost">+ Ajouter une datasource</button>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top: 0;">
+          GÉNÉRER →
+        </button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink: 0;">
+          ↺
+        </button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="scrape">
+          <span class="node-num">01</span>
+          <span class="node-label">SCRAPE</span>
+        </div>
+        <div class="connector flowing"></div>
+        <div class="node" data-stage="alert">
+          <span class="node-num">02</span>
+          <span class="node-label">OBSERVE</span>
+        </div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Configuration générée</p>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le fichier généré apparaîtra ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============ DOCK FLOTTANT (statut) ============ -->
+  <footer class="title-block" id="title-block">
+    <div class="tb-cell"><span class="tb-key">MODE</span><span class="tb-value" id="tb-mode">Prometheus</span></div>
+    <div class="tb-cell"><span class="tb-key">FICHIER</span><span class="tb-value" id="tb-file">prometheus.yml</span></div>
+    <div class="tb-cell"><span class="tb-key">ÉLÉMENTS</span><span class="tb-value" id="tb-count">—</span></div>
+    <div class="tb-cell"><span class="tb-key">RÉV.</span><span class="tb-value">A</span></div>
+  </footer>
+
+  <script>
+    window.OPSFORGE_MONITORING = {
+      modes: {{ modes | tojson }},
+      datasourceTypes: {{ datasource_types | tojson }},
+      rules: {{ rules | tojson }},
+      presets: {{ presets | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='monitoring/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "Prometheus & Grafana",
+    icon: "fa-solid fa-chart-line",
+    intro: "Prometheus scrute les métriques (<code>prometheus.yml</code>), évalue les règles d'alerte, et Grafana les visualise via ses datasources provisionnées. Le plus simple pour tester : Docker.",
+    os: [
+      { id: "docker", label: "Docker (rapide)", icon: "fa-brands fa-docker", color: "#2496ED", steps: [
+        { title: "Prometheus", cmd: "docker run -d --name prometheus -p 9090:9090 \\\n  -v $PWD/prometheus.yml:/etc/prometheus/prometheus.yml \\\n  prom/prometheus" },
+        { title: "node_exporter (métriques hôte)", cmd: "docker run -d --name node-exporter -p 9100:9100 prom/node-exporter" },
+        { title: "Grafana", cmd: "docker run -d --name grafana -p 3000:3000 \\\n  -v $PWD/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml \\\n  grafana/grafana" },
+      ]},
+      { id: "debian", label: "Debian / Ubuntu", icon: "fa-brands fa-ubuntu", color: "#E95420", steps: [
+        { title: "Prometheus", cmd: "sudo apt update && sudo apt install -y prometheus" },
+        { title: "Config + reload", cmd: "sudo cp prometheus.yml /etc/prometheus/prometheus.yml\nsudo systemctl reload prometheus" },
+        { title: "Grafana (dépôt officiel)", cmd: "sudo apt install -y grafana\nsudo cp datasource.yml /etc/grafana/provisioning/datasources/\nsudo systemctl restart grafana-server" },
+      ]},
+      { id: "check", label: "Valider la config", icon: "fa-solid fa-circle-check", color: "#E6522C", steps: [
+        { title: "Vérifier prometheus.yml", cmd: "promtool check config prometheus.yml" },
+        { title: "Vérifier les règles d'alerte", cmd: "promtool check rules alert.rules.yml" },
+      ]},
+      { id: "windows", label: "Windows", icon: "fa-brands fa-windows", color: "#0078D6", steps: [
+        { title: "Passe par Docker Desktop ou WSL", cmd: "wsl --install -d Ubuntu", note: "Prometheus/Grafana tournent surtout via Docker sous Windows ; suis alors les étapes Docker ci-dessus." },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>

@@ -12,6 +12,7 @@ Sous-commandes :
     python main.py k8s        ...   -> generateur de manifests K8s / chart Helm
     python main.py nginx      ...   -> generateur de bloc de config Nginx (server/upstream)
     python main.py systemd    ...   -> generateur d'unites systemd (.service / .timer)
+    python main.py monitoring ...   -> generateur de config monitoring (Prometheus/Grafana)
 
 Chaque sous-commande accepte ses propres options. Exemples :
     python main.py cicd . --provider gitlab --deploy docker_hub
@@ -22,6 +23,7 @@ Chaque sous-commande accepte ses propres options. Exemples :
     python main.py k8s --name mon-app --image monuser/app:1.0 --ingress-host app.example.com
     python main.py nginx --preset api-reverse-proxy --server-name api.example.com --https
     python main.py systemd --preset web-app --name myapp
+    python main.py monitoring --preset prometheus-node -o output/
 
 Utilise `python main.py <module> --help` pour voir les options d'un module.
 """
@@ -36,6 +38,7 @@ from modules.dockerfile import cli as dockerfile_cli
 from modules.k8s import cli as k8s_cli
 from modules.nginx import cli as nginx_cli
 from modules.systemd import cli as systemd_cli
+from modules.monitoring import cli as monitoring_cli
 
 MODULES = {
     "cicd": cicd_cli.main,
@@ -46,11 +49,12 @@ MODULES = {
     "k8s": k8s_cli.main,
     "nginx": nginx_cli.main,
     "systemd": systemd_cli.main,
+    "monitoring": monitoring_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring} [options]")
     print()
     print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
@@ -60,6 +64,7 @@ def _usage():
     print("  k8s        Genere des manifests Kubernetes ou un chart Helm")
     print("  nginx      Genere un bloc de config Nginx (statique / reverse proxy / load balancer)")
     print("  systemd    Genere des unites systemd (.service supervise / .timer planifie)")
+    print("  monitoring Genere de la config monitoring (prometheus.yml / alertes / datasources Grafana)")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 
