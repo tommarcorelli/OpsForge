@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Générateur cloud-init</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#4F46E5" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='cloudinit/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+
+  <!-- Fond degrades doux -->
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· cloud-init</span></span>
+    </a>
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-circle-info"></i> Guide d'utilisation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — GÉNÉRATEUR CLOUD-INIT</p>
+    <h1>Configure la machine<br />dès son premier boot</h1>
+    <p class="subtitle">Utilisateurs, clés SSH, paquets, fichiers et commandes de démarrage : un <code>#cloud-config</code> valide à passer en user-data (Terraform, cloud, NoCloud). Rien n'est envoyé ailleurs qu'en local.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="field-group">
+        <label class="field-label" data-step="1">Presets</label>
+        <div class="preset-list" id="preset-list"></div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ===== Systeme ===== -->
+      <div class="input-row">
+        <div class="field-group" style="flex:1;">
+          <label class="field-label" data-step="2" for="hostname-input">Hostname</label>
+          <input type="text" id="hostname-input" class="text-input" placeholder="ex : web-01" />
+        </div>
+        <div class="field-group" style="flex:1;">
+          <label class="field-label" for="timezone-input">Timezone</label>
+          <input type="text" id="timezone-input" class="text-input" placeholder="ex : Europe/Paris" />
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="jobs-toggles">
+          <label class="toggle">
+            <input type="checkbox" id="pkg-update-checkbox" />
+            <span>package_update</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="pkg-upgrade-checkbox" />
+            <span>package_upgrade</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="disable-root-checkbox" />
+            <span>Désactiver root</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="no-pwauth-checkbox" />
+            <span>SSH par clé seule</span>
+          </label>
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ===== Utilisateurs ===== -->
+      <div class="field-group">
+        <label class="field-label" data-step="3">Utilisateurs</label>
+        <div class="users-list" id="users-list"></div>
+        <button type="button" id="add-user-btn" class="btn btn-ghost">+ Ajouter un utilisateur</button>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ===== Paquets ===== -->
+      <div class="field-group">
+        <label class="field-label" for="packages-input">Paquets à installer</label>
+        <textarea id="packages-input" class="text-input area" rows="3" placeholder="un paquet par ligne (ou séparés par des virgules)&#10;nginx&#10;git"></textarea>
+      </div>
+
+      <!-- ===== Fichiers ===== -->
+      <div class="field-group">
+        <label class="field-label">Fichiers à écrire (write_files)</label>
+        <div class="wf-list" id="wf-list"></div>
+        <button type="button" id="add-wf-btn" class="btn btn-ghost">+ Ajouter un fichier</button>
+      </div>
+
+      <!-- ===== Commandes ===== -->
+      <div class="field-group">
+        <label class="field-label" for="runcmd-input">Commandes de premier boot (runcmd)</label>
+        <textarea id="runcmd-input" class="text-input area" rows="3" placeholder="une commande par ligne&#10;systemctl enable --now nginx"></textarea>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top: 0;">
+          GÉNÉRER →
+        </button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink: 0;">
+          ↺
+        </button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="config">
+          <span class="node-num">01</span>
+          <span class="node-label">CONFIG</span>
+        </div>
+        <div class="connector flowing"></div>
+        <div class="node" data-stage="boot">
+          <span class="node-num">02</span>
+          <span class="node-label">BOOT</span>
+        </div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Fichier <code>user-data</code></p>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le fichier généré apparaîtra ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============ DOCK FLOTTANT (statut) ============ -->
+  <footer class="title-block" id="title-block">
+    <div class="tb-cell"><span class="tb-key">HOSTNAME</span><span class="tb-value" id="tb-hostname">—</span></div>
+    <div class="tb-cell"><span class="tb-key">USERS</span><span class="tb-value" id="tb-users">0</span></div>
+    <div class="tb-cell"><span class="tb-key">PAQUETS</span><span class="tb-value" id="tb-packages">0</span></div>
+    <div class="tb-cell"><span class="tb-key">RÉV.</span><span class="tb-value">A</span></div>
+  </footer>
+
+  <script>
+    window.OPSFORGE_CLOUDINIT = {
+      presets: {{ presets | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='cloudinit/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "cloud-init",
+    icon: "fa-solid fa-cloud-arrow-up",
+    intro: "cloud-init lit un <code>#cloud-config</code> (user-data) au tout premier démarrage d'une VM/instance. On le fournit selon la plateforme — voici les 3 cas les plus courants.",
+    os: [
+      { id: "terraform", label: "Terraform / cloud", icon: "fa-solid fa-earth-americas", color: "#9A45D6", steps: [
+        { title: "Passer le fichier en user_data", cmd: "resource \"aws_instance\" \"web\" {\n  user_data = file(\"user-data\")\n}" },
+        { title: "GCP / Azure", cmd: "# GCP : metadata user-data\n# Azure : custom_data (base64)" },
+      ]},
+      { id: "nocloud", label: "NoCloud (VM locale)", icon: "fa-solid fa-compact-disc", color: "#4F46E5", steps: [
+        { title: "Créer une seed ISO (user-data + meta-data)", cmd: "touch meta-data\ncloud-localds seed.iso user-data meta-data" },
+        { title: "Booter la VM en attachant seed.iso", cmd: "qemu-system-x86_64 -drive file=seed.iso,format=raw ..." },
+      ]},
+      { id: "vagrant", label: "Vagrant", icon: "fa-solid fa-cube", color: "#1E9E4A", steps: [
+        { title: "Provisioner cloud-init", cmd: "config.vm.cloud_init do |ci|\n  ci.content_type = \"text/cloud-config\"\n  ci.path = \"user-data\"\nend" },
+      ]},
+      { id: "check", label: "Valider", icon: "fa-solid fa-circle-check", color: "#16a34a", steps: [
+        { title: "Vérifier la syntaxe", cmd: "cloud-init schema --config-file user-data" },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>

@@ -13,6 +13,7 @@ Sous-commandes :
     python main.py nginx      ...   -> generateur de bloc de config Nginx (server/upstream)
     python main.py systemd    ...   -> generateur d'unites systemd (.service / .timer)
     python main.py monitoring ...   -> generateur de config monitoring (Prometheus/Grafana)
+    python main.py cloudinit  ...   -> generateur de fichier cloud-init (#cloud-config)
 
 Chaque sous-commande accepte ses propres options. Exemples :
     python main.py cicd . --provider gitlab --deploy docker_hub
@@ -24,6 +25,7 @@ Chaque sous-commande accepte ses propres options. Exemples :
     python main.py nginx --preset api-reverse-proxy --server-name api.example.com --https
     python main.py systemd --preset web-app --name myapp
     python main.py monitoring --preset prometheus-node -o output/
+    python main.py cloudinit --preset docker-host --hostname web-01
 
 Utilise `python main.py <module> --help` pour voir les options d'un module.
 """
@@ -39,6 +41,7 @@ from modules.k8s import cli as k8s_cli
 from modules.nginx import cli as nginx_cli
 from modules.systemd import cli as systemd_cli
 from modules.monitoring import cli as monitoring_cli
+from modules.cloudinit import cli as cloudinit_cli
 
 MODULES = {
     "cicd": cicd_cli.main,
@@ -50,11 +53,12 @@ MODULES = {
     "nginx": nginx_cli.main,
     "systemd": systemd_cli.main,
     "monitoring": monitoring_cli.main,
+    "cloudinit": cloudinit_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit} [options]")
     print()
     print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
@@ -65,6 +69,7 @@ def _usage():
     print("  nginx      Genere un bloc de config Nginx (statique / reverse proxy / load balancer)")
     print("  systemd    Genere des unites systemd (.service supervise / .timer planifie)")
     print("  monitoring Genere de la config monitoring (prometheus.yml / alertes / datasources Grafana)")
+    print("  cloudinit  Genere un fichier cloud-init #cloud-config (premier boot d'une machine)")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 

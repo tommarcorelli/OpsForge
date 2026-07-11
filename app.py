@@ -30,6 +30,7 @@ from modules.k8s.routes import bp as k8s_bp
 from modules.nginx.routes import bp as nginx_bp
 from modules.systemd.routes import bp as systemd_bp
 from modules.monitoring.routes import bp as monitoring_bp
+from modules.cloudinit.routes import bp as cloudinit_bp
 
 app = Flask(__name__, template_folder="web/templates", static_folder="web/static")
 
@@ -42,6 +43,7 @@ app.register_blueprint(k8s_bp)
 app.register_blueprint(nginx_bp)
 app.register_blueprint(systemd_bp)
 app.register_blueprint(monitoring_bp)
+app.register_blueprint(cloudinit_bp)
 
 
 @app.route("/")

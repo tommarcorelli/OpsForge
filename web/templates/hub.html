@@ -92,10 +92,12 @@
     .card.nginx .go{color:#009639;}
     .card.systemd .go{color:#0F9D8C;}
     .card.monitoring .go{color:#E6522C;}
+    .card.cloudinit .go{color:#4F46E5;}
     .b-k8s{background:linear-gradient(135deg,#326CE5,#54a2f0);box-shadow:0 8px 18px -4px rgba(50,108,229,.6);}
     .b-nginx{background:linear-gradient(135deg,#009639,#4CC750);box-shadow:0 8px 18px -4px rgba(0,150,57,.6);}
     .b-systemd{background:linear-gradient(135deg,#0F9D8C,#2DD4BF);box-shadow:0 8px 18px -4px rgba(15,157,140,.6);}
     .b-monitoring{background:linear-gradient(135deg,#E6522C,#F46800);box-shadow:0 8px 18px -4px rgba(230,82,44,.6);}
+    .b-cloudinit{background:linear-gradient(135deg,#4F46E5,#6366F1);box-shadow:0 8px 18px -4px rgba(79,70,229,.6);}
 
     footer{margin-top:42px;color:rgba(255,255,255,.85);font-size:13px;text-align:center;text-shadow:0 1px 10px rgba(15,23,42,.2);}
 
@@ -207,6 +209,14 @@
       <h2>Monitoring</h2>
       <p>Génère un <code>prometheus.yml</code> multi-jobs (scrape + Alertmanager), un jeu de <strong>règles d'alerte</strong> prêtes (CPU, mémoire, disque, instance down) ou le provisioning des <strong>datasources Grafana</strong>.</p>
       <div class="tags"><span class="tag">Prometheus</span><span class="tag">Alertes</span><span class="tag">Grafana</span><span class="tag">Presets</span></div>
+      <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
+    <a class="card cloudinit" href="{{ url_for('cloudinit.index') }}">
+      <span class="badge b-cloudinit"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+      <h2>cloud-init</h2>
+      <p>Génère un <code>#cloud-config</code> (user-data) pour le <strong>premier démarrage</strong> d'une VM/instance : utilisateurs, clés SSH, paquets, fichiers et commandes — à passer en user-data (Terraform, cloud, NoCloud).</p>
+      <div class="tags"><span class="tag">Users / SSH</span><span class="tag">Paquets</span><span class="tag">write_files</span><span class="tag">runcmd</span></div>
       <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
     </a>
   </main>
