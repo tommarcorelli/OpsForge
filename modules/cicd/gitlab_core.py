@@ -278,17 +278,18 @@ def _build_deploy_jobs(deploy_config, stacks):
 
         if target == "docker_hub":
             docker_image = deploy_config.get("docker_image") or DEPLOY_DEFAULTS["docker_image"]
+            script_lines = [
+                'docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN',
+                'docker build -t ' + docker_image + ':latest .',
+                'docker push ' + docker_image + ':latest',
+            ]
             block = (
                 "deploy-docker_hub:\n"
                 "  stage: deploy\n"
                 "  image: docker:24\n"
                 "  services:\n"
                 "    - docker:24-dind\n"
-                f"{_yaml_script_block([
-                    'docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN',
-                    'docker build -t ' + docker_image + ':latest .',
-                    'docker push ' + docker_image + ':latest',
-                ])}"
+                f"{_yaml_script_block(script_lines)}"
             )
             job_blocks.append(block)
             continue
@@ -296,32 +297,34 @@ def _build_deploy_jobs(deploy_config, stacks):
         if target == "ssh":
             deploy_path = deploy_config.get("deploy_path") or DEPLOY_DEFAULTS["deploy_path"]
             service_name = deploy_config.get("service_name") or DEPLOY_DEFAULTS["service_name"]
+            script_lines = [
+                'apk add --no-cache openssh-client rsync',
+                'eval $(ssh-agent -s)',
+                'echo \"$SSH_PRIVATE_KEY\" | tr -d \'\\r\' | ssh-add -',
+                'mkdir -p ~/.ssh && chmod 700 ~/.ssh',
+                'ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts',
+                'rsync -avzr --delete ./ $SSH_USER@$SSH_HOST:' + deploy_path,
+                'ssh $SSH_USER@$SSH_HOST "sudo systemctl restart ' + service_name + '"',
+            ]
             block = (
                 "deploy-ssh:\n"
                 "  stage: deploy\n"
                 "  image: alpine:latest\n"
-                f"{_yaml_script_block([
-                    'apk add --no-cache openssh-client rsync',
-                    'eval $(ssh-agent -s)',
-                    'echo \"$SSH_PRIVATE_KEY\" | tr -d \'\\r\' | ssh-add -',
-                    'mkdir -p ~/.ssh && chmod 700 ~/.ssh',
-                    'ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts',
-                    'rsync -avzr --delete ./ $SSH_USER@$SSH_HOST:' + deploy_path,
-                    'ssh $SSH_USER@$SSH_HOST "sudo systemctl restart ' + service_name + '"',
-                ])}"
+                f"{_yaml_script_block(script_lines)}"
             )
             job_blocks.append(block)
             continue
 
         if target == "vercel":
+            script_lines = [
+                'npm install -g vercel',
+                'vercel --token $VERCEL_TOKEN --prod --yes',
+            ]
             block = (
                 "deploy-vercel:\n"
                 "  stage: deploy\n"
                 "  image: node:20-slim\n"
-                f"{_yaml_script_block([
-                    'npm install -g vercel',
-                    'vercel --token $VERCEL_TOKEN --prod --yes',
-                ])}"
+                f"{_yaml_script_block(script_lines)}"
             )
             job_blocks.append(block)
             continue
@@ -336,16 +339,17 @@ def _build_deploy_jobs(deploy_config, stacks):
             pages_dir = deploy_config.get("pages_dir") or DEPLOY_DEFAULTS["pages_dir"]
             s3_bucket = deploy_config.get("s3_bucket") or DEPLOY_DEFAULTS["s3_bucket"]
 
+            script_lines = [
+                install_cmd,
+                build_cmd,
+                'apt-get update -qq && apt-get install -y -qq awscli',
+                f'aws s3 sync {pages_dir} s3://{s3_bucket} --delete',
+            ]
             block = (
                 "deploy-aws_s3:\n"
                 "  stage: deploy\n"
                 f"  image: {image}\n"
-                f"{_yaml_script_block([
-                    install_cmd,
-                    build_cmd,
-                    'apt-get update -qq && apt-get install -y -qq awscli',
-                    f'aws s3 sync {pages_dir} s3://{s3_bucket} --delete',
-                ])}"
+                f"{_yaml_script_block(script_lines)}"
             )
             job_blocks.append(block)
             continue
