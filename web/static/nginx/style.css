@@ -62,6 +62,8 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .provider-switch{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:rgba(15,23,42,.05);border:1px solid var(--border-2);border-radius:14px;padding:5px;margin-bottom:20px;}
 .provider-btn{padding:11px 6px;border:none;background:transparent;border-radius:10px;cursor:pointer;font-family:var(--head);font-weight:700;font-size:13px;color:var(--ink-2);transition:all .18s ease;}
 .provider-btn.active{background:#fff;color:var(--primary-h);box-shadow:var(--shadow);}
+.provider-btn.mode-disabled{opacity:.35;cursor:not-allowed;}
+.provider-btn.mode-disabled:hover{background:transparent;}
 
 /* Champs */
 .field-group{margin-bottom:18px;}
@@ -107,6 +109,7 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .btn-stamp:hover{transform:translateY(-2px);box-shadow:0 16px 32px -8px rgba(0,150,57,.85);}
 .error-msg{color:#d1543f;font-size:13.5px;margin:12px 0 0;font-weight:500;min-height:0;}
 .error-msg.visible{margin-top:12px;}
+.hint{color:var(--dim);font-size:12.5px;margin:8px 0 0;line-height:1.4;}
 
 /* Schema pipeline */
 .pipeline-schematic{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:18px;}

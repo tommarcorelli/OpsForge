@@ -85,7 +85,10 @@
         </div>
       </details>
 
-      <button id="generate-btn" class="btn primary"><i class="fa-solid fa-bolt"></i> Générer main.tf</button>
+      <div class="field two">
+        <button id="generate-btn" class="btn primary"><i class="fa-solid fa-bolt"></i> Générer main.tf</button>
+        <button id="download-zip-btn" class="btn ghost"><i class="fa-solid fa-file-zipper"></i> Télécharger .zip</button>
+      </div>
       <p id="error" class="error" hidden></p>
       <p id="warn" class="warn" hidden></p>
     </section>
@@ -95,6 +98,7 @@
         <span><i class="fa-regular fa-file-code"></i> main.tf</span>
         <button id="copy-btn" class="btn ghost small" hidden><i class="fa-regular fa-copy"></i> Copier</button>
       </div>
+      <p class="hint">Le .zip sépare aussi <code>variables.tf</code> et <code>outputs.tf</code> quand ils sont utilisés.</p>
       <pre id="output" class="output">Le résultat s'affichera ici.</pre>
     </section>
   </main>

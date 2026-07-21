@@ -15,7 +15,7 @@
 | **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs | `/terraform` | `python main.py terraform …` |
 | **Dockerfile** | **`Dockerfile`** multi-stage (build + runtime allégé) + `.dockerignore`, 8 langages, bonnes pratiques (utilisateur non-root) | `/dockerfile` | `python main.py dockerfile …` |
 | **Kubernetes / Helm** | **Manifests** (Deployment + Service + Ingress, probes, resources) prêts pour `kubectl apply`, ou **chart Helm** complet, export `.zip` | `/k8s` | `python main.py k8s …` |
-| **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option | `/nginx` | `python main.py nginx …` |
+| **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option — et variantes **Caddy** (Caddyfile) / **Traefik** (config dynamique YAML) | `/nginx` | `python main.py nginx …` |
 | **systemd** | Unité **`.service`** durcie (utilisateur dédié, redémarrage auto, sandboxing) ou paire **`.service` + `.timer`** planifiée (`OnCalendar`, remplace cron) | `/systemd` | `python main.py systemd …` |
 | **Monitoring** | **`prometheus.yml`** (scrape multi-jobs + Alertmanager), **règles d'alerte** Prometheus (CPU/mém/disque/instance) ou **datasources Grafana** | `/monitoring` | `python main.py monitoring …` |
 | **cloud-init** | **`#cloud-config`** (user-data) de premier boot : utilisateurs, clés SSH, paquets, `write_files`, `runcmd`, durcissement SSH | `/cloudinit` | `python main.py cloudinit …` |
@@ -95,6 +95,32 @@ python main.py cicd . --matrix-versions 3.10 3.11 3.12 \
 
 # Apercu sans rien ecrire sur disque
 python main.py cicd . --dry-run
+```
+
+### Module Nginx (+ Caddy / Traefik)
+
+```bash
+# Nginx classique (defaut)
+python main.py nginx --preset api-reverse-proxy --https -o -
+
+# Meme config, en Caddyfile
+python main.py nginx --preset api-reverse-proxy --target caddy --dry-run
+
+# Meme config, en config dynamique Traefik (YAML)
+python main.py nginx --preset load-balanced-app --target traefik --dry-run
+```
+
+### Module Terraform
+
+```bash
+# Depuis un preset, fichier main.tf unique sur stdout
+python main.py terraform --preset ec2-web -o -
+
+# Depuis une config JSON, en fichiers separes (main.tf/variables.tf/outputs.tf)
+python main.py terraform config.json --split -o output/mon-projet/
+
+# Preset avec variables/outputs -> 3 fichiers separes
+python main.py terraform --preset rds-postgres --split -o output/rds/
 ```
 
 ### Module Ansible
@@ -284,7 +310,17 @@ ressources, génère un `main.tf` (bloc `terraform{}` + `provider{}` +
   choisi dans un catalogue par provider, nom, arguments) ; un template
   d'arguments est pré-rempli selon le type.
 - **Presets** prêts à l'emploi (`ec2-web`, `s3-static`, `docker-nginx`,
-  `gcp-vm`) — sélectionnables dans l'UI ou en CLI (`--preset`, `--list-presets`).
+  `gcp-vm`, `vpc-basic`, `rds-postgres`, `docker-network-app`, `gcp-network`,
+  `azure-vm`) — sélectionnables dans l'UI ou en CLI (`--preset`,
+  `--list-presets`).
+- **Catalogue de ressources élargi** : en plus des types de base, `aws_internet_gateway`,
+  `aws_route_table` (+ association), `aws_iam_role`, `aws_lambda_function` (AWS) ;
+  `google_compute_firewall`, `google_sql_database_instance` (GCP) ; `azurerm_virtual_network`,
+  `azurerm_linux_virtual_machine` (Azure) ; `docker_network`, `docker_volume` (Docker) ;
+  `local_sensitive_file` (local).
+- **Export en fichiers séparés** : `main.tf` (terraform + provider + ressources),
+  et `variables.tf` / `outputs.tf` dès qu'ils sont utilisés — téléchargeables en
+  **`.zip`** depuis l'UI (bouton « Télécharger .zip ») ou en CLI (`--split -o mon-dossier/`).
 - **Validation par provider** : vérifie les arguments requis de chaque type de
   ressource connu (`RESOURCE_CATALOG`), les noms dupliqués, le provider.
 - **Sortie alignée** façon `terraform fmt` (les `=` d'un même bloc sont alignés).
@@ -362,6 +398,28 @@ Let's Encrypt, pense-bête `certbot certonly --nginx` en commentaire), **gzip**,
 Validation intégrée par mode (backend/host/port requis, 2+ backends pour le
 load balancer, algorithme et taille de body reconnus) ; chaque config générée
 est **valide par construction** et a été testée avec `nginx -t` réel.
+
+### Cibles Caddy et Traefik
+
+Le **même formulaire** (mode + options) peut produire trois formats de
+sortie différents, sélectionnables dans l'UI (bouton « Cible ») ou en CLI
+(`--target nginx|caddy|traefik`, défaut `nginx`) :
+
+- **Caddy** (`Caddyfile`) : `file_server` + `try_files` pour le statique,
+  `reverse_proxy` (WebSocket géré nativement) pour le reverse proxy et le
+  load balancer (`lb_policy round_robin|least_conn|ip_hash`), HTTPS
+  automatique par défaut (Caddy gère lui-même Let's Encrypt — `https: false`
+  force le préfixe `http://` pour désactiver le TLS auto), `encode gzip`,
+  `header {}` pour les en-têtes de sécurité, `request_body { max_size … }`
+  pour la taille max.
+- **Traefik** (config dynamique **YAML**, provider `file`) : un `router`
+  (règle `Host(...)`, `entryPoints` web/websecure, `tls.certResolver` si
+  HTTPS) et un `service` `loadBalancer` (un ou plusieurs `servers`). Pas de
+  mode **statique** côté Traefik (ce n'est pas un serveur de fichiers) — seuls
+  `reverse_proxy` et `load_balancer` sont disponibles pour cette cible ;
+  `ip_hash` devient une session collante par cookie (équivalent le plus
+  proche), et `least_conn` n'a pas d'équivalent direct (note ajoutée dans le
+  fichier généré).
 
 ---
 
@@ -475,11 +533,13 @@ Les 10 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorit
 - [x] ~~Module cloud-init~~ — fait (#cloud-config : users/SSH, paquets, write_files, runcmd).
 - [ ] *(optionnel)* Cible **Windows / WinRM** pour le module Ansible (comme
       Vagrant qui gère déjà Windows).
-- [ ] *(optionnel)* Terraform : export de `variables.tf` / `outputs.tf` séparés
-      en `.zip`, davantage de presets et de types de ressources au catalogue.
+- [x] ~~Terraform : export de `variables.tf` / `outputs.tf` séparés~~ — fait
+      (fichiers séparés en `.zip` depuis l'UI, `--split` en CLI, 5 nouveaux
+      presets et 11 nouveaux types de ressources au catalogue).
 - [ ] *(optionnel)* Rôles supplémentaires côté Ansible (bases de données, backup).
-- [ ] *(optionnel)* Variantes **Caddy** et **Traefik** pour le module Nginx
-      (même formulaire, sortie adaptée au format de chaque proxy).
+- [x] ~~Variantes Caddy et Traefik pour le module Nginx~~ — fait (même
+      formulaire, sortie Caddyfile / config dynamique Traefik en YAML,
+      sélecteur de cible dans l'UI et `--target` en CLI).
 
 ### Nouveaux modules envisagés
 

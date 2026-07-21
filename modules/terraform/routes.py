@@ -4,10 +4,14 @@ modules/terraform/routes.py
 Blueprint Flask du module Terraform (monté sous /terraform).
 """
 
-from flask import Blueprint, render_template, request, jsonify
+import io
+import zipfile
+
+from flask import Blueprint, render_template, request, jsonify, send_file
 
 from modules.terraform.core import (
     generate_terraform,
+    generate_terraform_files,
     valider_config,
     obtenir_preset,
     SUPPORTED_PROVIDERS,
@@ -65,3 +69,32 @@ def api_generate():
         "filename": "main.tf",
         "avertissements": avertissements,
     })
+
+
+@bp.post("/api/download")
+def api_download():
+    """Regenere puis renvoie un .zip du projet Terraform en fichiers separes
+    (main.tf, et variables.tf / outputs.tf s'ils sont non vides)."""
+    config = request.get_json(force=True) or {}
+
+    erreurs, _ = valider_config(config)
+    if erreurs:
+        return jsonify({"error": " ; ".join(erreurs)}), 400
+
+    try:
+        fichiers = generate_terraform_files(config)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for nom, contenu in fichiers.items():
+            zf.writestr(nom, contenu)
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name="terraform-project.zip",
+    )

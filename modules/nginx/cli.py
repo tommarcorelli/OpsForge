@@ -11,11 +11,11 @@ import os
 import sys
 
 from modules.nginx.core import (
-    generate_config,
-    write_config,
+    generate,
     list_presets,
     get_preset,
     SUPPORTED_MODES,
+    SUPPORTED_TARGETS,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge
@@ -51,6 +51,14 @@ def build_parser():
         choices=SUPPORTED_MODES,
         default=None,
         help="Surcharge le mode (static / reverse_proxy / load_balancer).",
+    )
+    parser.add_argument(
+        "--target",
+        choices=SUPPORTED_TARGETS,
+        default="nginx",
+        help="Format de sortie : nginx (defaut, server{}/upstream{}), "
+             "caddy (Caddyfile) ou traefik (config dynamique YAML). "
+             "Traefik ne supporte pas le mode 'static'.",
     )
     parser.add_argument(
         "--server-name",
@@ -115,7 +123,7 @@ def main(argv=None):
 
     if args.dry_run:
         try:
-            content = generate_config(config)
+            content = generate(config, target=args.target)
         except ValueError as e:
             print(f"Erreur : {e}")
             return 1
@@ -125,18 +133,32 @@ def main(argv=None):
         return 0
 
     server_name = (config.get("server_name") or "app").strip()
-    output_path = args.output or os.path.join(OUTPUT_DIR, f"{server_name}.conf")
+    ext = {"nginx": "conf", "caddy": "Caddyfile", "traefik": "yml"}.get(args.target, "conf")
+    default_name = "Caddyfile" if args.target == "caddy" else f"{server_name}.{ext}"
+    output_path = args.output or os.path.join(OUTPUT_DIR, default_name)
 
     try:
-        write_config(config, output_path)
+        content = generate(config, target=args.target)
     except ValueError as e:
         print(f"Erreur : {e}")
         return 1
 
-    print(f"\nConfig Nginx generee avec succes : {output_path}")
-    print(
-        f"Pour l'activer : sudo cp {output_path} /etc/nginx/sites-available/{server_name} "
-        f"&& sudo ln -s /etc/nginx/sites-available/{server_name} /etc/nginx/sites-enabled/ "
-        f"&& sudo nginx -t && sudo systemctl reload nginx"
-    )
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    print(f"\nConfig generee avec succes (cible: {args.target}) : {output_path}")
+    if args.target == "nginx":
+        print(
+            f"Pour l'activer : sudo cp {output_path} /etc/nginx/sites-available/{server_name} "
+            f"&& sudo ln -s /etc/nginx/sites-available/{server_name} /etc/nginx/sites-enabled/ "
+            f"&& sudo nginx -t && sudo systemctl reload nginx"
+        )
+    elif args.target == "caddy":
+        print(f"Pour l'activer : ajoute le contenu de {output_path} a ton Caddyfile, puis `caddy reload`.")
+    else:
+        print(
+            f"Pour l'activer : copie {output_path} dans le dossier surveille par le provider "
+            "\"file\" de Traefik (ex: /etc/traefik/dynamic/)."
+        )
     return 0
