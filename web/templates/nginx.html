@@ -73,6 +73,16 @@
       </div>
 
       <div class="field-group">
+        <label class="field-label" data-step="3">Cible</label>
+        <div class="provider-switch" id="target-switch">
+          {% for t in targets %}
+          <button type="button" class="provider-btn{% if t == 'nginx' %} active{% endif %}" data-target="{{ t }}">{{ t }}</button>
+          {% endfor %}
+        </div>
+        <p class="hint" id="target-hint" hidden>Traefik est un reverse proxy / load balancer : le mode « statique » n'est pas disponible pour cette cible.</p>
+      </div>
+
+      <div class="field-group">
         <label class="field-label" data-step="3" for="server-name-input">Nom de domaine</label>
         <input type="text" id="server-name-input" class="text-input" placeholder="ex : app.example.com" />
       </div>
@@ -218,7 +228,9 @@
     window.OPSFORGE_NGINX = {
       modes: {{ modes | tojson }},
       algorithms: {{ algorithms | tojson }},
-      presets: {{ presets | tojson }}
+      presets: {{ presets | tojson }},
+      targets: {{ targets | tojson }},
+      targetModes: {{ target_modes | tojson }}
     };
   </script>
   <script src="{{ url_for('static', filename='theme.js') }}"></script>

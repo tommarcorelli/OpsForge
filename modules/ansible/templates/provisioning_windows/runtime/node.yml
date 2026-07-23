@@ -1,0 +1,4 @@
+    - name: Installer Node.js LTS via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: nodejs-lts
+        state: present

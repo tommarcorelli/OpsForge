@@ -1,0 +1,12 @@
+    - name: Installer Chocolatey (gestionnaire de paquets Windows)
+      chocolatey.chocolatey.win_chocolatey:
+        name: chocolatey
+        state: present
+
+    - name: Installer les paquets de base (git, curl, 7zip)
+      chocolatey.chocolatey.win_chocolatey:
+        name:
+          - git
+          - curl
+          - 7zip
+        state: present

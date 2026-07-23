@@ -1,0 +1,62 @@
+    - name: Creer le dossier de sauvegardes
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: "0750"
+      become: true
+
+    - name: Deployer le script de sauvegarde
+      copy:
+        dest: /usr/local/bin/opsforge-backup.sh
+        mode: "0750"
+        content: |
+          #!/usr/bin/env bash
+          # Genere par OpsForge — sauvegarde quotidienne (base de donnees + dossier applicatif)
+          set -euo pipefail
+
+          BACKUP_DIR="{{ backup_dir }}"
+          STAMP="$(date +%Y%m%d-%H%M%S)"
+          RETENTION_DAYS="{{ backup_retention_days }}"
+
+          mkdir -p "$BACKUP_DIR"
+
+          # --- Base de donnees (si un moteur a ete configure a la generation) ---
+          case "{{ database_engine }}" in
+            postgresql)
+              PGPASSWORD="{{ db_password | default('') }}" pg_dump -U "{{ db_user }}" "{{ db_name }}" \
+                | gzip > "$BACKUP_DIR/db-{{ db_name }}-$STAMP.sql.gz"
+              ;;
+            mysql)
+              MYSQL_PWD="{{ db_password | default('') }}" mysqldump -u "{{ db_user }}" "{{ db_name }}" \
+                | gzip > "$BACKUP_DIR/db-{{ db_name }}-$STAMP.sql.gz"
+              ;;
+            redis)
+              redis-cli SAVE
+              cp /var/lib/redis/dump.rdb "$BACKUP_DIR/db-redis-$STAMP.rdb"
+              ;;
+            mongodb)
+              mongodump --db "{{ db_name }}" --archive="$BACKUP_DIR/db-{{ db_name }}-$STAMP.archive" --gzip
+              ;;
+            *)
+              echo "Aucun moteur de base de donnees configure : sauvegarde de l'appli uniquement."
+              ;;
+          esac
+
+          # --- Dossier applicatif ---
+          if [ -d "{{ app_dir }}" ]; then
+            tar -czf "$BACKUP_DIR/app-$STAMP.tar.gz" -C "$(dirname "{{ app_dir }}")" "$(basename "{{ app_dir }}")"
+          fi
+
+          # --- Rotation : supprime les sauvegardes plus vieilles que RETENTION_DAYS ---
+          find "$BACKUP_DIR" -type f -mtime "+$RETENTION_DAYS" -delete
+
+          echo "Sauvegarde terminee : $STAMP"
+      become: true
+
+    - name: Planifier la sauvegarde quotidienne (cron)
+      cron:
+        name: "opsforge-backup"
+        hour: "{{ backup_hour }}"
+        minute: "0"
+        job: "/usr/local/bin/opsforge-backup.sh >> /var/log/opsforge-backup.log 2>&1"
+      become: true

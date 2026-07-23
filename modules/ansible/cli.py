@@ -19,6 +19,7 @@ from modules.ansible.core import (
     write_multi_group_project,
     SUPPORTED_LANGUAGES,
     DATABASE_ENGINES,
+    TARGET_OSES,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge
@@ -67,7 +68,7 @@ def build_parser():
     parser.add_argument(
         "--provisioning",
         nargs="+",
-        choices=["update_system", "base_packages", "timezone", "swap", "unattended_upgrades", "users", "docker", "nginx", "https", "database", "firewall", "ssh_hardening", "fail2ban", "monitoring", "runtime"],
+        choices=["update_system", "base_packages", "timezone", "swap", "unattended_upgrades", "users", "docker", "nginx", "https", "database", "backups", "firewall", "ssh_hardening", "fail2ban", "monitoring", "runtime"],
         default=["update_system", "base_packages", "runtime"],
         help="Etapes de provisioning a inclure",
     )
@@ -85,10 +86,29 @@ def build_parser():
         "--database-engine",
         choices=DATABASE_ENGINES,
         default=None,
-        help="Moteur de base de donnees pour l'etape 'database' (postgresql, mysql, redis)",
+        help="Moteur de base de donnees pour l'etape 'database' (postgresql, mysql, redis, mongodb)",
     )
     parser.add_argument("--db-name", default=None, help="Nom de la base de donnees applicative")
     parser.add_argument("--db-user", default=None, help="Utilisateur applicatif de la base de donnees")
+    parser.add_argument("--backup-dir", default=None, help="Dossier de sauvegarde pour l'etape 'backups' (defaut: /opt/backups)")
+    parser.add_argument("--backup-retention-days", default=None, help="Retention des sauvegardes en jours (defaut: 7)")
+    parser.add_argument("--backup-hour", default=None, help="Heure d'execution quotidienne de la sauvegarde, 0-23 (defaut: 2)")
+    parser.add_argument(
+        "--target-os",
+        choices=TARGET_OSES,
+        default="linux",
+        help="OS cible : 'linux' (defaut, SSH) ou 'windows' (WinRM). "
+             "Seul un sous-ensemble d'etapes est disponible cote Windows "
+             "(voir --list-windows-steps).",
+    )
+    parser.add_argument(
+        "--list-windows-steps",
+        action="store_true",
+        help="Affiche les etapes de provisioning/deploiement disponibles pour une cible Windows, et quitte.",
+    )
+    parser.add_argument("--winrm-transport", default="ntlm", help="Transport WinRM : ntlm (defaut), basic, kerberos ou credssp")
+    parser.add_argument("--winrm-port", type=int, default=None, help="Port WinRM (defaut : 5986 en HTTPS, 5985 en transport 'basic')")
+    parser.add_argument("--winrm-password", default=None, help="Mot de passe WinRM ecrit dans l'inventaire (a eviter en clair en production : prefere le vault)")
     parser.add_argument(
         "--health-check-port",
         default=None,
@@ -160,6 +180,20 @@ def build_parser():
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+
+    if args.list_windows_steps:
+        from modules.ansible.core import (
+            WINDOWS_SUPPORTED_PROVISIONING,
+            WINDOWS_SUPPORTED_DEPLOYMENT,
+            WINDOWS_SUPPORTED_LANGUAGES,
+        )
+        print("Etapes de provisioning disponibles pour --target-os windows :")
+        print("  " + ", ".join(WINDOWS_SUPPORTED_PROVISIONING))
+        print("Etapes de deploiement disponibles pour --target-os windows :")
+        print("  " + ", ".join(WINDOWS_SUPPORTED_DEPLOYMENT))
+        print("Langages disponibles (runtime / install_deps) pour --target-os windows :")
+        print("  " + ", ".join(WINDOWS_SUPPORTED_LANGUAGES))
+        return
 
     if args.dry_run and (args.groups_file or args.layout == "roles"):
         print("Erreur : --dry-run n'est disponible que pour le layout 'flat' "
@@ -250,9 +284,13 @@ def main(argv=None):
         "database_engine": args.database_engine,
         "db_name": args.db_name,
         "db_user": args.db_user,
+        "backup_dir": args.backup_dir,
+        "backup_retention_days": args.backup_retention_days,
+        "backup_hour": args.backup_hour,
         "notify_webhook_url": args.notify_webhook_url,
         "deploy_user": args.ssh_user,
         "ssh_public_key": args.ssh_public_key,
+        "target_os": args.target_os,
     }
 
     if args.layout == "roles":
@@ -280,7 +318,11 @@ def main(argv=None):
 
         if args.inventory_host:
             inventory_content = generate_inventory(
-                args.hosts_group, args.inventory_host, args.ssh_user
+                args.hosts_group, args.inventory_host, args.ssh_user,
+                target_os=args.target_os,
+                winrm_password=args.winrm_password,
+                winrm_transport=args.winrm_transport,
+                winrm_port=args.winrm_port,
             )
             inventory_path = os.path.join(output_dir, "inventory.ini")
             with open(inventory_path, "w", encoding="utf-8") as f:
@@ -339,7 +381,11 @@ def main(argv=None):
 
     if args.inventory_host:
         inventory_content = generate_inventory(
-            args.hosts_group, args.inventory_host, args.ssh_user
+            args.hosts_group, args.inventory_host, args.ssh_user,
+            target_os=args.target_os,
+            winrm_password=args.winrm_password,
+            winrm_transport=args.winrm_transport,
+            winrm_port=args.winrm_port,
         )
         inventory_path = os.path.join(os.path.dirname(output_path), "inventory.ini")
         with open(inventory_path, "w", encoding="utf-8") as f:

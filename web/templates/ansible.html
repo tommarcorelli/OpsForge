@@ -71,25 +71,27 @@
       <div class="connector"></div>
       <div class="node" data-step="database"><span class="node-num">14</span><span class="node-label">Database</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="runtime"><span class="node-num">15</span><span class="node-label">Runtime</span></div>
+      <div class="node" data-step="backups"><span class="node-num">15</span><span class="node-label">Sauvegardes auto</span></div>
+      <div class="connector"></div>
+      <div class="node" data-step="runtime"><span class="node-num">16</span><span class="node-label">Runtime</span></div>
       <div class="connector connector-phase"></div>
-      <div class="node" data-step="backup_previous"><span class="node-num">16</span><span class="node-label">Backup</span></div>
+      <div class="node" data-step="backup_previous"><span class="node-num">17</span><span class="node-label">Backup</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="git_clone"><span class="node-num">17</span><span class="node-label">Git clone</span></div>
+      <div class="node" data-step="git_clone"><span class="node-num">18</span><span class="node-label">Git clone</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="zero_downtime_deploy"><span class="node-num">18</span><span class="node-label">Zero-downtime</span></div>
+      <div class="node" data-step="zero_downtime_deploy"><span class="node-num">19</span><span class="node-label">Zero-downtime</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="install_deps"><span class="node-num">19</span><span class="node-label">Dépendances</span></div>
+      <div class="node" data-step="install_deps"><span class="node-num">20</span><span class="node-label">Dépendances</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="build"><span class="node-num">20</span><span class="node-label">Build</span></div>
+      <div class="node" data-step="build"><span class="node-num">21</span><span class="node-label">Build</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="restart_service"><span class="node-num">21</span><span class="node-label">Restart</span></div>
+      <div class="node" data-step="restart_service"><span class="node-num">22</span><span class="node-label">Restart</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="reload_nginx"><span class="node-num">22</span><span class="node-label">Reload Nginx</span></div>
+      <div class="node" data-step="reload_nginx"><span class="node-num">23</span><span class="node-label">Reload Nginx</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="health_check"><span class="node-num">23</span><span class="node-label">Health check</span></div>
+      <div class="node" data-step="health_check"><span class="node-num">24</span><span class="node-label">Health check</span></div>
       <div class="connector"></div>
-      <div class="node" data-step="notify"><span class="node-num">24</span><span class="node-label">Notify</span></div>
+      <div class="node" data-step="notify"><span class="node-num">25</span><span class="node-label">Notify</span></div>
       <div class="connector connector-phase"></div>
       <div class="node node-target active" id="node-target"><span class="node-num">▣</span><span class="node-label" id="node-target-label">non défini</span></div>
 
@@ -126,6 +128,25 @@
 
       <!-- Formulaire simple (mode flat / roles) -->
       <div id="single-target-fields">
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label">00 — Cible</label>
+        <div class="os-switch" id="target-os-switch">
+          <button type="button" class="os-switch-btn active" data-target-os="linux">Linux (SSH)</button>
+          <button type="button" class="os-switch-btn" data-target-os="windows">Windows (WinRM)</button>
+        </div>
+        <p class="field-hint" id="windows-hint" hidden>
+          Cible Windows : seul un sous-ensemble d'étapes est disponible (update_system,
+          base_packages, users, firewall, runtime — puis backup_previous, git_clone,
+          install_deps, build, restart_service, health_check, notify), et seuls Node.js
+          et Python sont supportés comme runtime. Les modules générés utilisent
+          <code>ansible.windows.*</code> / <code>chocolatey.chocolatey.*</code> (nécessite
+          d'installer ces collections : <code>ansible-galaxy collection install
+          ansible.windows community.windows chocolatey.chocolatey</code>).
+        </p>
+      </div>
 
       <hr class="section-divider" />
 
@@ -203,6 +224,10 @@
             <input type="checkbox" name="provisioning" value="database" />
             <span>Installer une base de données</span>
           </label>
+          <label class="toggle">
+            <input type="checkbox" name="provisioning" value="backups" />
+            <span>Sauvegardes automatiques (DB + appli, cron quotidien + rotation)</span>
+          </label>
         </div>
 
         <p class="field-hint" id="ssh-hardening-warning" hidden style="color: var(--copper-stamp); margin-top: 8px;">
@@ -225,12 +250,22 @@
             <option value="postgresql">PostgreSQL</option>
             <option value="mysql">MySQL / MariaDB</option>
             <option value="redis">Redis</option>
+            <option value="mongodb">MongoDB</option>
           </select>
           <div class="group-card-row">
             <input type="text" id="db-name" class="text-input" placeholder="Nom de la base (app_db)" />
             <input type="text" id="db-user" class="text-input" placeholder="Utilisateur (app_user)" />
           </div>
           <p class="field-hint">Le mot de passe de la base se renseigne comme secret Vault (section 06), clé <code>db_password</code>.</p>
+        </div>
+
+        <div class="field-group" id="backups-fields-group" hidden style="margin-top: 10px;">
+          <div class="group-card-row">
+            <input type="text" id="backup-dir" class="text-input" placeholder="Dossier de sauvegarde (/opt/backups)" />
+            <input type="number" id="backup-retention-days" class="text-input" placeholder="Rétention en jours (7)" min="1" />
+          </div>
+          <input type="number" id="backup-hour" class="text-input" placeholder="Heure d'exécution, 0-23 (2)" min="0" max="23" style="margin-top: 6px;" />
+          <p class="field-hint">Sauvegarde quotidienne via cron : dump de la base sélectionnée (si activée) + archive du dossier applicatif, avec rotation automatique.</p>
         </div>
       </div>
 
@@ -321,6 +356,20 @@
         <p class="field-hint">Laisse vide si tu gères déjà ton propre inventory.ini</p>
         <input type="text" id="inventory-host" class="text-input" placeholder="203.0.113.10" style="margin-bottom: 8px;" />
         <input type="text" id="ssh-user" class="text-input" value="deploy" placeholder="Utilisateur SSH" />
+
+        <div id="winrm-fields-group" hidden style="margin-top: 8px;">
+          <input type="password" id="winrm-password" class="text-input" placeholder="Mot de passe WinRM" style="margin-bottom: 8px;" />
+          <div class="group-card-row">
+            <select id="winrm-transport" class="text-input">
+              <option value="ntlm" selected>ntlm</option>
+              <option value="basic">basic</option>
+              <option value="kerberos">kerberos</option>
+              <option value="credssp">credssp</option>
+            </select>
+            <input type="number" id="winrm-port" class="text-input" placeholder="Port (5986)" min="1" max="65535" />
+          </div>
+          <p class="field-hint">Le mot de passe WinRM est écrit en clair dans l'inventaire généré : préfère le vault (section 06) en production si tu versionnes ce fichier.</p>
+        </div>
       </div>
 
       </div>
@@ -427,6 +476,13 @@
     <div class="tb-cell"><span class="tb-key">RÉV.</span><span class="tb-value">B</span></div>
   </footer>
 
+  <script>
+    window.OPSFORGE_ANSIBLE = {
+      windowsProvisioning: {{ windows_provisioning | tojson }},
+      windowsDeployment: {{ windows_deployment | tojson }},
+      windowsLanguages: {{ windows_languages | tojson }}
+    };
+  </script>
   <script src="{{ url_for('static', filename='theme.js') }}"></script>
   <script src="{{ url_for('static', filename='ansible/script.js') }}"></script>
 

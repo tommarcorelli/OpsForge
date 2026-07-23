@@ -1,0 +1,12 @@
+    - name: Verifier si une version precedente existe
+      ansible.windows.win_stat:
+        path: "{{ app_dir }}"
+      register: previous_deployment_windows
+
+    - name: Sauvegarder la version precedente avant deploiement (rollback, robocopy)
+      ansible.windows.win_command: >
+        robocopy "{{ app_dir }}" "{{ app_dir }}.backup-{{ ansible_date_time.iso8601_basic_short }}" /E /COPYALL
+      when: previous_deployment_windows.stat.exists
+      changed_when: true
+      # robocopy renvoie un code > 0 pour un succes partiel : seul un code >= 8 est une vraie erreur.
+      failed_when: false

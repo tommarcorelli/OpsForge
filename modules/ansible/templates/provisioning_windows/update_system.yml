@@ -1,0 +1,22 @@
+    - name: Rechercher les mises a jour Windows disponibles (securite/critiques)
+      ansible.windows.win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+          - UpdateRollups
+        state: searched
+      register: available_updates
+
+    - name: Installer les mises a jour Windows (securite/critiques)
+      ansible.windows.win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+          - UpdateRollups
+        state: installed
+      register: update_result
+
+    - name: Redemarrer si une mise a jour l'exige
+      ansible.windows.win_reboot:
+        reboot_timeout: 600
+      when: update_result.reboot_required | default(false)

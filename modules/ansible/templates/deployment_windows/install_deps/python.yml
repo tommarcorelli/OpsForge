@@ -1,0 +1,5 @@
+    - name: Installer les dependances pip (Windows)
+      ansible.windows.win_command: "python -m pip install -r requirements.txt"
+      args:
+        chdir: "{{ app_dir }}"
+      changed_when: true

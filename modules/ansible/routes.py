@@ -17,6 +17,9 @@ from modules.ansible.core import (
     generate_multi_group_roles_project,
     generate_multi_group_inventory,
     SUPPORTED_LANGUAGES,
+    WINDOWS_SUPPORTED_PROVISIONING,
+    WINDOWS_SUPPORTED_DEPLOYMENT,
+    WINDOWS_SUPPORTED_LANGUAGES,
 )
 
 bp = Blueprint("ansible", __name__, url_prefix="/ansible")
@@ -44,15 +47,26 @@ def _config_from_payload(data):
         "database_engine": data.get("database_engine"),
         "db_name": data.get("db_name"),
         "db_user": data.get("db_user"),
+        "backup_dir": data.get("backup_dir"),
+        "backup_retention_days": data.get("backup_retention_days"),
+        "backup_hour": data.get("backup_hour"),
         "notify_webhook_url": data.get("notify_webhook_url"),
         "deploy_user": data.get("deploy_user") or data.get("ssh_user"),
         "ssh_public_key": data.get("ssh_public_key"),
+        "target_os": data.get("target_os") or "linux",
+        "deploy_user_password": data.get("deploy_user_password"),
     }, vault_vars
 
 
 @bp.route("/")
 def index():
-    return render_template("ansible.html", languages=SUPPORTED_LANGUAGES)
+    return render_template(
+        "ansible.html",
+        languages=SUPPORTED_LANGUAGES,
+        windows_provisioning=WINDOWS_SUPPORTED_PROVISIONING,
+        windows_deployment=WINDOWS_SUPPORTED_DEPLOYMENT,
+        windows_languages=WINDOWS_SUPPORTED_LANGUAGES,
+    )
 
 
 @bp.route("/api/generate", methods=["POST"])
@@ -83,6 +97,10 @@ def api_generate():
             config["hosts_group"],
             inventory_host,
             data.get("ssh_user") or "deploy",
+            target_os=config["target_os"],
+            winrm_password=data.get("winrm_password"),
+            winrm_transport=data.get("winrm_transport") or "ntlm",
+            winrm_port=data.get("winrm_port"),
         )
 
     return jsonify(result)
@@ -114,6 +132,10 @@ def api_generate_roles():
             config["hosts_group"],
             inventory_host,
             data.get("ssh_user") or "deploy",
+            target_os=config["target_os"],
+            winrm_password=data.get("winrm_password"),
+            winrm_transport=data.get("winrm_transport") or "ntlm",
+            winrm_port=data.get("winrm_port"),
         )
 
     return jsonify({"files": files})
@@ -145,6 +167,10 @@ def api_generate_roles_zip():
             config["hosts_group"],
             inventory_host,
             data.get("ssh_user") or "deploy",
+            target_os=config["target_os"],
+            winrm_password=data.get("winrm_password"),
+            winrm_transport=data.get("winrm_transport") or "ntlm",
+            winrm_port=data.get("winrm_port"),
         )
 
     buffer = io.BytesIO()

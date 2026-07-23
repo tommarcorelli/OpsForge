@@ -46,6 +46,19 @@ RESOURCE_CATALOG = {
         {"type": "aws_db_instance", "label": "Base RDS", "required": ["allocated_storage", "engine", "instance_class", "username", "password"],
          "template": {"allocated_storage": 20, "engine": "postgres", "instance_class": "db.t3.micro",
                       "username": "admin", "password": "=var.db_password", "db_name": "app", "skip_final_snapshot": True}},
+        {"type": "aws_internet_gateway", "label": "Internet Gateway", "required": ["vpc_id"],
+         "template": {"vpc_id": "=aws_vpc.main.id", "tags": {"Name": "main-igw"}}},
+        {"type": "aws_route_table", "label": "Table de routage", "required": ["vpc_id"],
+         "template": {"vpc_id": "=aws_vpc.main.id",
+                      "route": [{"cidr_block": "0.0.0.0/0", "gateway_id": "=aws_internet_gateway.main.id"}]}},
+        {"type": "aws_route_table_association", "label": "Association route table", "required": ["subnet_id", "route_table_id"],
+         "template": {"subnet_id": "=aws_subnet.public.id", "route_table_id": "=aws_route_table.public.id"}},
+        {"type": "aws_iam_role", "label": "Rôle IAM", "required": ["name", "assume_role_policy"],
+         "template": {"name": "app-role",
+                      "assume_role_policy": "=jsonencode({Version=\"2012-10-17\",Statement=[{Action=\"sts:AssumeRole\",Effect=\"Allow\",Principal={Service=\"lambda.amazonaws.com\"}}]})"}},
+        {"type": "aws_lambda_function", "label": "Fonction Lambda", "required": ["function_name", "role", "handler", "runtime", "filename"],
+         "template": {"function_name": "ma-fonction", "role": "=aws_iam_role.app_role.arn",
+                      "handler": "index.handler", "runtime": "python3.12", "filename": "lambda.zip"}},
     ],
     "google": [
         {"type": "google_compute_instance", "label": "VM Compute Engine", "required": ["name", "machine_type", "zone"],
@@ -54,22 +67,40 @@ RESOURCE_CATALOG = {
          "template": {"name": "mon-bucket-gcp", "location": "EU"}},
         {"type": "google_compute_network", "label": "Réseau VPC", "required": ["name"],
          "template": {"name": "vpc-1", "auto_create_subnetworks": False}},
+        {"type": "google_compute_firewall", "label": "Règle firewall", "required": ["name", "network"],
+         "template": {"name": "allow-http", "network": "=google_compute_network.vpc.name",
+                      "allow": [{"protocol": "tcp", "ports": ["80", "443"]}],
+                      "source_ranges": ["0.0.0.0/0"]}},
+        {"type": "google_sql_database_instance", "label": "Instance Cloud SQL", "required": ["name", "database_version", "region"],
+         "template": {"name": "app-db", "database_version": "POSTGRES_15", "region": "europe-west1"}},
     ],
     "azurerm": [
         {"type": "azurerm_resource_group", "label": "Resource Group", "required": ["name", "location"],
          "template": {"name": "rg-app", "location": "West Europe"}},
         {"type": "azurerm_storage_account", "label": "Storage Account", "required": ["name", "resource_group_name", "location", "account_tier", "account_replication_type"],
          "template": {"name": "storacct123", "resource_group_name": "rg-app", "location": "West Europe", "account_tier": "Standard", "account_replication_type": "LRS"}},
+        {"type": "azurerm_virtual_network", "label": "Réseau virtuel", "required": ["name", "resource_group_name", "location", "address_space"],
+         "template": {"name": "vnet-app", "resource_group_name": "=azurerm_resource_group.main.name",
+                      "location": "=azurerm_resource_group.main.location", "address_space": ["10.0.0.0/16"]}},
+        {"type": "azurerm_linux_virtual_machine", "label": "VM Linux", "required": ["name", "resource_group_name", "location", "size", "admin_username"],
+         "template": {"name": "vm-app", "resource_group_name": "=azurerm_resource_group.main.name",
+                      "location": "=azurerm_resource_group.main.location", "size": "Standard_B1s", "admin_username": "azureuser"}},
     ],
     "docker": [
         {"type": "docker_image", "label": "Image Docker", "required": ["name"],
          "template": {"name": "nginx:latest"}},
         {"type": "docker_container", "label": "Conteneur Docker", "required": ["name", "image"],
          "template": {"name": "nginx", "image": "nginx:latest"}},
+        {"type": "docker_network", "label": "Réseau Docker", "required": ["name"],
+         "template": {"name": "app-network"}},
+        {"type": "docker_volume", "label": "Volume Docker", "required": ["name"],
+         "template": {"name": "app-data"}},
     ],
     "local": [
         {"type": "local_file", "label": "Fichier local", "required": ["filename", "content"],
          "template": {"filename": "hello.txt", "content": "Hello depuis Terraform"}},
+        {"type": "local_sensitive_file", "label": "Fichier local (sensible)", "required": ["filename", "content"],
+         "template": {"filename": "secret.txt", "content": "=var.secret_value"}},
     ],
 }
 
@@ -133,6 +164,93 @@ PRESETS = {
             "resources": [
                 {"type": "google_compute_instance", "name": "vm", "args": {
                     "name": "vm-1", "machine_type": "e2-micro", "zone": "europe-west1-b"}},
+            ],
+        },
+    },
+    "vpc-basic": {
+        "label": "VPC + subnet public + Internet Gateway",
+        "config": {
+            "provider": "aws",
+            "provider_config": {"region": "eu-west-1"},
+            "resources": [
+                {"type": "aws_vpc", "name": "main", "args": {
+                    "cidr_block": "10.0.0.0/16", "tags": {"Name": "main"}}},
+                {"type": "aws_subnet", "name": "public", "args": {
+                    "vpc_id": "=aws_vpc.main.id", "cidr_block": "10.0.1.0/24",
+                    "tags": {"Name": "public"}}},
+                {"type": "aws_internet_gateway", "name": "main", "args": {
+                    "vpc_id": "=aws_vpc.main.id", "tags": {"Name": "main-igw"}}},
+                {"type": "aws_route_table", "name": "public", "args": {
+                    "vpc_id": "=aws_vpc.main.id",
+                    "route": [{"cidr_block": "0.0.0.0/0", "gateway_id": "=aws_internet_gateway.main.id"}]}},
+                {"type": "aws_route_table_association", "name": "public", "args": {
+                    "subnet_id": "=aws_subnet.public.id", "route_table_id": "=aws_route_table.public.id"}},
+            ],
+            "outputs": {"vpc_id": {"value": "=aws_vpc.main.id"}, "subnet_id": {"value": "=aws_subnet.public.id"}},
+        },
+    },
+    "rds-postgres": {
+        "label": "Base RDS PostgreSQL + Security Group",
+        "config": {
+            "provider": "aws",
+            "provider_config": {"region": "eu-west-1"},
+            "resources": [
+                {"type": "aws_security_group", "name": "db", "args": {
+                    "name": "db-sg", "description": "Autorise Postgres depuis le VPC"}},
+                {"type": "aws_db_instance", "name": "app", "args": {
+                    "allocated_storage": 20, "engine": "postgres", "instance_class": "db.t3.micro",
+                    "username": "admin", "password": "=var.db_password", "db_name": "app",
+                    "vpc_security_group_ids": ["=[aws_security_group.db.id]"], "skip_final_snapshot": True}},
+            ],
+            "variables": {"db_password": {"type": "=string", "sensitive": True}},
+            "outputs": {"endpoint_db": {"value": "=aws_db_instance.app.endpoint"}},
+        },
+    },
+    "docker-network-app": {
+        "label": "Réseau Docker + app + reverse proxy",
+        "config": {
+            "provider": "docker",
+            "provider_config": {},
+            "resources": [
+                {"type": "docker_network", "name": "app", "args": {"name": "app-network"}},
+                {"type": "docker_image", "name": "nginx", "args": {"name": "nginx:latest"}},
+                {"type": "docker_container", "name": "web", "args": {
+                    "name": "web", "image": "=docker_image.nginx.image_id",
+                    "networks_advanced": [{"name": "=docker_network.app.name"}],
+                    "ports": {"internal": 80, "external": 8080}}},
+            ],
+        },
+    },
+    "gcp-network": {
+        "label": "Réseau VPC + règle firewall (GCP)",
+        "config": {
+            "provider": "google",
+            "provider_config": {"project": "mon-projet", "region": "europe-west1"},
+            "resources": [
+                {"type": "google_compute_network", "name": "vpc", "args": {
+                    "name": "vpc-1", "auto_create_subnetworks": False}},
+                {"type": "google_compute_firewall", "name": "allow_http", "args": {
+                    "name": "allow-http", "network": "=google_compute_network.vpc.name",
+                    "allow": [{"protocol": "tcp", "ports": ["80", "443"]}],
+                    "source_ranges": ["0.0.0.0/0"]}},
+            ],
+        },
+    },
+    "azure-vm": {
+        "label": "VM Linux Azure (RG + VNet + VM)",
+        "config": {
+            "provider": "azurerm",
+            "provider_config": {},
+            "resources": [
+                {"type": "azurerm_resource_group", "name": "main", "args": {
+                    "name": "rg-app", "location": "West Europe"}},
+                {"type": "azurerm_virtual_network", "name": "main", "args": {
+                    "name": "vnet-app", "resource_group_name": "=azurerm_resource_group.main.name",
+                    "location": "=azurerm_resource_group.main.location", "address_space": ["10.0.0.0/16"]}},
+                {"type": "azurerm_linux_virtual_machine", "name": "app", "args": {
+                    "name": "vm-app", "resource_group_name": "=azurerm_resource_group.main.name",
+                    "location": "=azurerm_resource_group.main.location",
+                    "size": "Standard_B1s", "admin_username": "azureuser"}},
             ],
         },
     },
@@ -251,13 +369,10 @@ def valider_config(config):
 # ---------------------------------------------------------------------------
 # Génération
 # ---------------------------------------------------------------------------
-def generate_terraform(config):
-    """Construit le contenu d'un main.tf. Lève ValueError si config invalide."""
-    config = config or {}
-    erreurs, _ = valider_config(config)
-    if erreurs:
-        raise ValueError(" ; ".join(erreurs))
-
+def _build_blocks(config):
+    """Construit les blocs HCL (terraform/provider/resources/variables/outputs)
+    séparément, pour être assemblés soit en un seul fichier, soit en plusieurs
+    (main.tf / variables.tf / outputs.tf)."""
     provider = config["provider"]
     infos = SUPPORTED_PROVIDERS.get(
         provider, {"source": f"hashicorp/{provider}", "version": ">= 0", "defaults": {}}
@@ -289,16 +404,66 @@ def generate_terraform(config):
     for res in config.get("resources") or []:
         blocs_res.append(_render_block("resource", [res["type"], res["name"]], res.get("args") or {}))
 
-    # variables / outputs
-    blocs_extra = []
+    # Variables et outputs séparément (pour l'export en fichiers distincts)
+    blocs_variables = []
     for nom, corps in (config.get("variables") or {}).items():
-        blocs_extra.append(_render_block("variable", [nom], corps or {}))
-    for nom, corps in (config.get("outputs") or {}).items():
-        blocs_extra.append(_render_block("output", [nom], corps or {}))
+        blocs_variables.append(_render_block("variable", [nom], corps or {}))
 
-    parties = [bloc_terraform, bloc_provider] + blocs_res + blocs_extra
+    blocs_outputs = []
+    for nom, corps in (config.get("outputs") or {}).items():
+        blocs_outputs.append(_render_block("output", [nom], corps or {}))
+
+    return {
+        "terraform": bloc_terraform,
+        "provider": bloc_provider,
+        "resources": blocs_res,
+        "variables": blocs_variables,
+        "outputs": blocs_outputs,
+    }
+
+
+def generate_terraform(config):
+    """Construit le contenu d'un main.tf unique (terraform + provider +
+    resources + variables + outputs). Lève ValueError si config invalide."""
+    config = config or {}
+    erreurs, _ = valider_config(config)
+    if erreurs:
+        raise ValueError(" ; ".join(erreurs))
+
+    blocs = _build_blocks(config)
+    parties = (
+        [blocs["terraform"], blocs["provider"]]
+        + blocs["resources"] + blocs["variables"] + blocs["outputs"]
+    )
     entete = "# Généré par OpsForge (module Terraform)\n\n"
     return entete + "\n\n".join(parties) + "\n"
+
+
+def generate_terraform_files(config):
+    """Construit le projet Terraform en **fichiers séparés** :
+    `main.tf` (terraform + provider + resources), et, s'ils sont non vides,
+    `variables.tf` et `outputs.tf`. Retourne { nom_fichier: contenu }.
+    Lève ValueError si config invalide."""
+    config = config or {}
+    erreurs, _ = valider_config(config)
+    if erreurs:
+        raise ValueError(" ; ".join(erreurs))
+
+    blocs = _build_blocks(config)
+    entete = "# Généré par OpsForge (module Terraform)\n\n"
+
+    fichiers = {}
+
+    parties_main = [blocs["terraform"], blocs["provider"]] + blocs["resources"]
+    fichiers["main.tf"] = entete + "\n\n".join(parties_main) + "\n"
+
+    if blocs["variables"]:
+        fichiers["variables.tf"] = entete + "\n\n".join(blocs["variables"]) + "\n"
+
+    if blocs["outputs"]:
+        fichiers["outputs.tf"] = entete + "\n\n".join(blocs["outputs"]) + "\n"
+
+    return fichiers
 
 
 def write_terraform(config, output_path):
@@ -308,3 +473,18 @@ def write_terraform(config, output_path):
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(contenu)
     return output_path
+
+
+def write_terraform_files(config, output_dir):
+    """Écrit le projet Terraform en fichiers séparés (main.tf, variables.tf,
+    outputs.tf) dans `output_dir`. Retourne la liste des chemins écrits."""
+    import os
+    fichiers = generate_terraform_files(config)
+    os.makedirs(output_dir, exist_ok=True)
+    chemins = []
+    for nom, contenu in fichiers.items():
+        chemin = os.path.join(output_dir, nom)
+        with open(chemin, "w", encoding="utf-8") as f:
+            f.write(contenu)
+        chemins.append(chemin)
+    return chemins

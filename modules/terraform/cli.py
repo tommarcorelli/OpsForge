@@ -17,6 +17,7 @@ import sys
 
 from modules.terraform.core import (
     generate_terraform,
+    generate_terraform_files,
     valider_config,
     obtenir_preset,
     SUPPORTED_PROVIDERS,
@@ -33,7 +34,11 @@ def build_parser():
     )
     p.add_argument("config", nargs="?", help="Chemin du JSON de config, ou '-' pour stdin.")
     p.add_argument("-o", "--output", default=None,
-                   help="Fichier de sortie (defaut : output/main.tf ; '-' pour stdout).")
+                   help="Fichier de sortie (defaut : output/main.tf ; '-' pour stdout). "
+                        "Avec --split, c'est un dossier de sortie (defaut : output/).")
+    p.add_argument("--split", action="store_true",
+                   help="Ecrit un projet en fichiers separes : main.tf, "
+                        "variables.tf et outputs.tf (si non vides), dans --output (dossier).")
     p.add_argument("--preset", default=None, help="Genere depuis un preset (voir --list-presets).")
     p.add_argument("--providers", action="store_true",
                    help="Liste les providers connus et quitte.")
@@ -80,6 +85,20 @@ def main(argv=None):
         for e in erreurs:
             print(f"x {e}", file=sys.stderr)
         sys.exit(1)
+
+    if args.split:
+        if args.output == "-":
+            print("Erreur : --split ecrit plusieurs fichiers, incompatible avec '-o -'.", file=sys.stderr)
+            sys.exit(2)
+        output_dir = args.output or OUTPUT_DIR
+        fichiers = generate_terraform_files(config)
+        os.makedirs(output_dir, exist_ok=True)
+        for nom, texte in fichiers.items():
+            chemin = os.path.join(output_dir, nom)
+            with open(chemin, "w", encoding="utf-8") as f:
+                f.write(texte)
+            print(f"{nom} genere : {chemin}", file=sys.stderr)
+        return 0
 
     contenu = generate_terraform(config)
 

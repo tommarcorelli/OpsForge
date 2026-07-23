@@ -4,6 +4,7 @@ import pytest
 
 from modules.terraform.core import (
     generate_terraform,
+    generate_terraform_files,
     valider_config,
     obtenir_preset,
     PRESETS,
@@ -139,3 +140,93 @@ def test_nouveaux_types_aws_valides():
         cfg = _cfg(resources=[{"type": rtype, "name": "x", "args": entry["template"]}])
         erreurs, _ = valider_config(cfg)
         assert erreurs == [], f"{rtype} : {erreurs}"
+
+
+# ---------------------------------------------------------------------------
+# generate_terraform_files : export en fichiers separes
+# ---------------------------------------------------------------------------
+def test_split_sans_variables_ni_outputs_un_seul_fichier():
+    fichiers = generate_terraform_files(_cfg())
+    assert set(fichiers) == {"main.tf"}
+    assert 'resource "aws_instance" "web" {' in fichiers["main.tf"]
+
+
+def test_split_avec_variables_et_outputs_trois_fichiers():
+    fichiers = generate_terraform_files(_cfg(
+        variables={"region": {"type": "=string", "default": "eu-west-1"}},
+        outputs={"ip": {"value": "=aws_instance.web.public_ip"}},
+    ))
+    assert set(fichiers) == {"main.tf", "variables.tf", "outputs.tf"}
+    assert 'variable "region" {' in fichiers["variables.tf"]
+    assert 'output "ip" {' in fichiers["outputs.tf"]
+    # main.tf ne doit plus contenir les blocs variable/output
+    assert "variable " not in fichiers["main.tf"]
+    assert "output " not in fichiers["main.tf"]
+    assert 'resource "aws_instance" "web" {' in fichiers["main.tf"]
+
+
+def test_split_seulement_outputs():
+    fichiers = generate_terraform_files(_cfg(
+        outputs={"ip": {"value": "=aws_instance.web.public_ip"}},
+    ))
+    assert set(fichiers) == {"main.tf", "outputs.tf"}
+
+
+def test_split_leve_si_invalide():
+    with pytest.raises(ValueError):
+        generate_terraform_files({"provider": "aws", "resources": [
+            {"type": "aws_instance", "name": "web", "args": {}}
+        ]})
+
+
+def test_split_coherent_avec_generate_terraform():
+    # Le contenu combine doit correspondre a la concatenation des fichiers separes.
+    cfg = _cfg(
+        variables={"region": {"type": "=string", "default": "eu-west-1"}},
+        outputs={"ip": {"value": "=aws_instance.web.public_ip"}},
+    )
+    combine = generate_terraform(cfg)
+    fichiers = generate_terraform_files(cfg)
+    for extrait in ('resource "aws_instance" "web" {', 'variable "region" {', 'output "ip" {'):
+        assert extrait in combine
+    assert any('variable "region" {' in contenu for contenu in fichiers.values())
+
+
+# ---------------------------------------------------------------------------
+# Nouveaux presets et types de ressources (enrichissement)
+# ---------------------------------------------------------------------------
+def test_tous_les_nouveaux_presets_generent():
+    for nom in ("vpc-basic", "rds-postgres", "docker-network-app", "gcp-network", "azure-vm"):
+        assert nom in PRESETS
+        config = obtenir_preset(nom)
+        erreurs, _ = valider_config(config)
+        assert erreurs == [], f"Preset {nom} invalide : {erreurs}"
+        tf = generate_terraform(config)
+        assert "terraform {" in tf
+
+
+def test_nouveaux_types_ressources_par_provider():
+    attendus = {
+        "aws": ["aws_internet_gateway", "aws_route_table", "aws_route_table_association",
+                "aws_iam_role", "aws_lambda_function"],
+        "google": ["google_compute_firewall", "google_sql_database_instance"],
+        "azurerm": ["azurerm_virtual_network", "azurerm_linux_virtual_machine"],
+        "docker": ["docker_network", "docker_volume"],
+        "local": ["local_sensitive_file"],
+    }
+    for provider, types in attendus.items():
+        types_catalogues = {e["type"] for e in RESOURCE_CATALOG[provider]}
+        for t in types:
+            assert t in types_catalogues, f"{t} absent du catalogue {provider}"
+
+
+def test_nouveaux_types_generent_sans_erreur_de_validation():
+    for provider, entries in RESOURCE_CATALOG.items():
+        for entry in entries:
+            cfg = {
+                "provider": provider,
+                "provider_config": {},
+                "resources": [{"type": entry["type"], "name": "x", "args": entry["template"]}],
+            }
+            erreurs, _ = valider_config(cfg)
+            assert erreurs == [], f"{provider}.{entry['type']} : {erreurs}"

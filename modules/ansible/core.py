@@ -54,10 +54,21 @@ PROVISIONING_STEPS = [
     "nginx",
     "https",
     "database",
+    "backups",
     "runtime",
 ]
 
-DATABASE_ENGINES = ["postgresql", "mysql", "redis"]
+DATABASE_ENGINES = ["postgresql", "mysql", "redis", "mongodb"]
+
+# --------------------------------------------------------------------------
+# Cible Windows / WinRM — sous-ensemble d'etapes disponibles (modules
+# ansible.windows.* / chocolatey.chocolatey.* au lieu de apt/dnf/systemd).
+# --------------------------------------------------------------------------
+TARGET_OSES = ["linux", "windows"]
+
+WINDOWS_SUPPORTED_PROVISIONING = ["update_system", "base_packages", "users", "firewall", "runtime"]
+WINDOWS_SUPPORTED_DEPLOYMENT = ["backup_previous", "git_clone", "install_deps", "build", "restart_service", "health_check", "notify"]
+WINDOWS_SUPPORTED_LANGUAGES = ["node", "python"]
 
 # Etapes de deploiement disponibles, dans l'ordre logique d'execution.
 # "install_deps" est un cas special : le fichier depend de la langue choisie.
@@ -106,6 +117,7 @@ ROLE_DESCRIPTIONS = {
     "runtime": "Installe le runtime applicatif choisi (langage de l'appli).",
     "https": "Installe Certbot et obtient un certificat Let's Encrypt pour Nginx.",
     "database": "Installe et configure le moteur de base de donnees choisi.",
+    "backups": "Sauvegarde automatique quotidienne (cron) de la base de donnees et du dossier applicatif, avec rotation.",
     "firewall": "Configure le pare-feu (UFW ou firewalld) : ouvre uniquement SSH, HTTP, HTTPS et le port applicatif.",
     "ssh_hardening": "Durcit la configuration SSH (desactive le login root et l'authentification par mot de passe).",
     "fail2ban": "Installe et configure Fail2ban pour bannir les IP apres des tentatives de connexion SSH echouees.",
@@ -139,17 +151,25 @@ def _role_name_for_step(kind, step, config):
     on suffixe leur nom de role avec le langage (ex: "runtime_python",
     "install_deps_node") pour eviter toute collision quand plusieurs
     groupes de serveurs utilisent des langages differents (mode multi-serveurs).
+
+    Suffixe egalement "_windows" pour toutes les etapes quand la cible est
+    Windows (sauf "notify", dont le contenu delegate a localhost et est donc
+    identique quelle que soit la cible) : le contenu differe totalement de
+    l'equivalent Linux (modules ansible.windows.* / chocolatey), donc un
+    projet multi-serveurs melangeant cibles Linux et Windows ne doit pas
+    dedupliquer les deux roles sous le meme nom.
     """
+    windows_suffix = "_windows" if config.get("target_os") == "windows" and step != "notify" else ""
     if kind == "provisioning" and step == "runtime":
         language = config.get("runtime_language") or "inconnu"
-        return f"runtime_{language}"
+        return f"runtime_{language}{windows_suffix}"
     if kind == "provisioning" and step == "database":
         engine = config.get("database_engine") or "inconnu"
         return f"database_{engine}"
     if kind == "deployment" and step == "install_deps":
         language = config.get("deployment_language") or "inconnu"
-        return f"install_deps_{language}"
-    return step
+        return f"install_deps_{language}{windows_suffix}"
+    return f"{step}{windows_suffix}"
 
 
 def _selected_steps(config):
@@ -170,7 +190,8 @@ def _step_template_content(kind, step, config):
     """
     Charge le contenu brut du template Ansible correspondant a une etape.
     Gere les deux cas speciaux ("runtime" et "install_deps") dont le fichier
-    depend du langage choisi.
+    depend du langage choisi, et bascule vers les templates Windows/WinRM
+    (dossiers `*_windows/`) quand `config["target_os"] == "windows"`.
 
     Args:
         kind (str): "provisioning" ou "deployment"
@@ -180,10 +201,14 @@ def _step_template_content(kind, step, config):
     Returns:
         str|None: contenu brut du template, ou None si non applicable
     """
+    windows = config.get("target_os") == "windows"
+
     if kind == "provisioning" and step == "runtime":
         language = config.get("runtime_language")
         if not language:
             return None
+        if windows:
+            return _load_template(f"provisioning_windows/runtime/{language}.yml")
         return _load_template(f"provisioning/runtime/{language}.yml")
 
     if kind == "provisioning" and step == "database":
@@ -196,10 +221,65 @@ def _step_template_content(kind, step, config):
         language = config.get("deployment_language")
         if not language:
             return None
+        if windows:
+            return _load_template(f"deployment_windows/install_deps/{language}.yml")
         return _load_template(f"deployment/install_deps/{language}.yml")
 
+    if kind == "deployment" and step == "notify":
+        # Le webhook se declenche depuis le controleur (delegate_to: localhost) :
+        # le meme template convient quelle que soit la cible (Linux ou Windows).
+        return _load_template("deployment/notify.yml")
+
     prefix = "provisioning" if kind == "provisioning" else "deployment"
+    if windows:
+        return _load_template(f"{prefix}_windows/{step}.yml")
     return _load_template(f"{prefix}/{step}.yml")
+
+
+def _validate_target_os(config):
+    """
+    Verifie que les etapes selectionnees (et les langages runtime/install_deps)
+    sont bien disponibles pour la cible Windows/WinRM. Retourne une liste
+    d'erreurs (vide si la cible est 'linux', ou si tout est supporte).
+    """
+    if config.get("target_os") != "windows":
+        return []
+
+    errors = []
+    provisioning = config.get("provisioning") or []
+    deployment = config.get("deployment") or []
+
+    unsupported_prov = [s for s in provisioning if s not in WINDOWS_SUPPORTED_PROVISIONING]
+    if unsupported_prov:
+        errors.append(
+            "Etape(s) de provisioning indisponibles pour une cible Windows : "
+            f"{', '.join(unsupported_prov)}. Disponibles : {', '.join(WINDOWS_SUPPORTED_PROVISIONING)}."
+        )
+
+    unsupported_dep = [s for s in deployment if s not in WINDOWS_SUPPORTED_DEPLOYMENT]
+    if unsupported_dep:
+        errors.append(
+            "Etape(s) de deploiement indisponibles pour une cible Windows : "
+            f"{', '.join(unsupported_dep)}. Disponibles : {', '.join(WINDOWS_SUPPORTED_DEPLOYMENT)}."
+        )
+
+    if "runtime" in provisioning:
+        language = config.get("runtime_language")
+        if language and language not in WINDOWS_SUPPORTED_LANGUAGES:
+            errors.append(
+                f"Runtime '{language}' indisponible pour une cible Windows. "
+                f"Langages disponibles : {', '.join(WINDOWS_SUPPORTED_LANGUAGES)}."
+            )
+
+    if "install_deps" in deployment:
+        language = config.get("deployment_language")
+        if language and language not in WINDOWS_SUPPORTED_LANGUAGES:
+            errors.append(
+                f"Installation de dependances pour '{language}' indisponible pour une cible Windows. "
+                f"Langages disponibles : {', '.join(WINDOWS_SUPPORTED_LANGUAGES)}."
+            )
+
+    return errors
 
 
 def _shift_indent(content, spaces):
@@ -289,15 +369,26 @@ def _build_vars(config):
         "letsencrypt_email": config.get("letsencrypt_email") or "admin@example.com",
         "db_name": config.get("db_name") or "app_db",
         "db_user": config.get("db_user") or "app_user",
+        "database_engine": config.get("database_engine") or "",
+        "backup_dir": config.get("backup_dir") or "/opt/backups",
+        "backup_retention_days": config.get("backup_retention_days") or "7",
+        "backup_hour": config.get("backup_hour") or "2",
+        "target_os": config.get("target_os") or "linux",
         "notify_webhook_url": config.get("notify_webhook_url") or "",
     }
 
 
 def _vars_to_yaml_lines(vars_dict):
-    """Serialise un dict de variables en lignes YAML simples 'cle: "valeur"'."""
+    """Serialise un dict de variables en lignes YAML simples 'cle: "valeur"'.
+
+    Echappe d'abord les antislashs puis les guillemets (dans cet ordre : sinon
+    un antislash ajoute par l'echappement des guillemets serait lui-meme
+    mal interprete). Necessaire notamment pour les chemins Windows
+    (ex: app_dir = "C:\\Apps\\MonApp"), sans quoi le YAML genere est invalide.
+    """
     lines = []
     for key, value in vars_dict.items():
-        safe_value = str(value).replace('"', '\\"')
+        safe_value = str(value).replace("\\", "\\\\").replace('"', '\\"')
         lines.append(f'{key}: "{safe_value}"')
     return lines
 
@@ -313,6 +404,10 @@ def generate_playbook(config):
     Returns:
         str: contenu YAML complet du playbook, pret a etre ecrit dans playbook.yml
     """
+    target_os_errors = _validate_target_os(config)
+    if target_os_errors:
+        raise ValueError(" ; ".join(target_os_errors))
+
     provisioning_blocks = _build_provisioning_tasks(config)
     deployment_blocks = _build_deployment_tasks(config)
 
@@ -378,6 +473,10 @@ def generate_role_based_project(config):
     Raises:
         ValueError: si aucune etape n'est selectionnee
     """
+    target_os_errors = _validate_target_os(config)
+    if target_os_errors:
+        raise ValueError(" ; ".join(target_os_errors))
+
     provisioning, deployment = _selected_steps(config)
     all_steps = [("provisioning", s) for s in provisioning] + [
         ("deployment", s) for s in deployment
@@ -443,19 +542,44 @@ def generate_role_based_project(config):
     return files
 
 
-def generate_inventory(hosts_group, host, ssh_user="deploy", ssh_key_path=None):
+def generate_inventory(hosts_group, host, ssh_user="deploy", ssh_key_path=None,
+                        target_os="linux", winrm_password=None, winrm_transport="ntlm", winrm_port=None):
     """
     Genere un fichier d'inventaire Ansible minimal (format INI).
 
     Args:
         hosts_group (str): nom du groupe (doit correspondre a celui du playbook)
         host (str): IP ou nom d'hote du serveur cible
-        ssh_user (str): utilisateur SSH utilise pour se connecter
-        ssh_key_path (str|None): chemin vers la cle privee SSH, optionnel
+        ssh_user (str): utilisateur SSH utilise pour se connecter (cible Linux)
+        ssh_key_path (str|None): chemin vers la cle privee SSH, optionnel (cible Linux)
+        target_os (str): "linux" (defaut) ou "windows" — bascule vers une
+            connexion WinRM (`ansible_connection=winrm`) au lieu de SSH.
+        winrm_password (str|None): mot de passe WinRM (cible Windows). A ne
+            jamais laisser en clair dans un inventaire versionne : prefere le
+            vault ou une variable d'environnement en production.
+        winrm_transport (str): transport WinRM ("ntlm" par defaut, ou "basic"/
+            "kerberos"/"credssp").
+        winrm_port (int|None): port WinRM (defaut : 5986 en HTTPS, sauf en
+            transport "basic" ou 5985/HTTP est utilise par defaut).
 
     Returns:
         str: contenu du fichier inventory.ini
     """
+    if target_os == "windows":
+        port = winrm_port or (5985 if winrm_transport == "basic" else 5986)
+        parts = [
+            f"ansible_user={ssh_user}",
+            "ansible_connection=winrm",
+            f"ansible_winrm_transport={winrm_transport}",
+            f"ansible_port={port}",
+        ]
+        if port == 5986:
+            parts.append("ansible_winrm_server_cert_validation=ignore")
+        if winrm_password:
+            parts.append(f"ansible_password={winrm_password}")
+        line = f"{host} " + " ".join(parts)
+        return f"[{hosts_group}]\n{line}\n"
+
     line = f"{host} ansible_user={ssh_user}"
     if ssh_key_path:
         line += f" ansible_ssh_private_key_file={ssh_key_path}"
@@ -496,6 +620,10 @@ def _validate_groups(groups):
             raise ValueError(
                 f"Le groupe '{name}' n'a aucune etape de provisioning ni de deploiement selectionnee."
             )
+
+        target_os_errors = _validate_target_os(group)
+        if target_os_errors:
+            raise ValueError(f"Groupe '{name}' : " + " ; ".join(target_os_errors))
 
 
 def generate_multi_group_playbook(groups, vault_vars=None):
@@ -636,6 +764,8 @@ def generate_multi_group_inventory(groups):
     Args:
         groups (list[dict]): chaque groupe doit avoir "hosts_group",
             "hosts" (liste d'IP/hostnames) et optionnellement "ssh_user".
+            Un groupe avec "target_os": "windows" bascule ses hotes en
+            connexion WinRM (voir `generate_inventory`).
 
     Returns:
         str: contenu complet du fichier inventory.ini
@@ -645,8 +775,26 @@ def generate_multi_group_inventory(groups):
     for group in groups:
         lines = [f"[{group['hosts_group']}]"]
         ssh_user = group.get("ssh_user") or "deploy"
+        windows = group.get("target_os") == "windows"
+        winrm_transport = group.get("winrm_transport") or "ntlm"
+        winrm_port = group.get("winrm_port")
+        winrm_password = group.get("winrm_password")
+        port = winrm_port or (5985 if winrm_transport == "basic" else 5986)
         for host in group.get("hosts", []):
-            lines.append(f"{host} ansible_user={ssh_user}")
+            if windows:
+                parts = [
+                    f"ansible_user={ssh_user}",
+                    "ansible_connection=winrm",
+                    f"ansible_winrm_transport={winrm_transport}",
+                    f"ansible_port={port}",
+                ]
+                if port == 5986:
+                    parts.append("ansible_winrm_server_cert_validation=ignore")
+                if winrm_password:
+                    parts.append(f"ansible_password={winrm_password}")
+                lines.append(f"{host} " + " ".join(parts))
+            else:
+                lines.append(f"{host} ansible_user={ssh_user}")
         sections.append("\n".join(lines))
     return "\n\n".join(sections) + "\n"
 

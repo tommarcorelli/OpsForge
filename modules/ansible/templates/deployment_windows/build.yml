@@ -1,0 +1,5 @@
+    - name: Executer la commande de build (Windows)
+      ansible.windows.win_command: "{{ build_cmd }}"
+      args:
+        chdir: "{{ app_dir }}"
+      changed_when: true

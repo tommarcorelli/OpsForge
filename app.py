@@ -7,6 +7,7 @@ OpsForge — application web locale (Flask) reunissant plusieurs modules :
   - Ansible   (/ansible)   : playbooks de provisioning + deploiement
   - Vagrant   (/vagrant)   : Vagrantfile multi-VM (portage de VagrantForge)
   - Terraform (/terraform) : main.tf (v0, a enrichir)
+  - Packer    (/packer)    : build.pkr.hcl (image VM/AMI/conteneur)
 
 La page d'accueil (/) est un hub qui renvoie vers les modules.
 Tout tourne 100% en local, rien n'est envoye sur un serveur externe.
@@ -31,6 +32,7 @@ from modules.nginx.routes import bp as nginx_bp
 from modules.systemd.routes import bp as systemd_bp
 from modules.monitoring.routes import bp as monitoring_bp
 from modules.cloudinit.routes import bp as cloudinit_bp
+from modules.packer.routes import bp as packer_bp
 
 app = Flask(__name__, template_folder="web/templates", static_folder="web/static")
 
@@ -44,6 +46,7 @@ app.register_blueprint(nginx_bp)
 app.register_blueprint(systemd_bp)
 app.register_blueprint(monitoring_bp)
 app.register_blueprint(cloudinit_bp)
+app.register_blueprint(packer_bp)
 
 
 @app.route("/")

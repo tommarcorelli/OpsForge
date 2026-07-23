@@ -4,6 +4,7 @@
 
 const state = {
   layout: "flat",
+  targetOs: "linux",
   lastPlaybook: "",
   lastInventory: "",
   lastVault: "",
@@ -33,11 +34,21 @@ const el = {
   databaseEngine: document.getElementById("database-engine"),
   dbName: document.getElementById("db-name"),
   dbUser: document.getElementById("db-user"),
+  backupsFieldsGroup: document.getElementById("backups-fields-group"),
+  backupDir: document.getElementById("backup-dir"),
+  backupRetentionDays: document.getElementById("backup-retention-days"),
+  backupHour: document.getElementById("backup-hour"),
   exportConfigBtn: document.getElementById("export-config-btn"),
   importConfigInput: document.getElementById("import-config-input"),
   serviceName: document.getElementById("service-name"),
   inventoryHost: document.getElementById("inventory-host"),
   sshUser: document.getElementById("ssh-user"),
+  targetOsSwitch: document.getElementById("target-os-switch"),
+  windowsHint: document.getElementById("windows-hint"),
+  winrmFieldsGroup: document.getElementById("winrm-fields-group"),
+  winrmPassword: document.getElementById("winrm-password"),
+  winrmTransport: document.getElementById("winrm-transport"),
+  winrmPort: document.getElementById("winrm-port"),
   vaultVars: document.getElementById("vault-vars"),
   vaultPassword: document.getElementById("vault-password"),
   generateBtn: document.getElementById("generate-btn"),
@@ -83,6 +94,7 @@ const PROVISIONING_OPTIONS = [
   { value: "nginx", label: "Nginx" },
   { value: "https", label: "HTTPS (Certbot)" },
   { value: "database", label: "Base de données" },
+  { value: "backups", label: "Sauvegardes automatiques" },
 ];
 
 const DEPLOYMENT_OPTIONS = [
@@ -192,10 +204,16 @@ function createGroupCard(prefill) {
         <option value="postgresql" ${data.database_engine === "postgresql" ? "selected" : ""}>PostgreSQL</option>
         <option value="mysql" ${data.database_engine === "mysql" ? "selected" : ""}>MySQL/MariaDB</option>
         <option value="redis" ${data.database_engine === "redis" ? "selected" : ""}>Redis</option>
+        <option value="mongodb" ${data.database_engine === "mongodb" ? "selected" : ""}>MongoDB</option>
       </select>
       <input type="text" class="text-input" data-field="db_name" placeholder="Nom de la base" value="${data.db_name || ""}" />
     </div>
     <input type="text" class="text-input" data-field="db_user" placeholder="Utilisateur DB" value="${data.db_user || ""}" style="margin-bottom: 6px;" />
+    <div class="group-card-row" style="margin-bottom: 6px;">
+      <input type="text" class="text-input" data-field="backup_dir" placeholder="Dossier de sauvegarde (/opt/backups)" value="${data.backup_dir || ""}" />
+      <input type="number" class="text-input" data-field="backup_retention_days" placeholder="Rétention (jours)" min="1" value="${data.backup_retention_days || ""}" />
+    </div>
+    <input type="number" class="text-input" data-field="backup_hour" placeholder="Heure d'exécution (0-23)" min="0" max="23" value="${data.backup_hour || ""}" style="margin-bottom: 6px;" />
     <input type="text" class="text-input" data-field="notify_webhook_url" placeholder="Webhook Slack/Discord (si coché)" value="${data.notify_webhook_url || ""}" />
 
     <span class="mini-label">Hôtes du groupe (un par ligne)</span>
@@ -240,6 +258,9 @@ function collectGroupsFromCards() {
       database_engine: get("database_engine") || null,
       db_name: get("db_name") || null,
       db_user: get("db_user") || null,
+      backup_dir: get("backup_dir") || null,
+      backup_retention_days: get("backup_retention_days") || null,
+      backup_hour: get("backup_hour") || null,
       notify_webhook_url: get("notify_webhook_url") || null,
       hosts: hosts,
       ssh_user: get("ssh_user") || "deploy",
@@ -452,10 +473,17 @@ function buildPayload() {
       database_engine: el.databaseEngine.value || null,
       db_name: el.dbName.value.trim() || null,
       db_user: el.dbUser.value.trim() || null,
+      backup_dir: el.backupDir.value.trim() || null,
+      backup_retention_days: el.backupRetentionDays.value.trim() || null,
+      backup_hour: el.backupHour.value.trim() || null,
       inventory_host: el.inventoryHost.value.trim() || null,
       ssh_user: el.sshUser.value.trim() || "deploy",
       deploy_user: el.sshUser.value.trim() || "deploy",
       ssh_public_key: el.sshPublicKey.value.trim() || null,
+      target_os: state.targetOs,
+      winrm_password: el.winrmPassword.value || null,
+      winrm_transport: el.winrmTransport.value || "ntlm",
+      winrm_port: el.winrmPort.value.trim() || null,
       vault_vars: Object.keys(vaultVars).length > 0 ? vaultVars : null,
       vault_password: vaultPassword || null,
     },
@@ -735,7 +763,62 @@ function updateBuildCmdVisibility() {
     'input[name="provisioning"][value="database"]'
   ).checked;
   el.databaseFieldsGroup.hidden = !databaseChecked;
+
+  const backupsChecked = document.querySelector(
+    'input[name="provisioning"][value="backups"]'
+  ).checked;
+  el.backupsFieldsGroup.hidden = !backupsChecked;
 }
+
+// ----------------------------------------------------------------------------
+// Cible OS (Linux/SSH vs Windows/WinRM) : bascule les champs, grise et
+// decoche les etapes/langages non disponibles cote Windows.
+// ----------------------------------------------------------------------------
+const ANSIBLE_CONFIG = window.OPSFORGE_ANSIBLE || {
+  windowsProvisioning: [],
+  windowsDeployment: [],
+  windowsLanguages: [],
+};
+
+function setTargetOs(targetOs) {
+  state.targetOs = targetOs;
+  const windows = targetOs === "windows";
+
+  el.targetOsSwitch.querySelectorAll(".os-switch-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.targetOs === targetOs);
+  });
+
+  el.windowsHint.hidden = !windows;
+  el.winrmFieldsGroup.hidden = !windows;
+
+  document.querySelectorAll('input[name="provisioning"]').forEach((cb) => {
+    const allowed = !windows || ANSIBLE_CONFIG.windowsProvisioning.includes(cb.value);
+    cb.disabled = !allowed;
+    cb.closest(".toggle")?.classList.toggle("step-disabled", !allowed);
+    if (!allowed) cb.checked = false;
+  });
+
+  document.querySelectorAll('input[name="deployment"]').forEach((cb) => {
+    const allowed = !windows || ANSIBLE_CONFIG.windowsDeployment.includes(cb.value);
+    cb.disabled = !allowed;
+    cb.closest(".toggle")?.classList.toggle("step-disabled", !allowed);
+    if (!allowed) cb.checked = false;
+  });
+
+  Array.from(el.language.options).forEach((opt) => {
+    const allowed = !windows || ANSIBLE_CONFIG.windowsLanguages.includes(opt.value);
+    opt.disabled = !allowed;
+  });
+  if (windows && !ANSIBLE_CONFIG.windowsLanguages.includes(el.language.value)) {
+    el.language.value = ANSIBLE_CONFIG.windowsLanguages[0] || el.language.value;
+  }
+
+  updateBuildCmdVisibility();
+}
+
+el.targetOsSwitch.querySelectorAll(".os-switch-btn").forEach((btn) => {
+  btn.addEventListener("click", () => setTargetOs(btn.dataset.targetOs));
+});
 
 // ----------------------------------------------------------------------------
 // Actions resultat : copier / telecharger (mode flat)
@@ -801,6 +884,8 @@ function exportConfig() {
 }
 
 function applyImportedConfig(config) {
+  setTargetOs(config.target_os === "windows" ? "windows" : "linux");
+
   if (config.language) el.language.value = config.language;
   if (config.repo_url) el.repoUrl.value = config.repo_url;
   if (config.branch) el.branch.value = config.branch;
@@ -814,16 +899,21 @@ function applyImportedConfig(config) {
   if (config.database_engine) el.databaseEngine.value = config.database_engine;
   if (config.db_name) el.dbName.value = config.db_name;
   if (config.db_user) el.dbUser.value = config.db_user;
+  if (config.backup_dir) el.backupDir.value = config.backup_dir;
+  if (config.backup_retention_days) el.backupRetentionDays.value = config.backup_retention_days;
+  if (config.backup_hour) el.backupHour.value = config.backup_hour;
   if (config.inventory_host) el.inventoryHost.value = config.inventory_host;
   if (config.ssh_user) el.sshUser.value = config.ssh_user;
+  if (config.winrm_transport) el.winrmTransport.value = config.winrm_transport;
+  if (config.winrm_port) el.winrmPort.value = config.winrm_port;
 
   const provisioningSet = new Set(config.provisioning || []);
   document.querySelectorAll('input[name="provisioning"]').forEach((cb) => {
-    cb.checked = provisioningSet.has(cb.value);
+    if (!cb.disabled) cb.checked = provisioningSet.has(cb.value);
   });
   const deploymentSet = new Set(config.deployment || []);
   document.querySelectorAll('input[name="deployment"]').forEach((cb) => {
-    cb.checked = deploymentSet.has(cb.value);
+    if (!cb.disabled) cb.checked = deploymentSet.has(cb.value);
   });
 
   updateBuildCmdVisibility();
@@ -891,6 +981,7 @@ el.copyBtn.addEventListener("click", handleCopy);
 el.downloadBtn.addEventListener("click", handleDownload);
 el.downloadZipBtn.addEventListener("click", handleDownloadZip);
 
+setTargetOs("linux");
 updateBuildCmdVisibility();
 updateSchematic();
 createGroupCard(); // un premier groupe vide pour demarrer

@@ -1,0 +1,62 @@
+    - name: Installer les prerequis (Debian/Ubuntu)
+      apt:
+        name:
+          - gnupg
+          - curl
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Ajouter la cle GPG officielle MongoDB (Debian/Ubuntu)
+      apt_key:
+        url: https://pgp.mongodb.com/server-7.0.asc
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Ajouter le depot APT MongoDB (Debian/Ubuntu)
+      apt_repository:
+        repo: "deb [arch=amd64] https://repo.mongodb.org/apt/ubuntu {{ ansible_distribution_release }}/mongodb-org/7.0 multiverse"
+        state: present
+        filename: mongodb-org-7.0
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Installer MongoDB (Debian/Ubuntu)
+      apt:
+        name: mongodb-org
+        state: present
+        update_cache: true
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Ajouter le depot YUM MongoDB (RHEL/CentOS)
+      yum_repository:
+        name: mongodb-org-7.0
+        description: "MongoDB Repository"
+        baseurl: "https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/7.0/x86_64/"
+        gpgcheck: true
+        gpgkey: https://pgp.mongodb.com/server-7.0.asc
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Installer MongoDB (RHEL/CentOS)
+      dnf:
+        name: mongodb-org
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Demarrer et activer MongoDB
+      systemd:
+        name: mongod
+        state: started
+        enabled: yes
+      become: true
+
+    - name: Creer l'utilisateur applicatif et la base (via mongosh, idempotent)
+      become: true
+      command: >
+        mongosh {{ db_name }} --quiet --eval
+        'try { db.createUser({user: "{{ db_user }}", pwd: "{{ db_password }}", roles: [{role: "readWrite", db: "{{ db_name }}"}]}) } catch (e) { if (!e.message.includes("already exists")) { throw e } }'
+      changed_when: true

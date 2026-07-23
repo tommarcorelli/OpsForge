@@ -4,10 +4,11 @@
 // generation via /nginx/api/generate, copier/telecharger.
 // ============================================================================
 
-const CONFIG = window.OPSFORGE_NGINX || { modes: [], algorithms: [], presets: [] };
+const CONFIG = window.OPSFORGE_NGINX || { modes: [], algorithms: [], presets: [], targets: ["nginx"], targetModes: {} };
 
 const state = {
   mode: "static",
+  target: "nginx",
   backends: [
     { host: "127.0.0.1", port: 3001, weight: "" },
     { host: "127.0.0.1", port: 3002, weight: "" },
@@ -19,6 +20,8 @@ const state = {
 const el = {
   presetList: document.getElementById("preset-list"),
   modeSwitch: document.getElementById("mode-switch"),
+  targetSwitch: document.getElementById("target-switch"),
+  targetHint: document.getElementById("target-hint"),
   serverNameInput: document.getElementById("server-name-input"),
 
   fieldsStatic: document.getElementById("fields-static"),
@@ -150,6 +153,34 @@ el.modeSwitch.querySelectorAll(".provider-btn").forEach((btn) => {
 });
 
 // ----------------------------------------------------------------------------
+// Bascule de cible (nginx / caddy / traefik)
+// ----------------------------------------------------------------------------
+function setTarget(target) {
+  state.target = target;
+  el.targetSwitch.querySelectorAll(".provider-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.target === target);
+  });
+
+  const allowedModes = (CONFIG.targetModes && CONFIG.targetModes[target]) || CONFIG.modes;
+
+  el.modeSwitch.querySelectorAll(".provider-btn").forEach((btn) => {
+    const disabled = !allowedModes.includes(btn.dataset.mode);
+    btn.disabled = disabled;
+    btn.classList.toggle("mode-disabled", disabled);
+  });
+
+  if (!allowedModes.includes(state.mode)) {
+    setMode(allowedModes[0]);
+  }
+
+  el.targetHint.hidden = allowedModes.length === CONFIG.modes.length;
+}
+
+el.targetSwitch.querySelectorAll(".provider-btn").forEach((btn) => {
+  btn.addEventListener("click", () => setTarget(btn.dataset.target));
+});
+
+// ----------------------------------------------------------------------------
 // Backends (mode load balancer)
 // ----------------------------------------------------------------------------
 function renderBackendsList() {
@@ -206,6 +237,7 @@ el.addBackendBtn.addEventListener("click", () => {
 function buildPayload() {
   const payload = {
     mode: state.mode,
+    target: state.target,
     server_name: el.serverNameInput.value.trim(),
     listen_port: parseInt(el.listenPortInput.value, 10) || 80,
     client_max_body_size: el.bodySizeInput.value.trim() || "1m",
@@ -359,7 +391,7 @@ function handleDownload() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${state.lastFilename}.conf`;
+  a.download = state.lastFilename || "app.conf";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -370,6 +402,7 @@ function handleDownload() {
 // Reset
 // ----------------------------------------------------------------------------
 function handleReset() {
+  setTarget("nginx");
   setMode("static");
   el.serverNameInput.value = "";
   el.rootInput.value = "";
@@ -423,4 +456,5 @@ el.listenPortInput.addEventListener("input", updateTitleBlock);
 
 renderPresetList();
 renderBackendsList();
+setTarget("nginx");
 setMode("static");

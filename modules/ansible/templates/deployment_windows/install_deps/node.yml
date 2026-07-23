@@ -1,0 +1,5 @@
+    - name: Installer les dependances npm (Windows)
+      ansible.windows.win_command: npm install --production
+      args:
+        chdir: "{{ app_dir }}"
+      changed_when: true

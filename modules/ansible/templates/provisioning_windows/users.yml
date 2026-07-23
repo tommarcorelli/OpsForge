@@ -1,0 +1,13 @@
+    - name: Creer l'utilisateur de deploiement Windows
+      ansible.windows.win_user:
+        name: "{{ deploy_user }}"
+        password: "{{ deploy_user_password | default(omit) }}"
+        password_never_expires: yes
+        groups:
+          - Administrators
+        state: present
+
+    # Note : contrairement a la cible Linux (cle SSH), l'acces WinRM de cet
+    # utilisateur repose sur son mot de passe Windows (idealement fourni via
+    # le vault, cle "deploy_user_password") et sur son appartenance au groupe
+    # Administrators local.

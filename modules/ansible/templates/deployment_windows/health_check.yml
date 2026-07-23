@@ -1,0 +1,16 @@
+    - name: "Health check (Windows) : verifier que le port applicatif ecoute"
+      ansible.windows.win_shell: >
+        (Test-NetConnection -ComputerName 127.0.0.1 -Port {{ health_check_port }}).TcpTestSucceeded
+      register: health_check_result_windows
+      changed_when: false
+      failed_when: false
+
+    - name: "Signaler l'echec du health check (Windows)"
+      fail:
+        msg: >-
+          Le service ne repond pas sur le port {{ health_check_port }}. Verifie le service
+          "{{ service_name }}" et les journaux applicatifs.
+          Le rollback automatique n'est pas disponible sur cible Windows : restaure
+          manuellement la derniere sauvegarde "{{ app_dir }}.backup-*" (voir l'etape
+          "backup_previous") si necessaire.
+      when: "'True' not in health_check_result_windows.stdout"

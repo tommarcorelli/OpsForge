@@ -98,6 +98,8 @@ select.text-input{cursor:pointer;}
 .toggle:hover{border-color:rgba(229,114,11,.4);}
 .toggle input{margin-top:2px;width:17px;height:17px;accent-color:var(--primary);cursor:pointer;flex:0 0 auto;}
 .toggle:has(input:checked){background:rgba(229,114,11,.09);border-color:rgba(229,114,11,.45);color:var(--ink);}
+.toggle.step-disabled{opacity:.35;cursor:not-allowed;}
+.toggle.step-disabled:hover{border-color:var(--border-2);}
 
 /* Boutons */
 .btn{font-family:var(--ui);font-size:13.5px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -116,6 +118,10 @@ select.text-input{cursor:pointer;}
 .tab-switch{display:flex;gap:6px;margin-bottom:14px;}
 .tab-btn{padding:8px 14px;border-radius:10px;border:1px solid var(--border-2);background:var(--glass-strong);color:var(--dim);font-family:var(--mono);font-size:12px;cursor:pointer;transition:all .15s ease;}
 .tab-btn.active{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border-color:transparent;}
+.os-switch{display:flex;gap:6px;margin-bottom:6px;}
+.os-switch-btn{padding:8px 14px;border-radius:10px;border:1px solid var(--border-2);background:var(--glass-strong);color:var(--dim);font-family:var(--mono);font-size:12px;cursor:pointer;transition:all .15s ease;}
+.os-switch-btn.active{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border-color:transparent;}
+.os-switch-btn.step-disabled{opacity:.35;cursor:not-allowed;}
 
 /* Zone resultat (terminal) */
 .result-box{background:#0f1117;color:#dfe4f2;border-radius:16px;padding:18px;font-family:var(--mono);font-size:13px;line-height:1.55;

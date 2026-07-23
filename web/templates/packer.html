@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Générateur Packer</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#02A8EF" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='packer/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+
+  <!-- Fond degrades doux -->
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· Packer</span></span>
+    </a>
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-circle-info"></i> Guide d'utilisation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — GÉNÉRATEUR PACKER</p>
+    <h1>Construis l'image,<br />avant même de la lancer</h1>
+    <p class="subtitle">Builder (VirtualBox, QEMU, AWS AMI, Docker), provisioners et post-processors : un template <code>build.pkr.hcl</code> prêt pour <code>packer build</code>. Complète la chaîne Packer → Vagrant/Terraform → cloud-init.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="field-group">
+        <label class="field-label" data-step="1">Presets</label>
+        <div class="preset-list" id="preset-list"></div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ===== Builder ===== -->
+      <div class="input-row">
+        <div class="field-group" style="flex:1;">
+          <label class="field-label" data-step="2" for="builder-select">Builder</label>
+          <select id="builder-select" class="text-input"></select>
+        </div>
+        <div class="field-group" style="flex:1;">
+          <label class="field-label" for="name-input">Nom du build</label>
+          <input type="text" id="name-input" class="text-input" placeholder="ex : ubuntu-base" />
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="3">Arguments source</label>
+        <p class="field-hint" id="builder-hint">Champs requis marqués <code>*</code>. Toute clé/valeur additionnelle est acceptée.</p>
+        <div class="args-list" id="args-list"></div>
+        <button type="button" id="add-arg-btn" class="btn btn-ghost">+ Ajouter un argument</button>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ===== Provisioners ===== -->
+      <div class="field-group">
+        <label class="field-label" data-step="4">Provisioners</label>
+        <div class="prov-list" id="prov-list"></div>
+        <div class="add-row">
+          <button type="button" class="btn btn-ghost" data-add-prov="shell-inline">+ shell (inline)</button>
+          <button type="button" class="btn btn-ghost" data-add-prov="shell-script">+ shell (script)</button>
+          <button type="button" class="btn btn-ghost" data-add-prov="file">+ file</button>
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ===== Post-processors ===== -->
+      <div class="field-group">
+        <label class="field-label">Post-processors</label>
+        <div class="jobs-toggles" id="pp-toggles"></div>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top: 0;">
+          GÉNÉRER →
+        </button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink: 0;">
+          ↺
+        </button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="build"><span class="node-num">01</span><span class="node-label">BUILD</span></div>
+        <div class="connector flowing"></div>
+        <div class="node" data-stage="image"><span class="node-num">02</span><span class="node-label">IMAGE</span></div>
+        <div class="connector"></div>
+        <div class="node" data-stage="instance"><span class="node-num">03</span><span class="node-label">INSTANCE</span></div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Fichier <code>build.pkr.hcl</code></p>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le template généré apparaîtra ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============ DOCK FLOTTANT (statut) ============ -->
+  <footer class="title-block" id="title-block">
+    <div class="tb-cell"><span class="tb-key">BUILDER</span><span class="tb-value" id="tb-builder">—</span></div>
+    <div class="tb-cell"><span class="tb-key">NOM</span><span class="tb-value" id="tb-name">—</span></div>
+    <div class="tb-cell"><span class="tb-key">PROVISIONERS</span><span class="tb-value" id="tb-prov">0</span></div>
+    <div class="tb-cell"><span class="tb-key">RÉV.</span><span class="tb-value">A</span></div>
+  </footer>
+
+  <script>
+    window.OPSFORGE_PACKER = {
+      presets: {{ presets | tojson }},
+      builders: {{ builders | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='packer/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "Packer",
+    icon: "fa-solid fa-box-archive",
+    intro: "Packer construit une image d'après un template <code>.pkr.hcl</code> : ISO → box/VM locale, ou instance cloud → AMI. Voici comment l'utiliser une fois le fichier généré.",
+    os: [
+      { id: "init", label: "Installer / initialiser", icon: "fa-solid fa-download", color: "#02A8EF", steps: [
+        { title: "Installer Packer", cmd: "# Debian/Ubuntu\ncurl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg\nsudo apt update && sudo apt install packer" },
+        { title: "Initialiser les plugins requis", cmd: "packer init build.pkr.hcl" },
+      ]},
+      { id: "build", label: "Construire l'image", icon: "fa-solid fa-hammer", color: "#4F46E5", steps: [
+        { title: "Valider le template", cmd: "packer validate build.pkr.hcl" },
+        { title: "Lancer le build", cmd: "packer build build.pkr.hcl" },
+      ]},
+      { id: "vagrant", label: "Vers Vagrant", icon: "fa-solid fa-cube", color: "#1E9E4A", steps: [
+        { title: "Ajouter la box générée", cmd: "vagrant box add mon-image output/*.box" },
+      ]},
+      { id: "check", label: "Variables", icon: "fa-solid fa-circle-check", color: "#16a34a", steps: [
+        { title: "Surcharger une variable au build", cmd: "packer build -var 'ssh_password=monMotDePasse' build.pkr.hcl" },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>

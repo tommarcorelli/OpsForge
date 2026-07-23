@@ -1,0 +1,8 @@
+    - name: Cloner le depot si absent (Windows)
+      ansible.windows.win_command: "git clone --branch \"{{ branch }}\" \"{{ repo_url }}\" \"{{ app_dir }}\""
+      args:
+        creates: "{{ app_dir }}\\.git"
+
+    - name: Mettre a jour le depot (git pull)
+      ansible.windows.win_command: "git -C \"{{ app_dir }}\" pull origin \"{{ branch }}\""
+      changed_when: true

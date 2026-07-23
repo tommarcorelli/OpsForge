@@ -1,0 +1,4 @@
+    - name: Installer Python via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: python
+        state: present

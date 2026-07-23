@@ -31,8 +31,18 @@ import copy
 import os
 import re
 
+import yaml
+
 SUPPORTED_MODES = ["static", "reverse_proxy", "load_balancer"]
 LB_ALGORITHMS = ["round_robin", "least_conn", "ip_hash"]
+SUPPORTED_TARGETS = ["nginx", "caddy", "traefik"]
+# Traefik est un reverse proxy / load balancer : pas de mode "static" (pas de
+# serveur de fichiers integre a la config dynamique).
+TARGET_MODES = {
+    "nginx": SUPPORTED_MODES,
+    "caddy": SUPPORTED_MODES,
+    "traefik": ["reverse_proxy", "load_balancer"],
+}
 
 DEFAULT_LISTEN_PORT = 80
 DEFAULT_HTTPS_PORT = 443
@@ -49,19 +59,33 @@ def _indent(text, spaces=4):
     return "\n".join(pad + line if line else line for line in text.split("\n"))
 
 
-def validate_config(config):
+def validate_config(config, target="nginx"):
     """
     Verifie la coherence d'une config avant generation.
     Retourne une liste d'erreurs (vide si tout est valide).
+
+    `target` : 'nginx' (defaut), 'caddy' ou 'traefik' — certaines cibles ne
+    supportent pas tous les modes (ex. Traefik n'a pas de mode 'static').
     """
     errors = []
     mode = config.get("mode")
+
+    if target not in SUPPORTED_TARGETS:
+        errors.append(f"Cible non supportee : '{target}'. Cibles disponibles : {', '.join(SUPPORTED_TARGETS)}.")
+        return errors
 
     if mode not in SUPPORTED_MODES:
         errors.append(
             f"Mode non supporte : '{mode}'. Modes disponibles : {', '.join(SUPPORTED_MODES)}."
         )
         return errors  # le reste des verifications depend du mode, inutile d'aller plus loin
+
+    if mode not in TARGET_MODES[target]:
+        errors.append(
+            f"Le mode '{mode}' n'est pas supporte par la cible '{target}' "
+            f"(modes disponibles pour {target} : {', '.join(TARGET_MODES[target])})."
+        )
+        return errors
 
     server_name = (config.get("server_name") or "").strip()
     if not server_name:
@@ -293,6 +317,186 @@ def write_config(config, output_path):
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(content)
     return output_path
+
+
+# --------------------------------------------------------------------------
+# Cible Caddy — meme formulaire, sortie en Caddyfile
+# --------------------------------------------------------------------------
+_CADDY_UNITS = {"": "B", "k": "KB", "K": "KB", "m": "MB", "M": "MB", "g": "GB", "G": "GB"}
+
+
+def _caddy_size(size):
+    """Convertit une taille style Nginx ('10m', '500k', '2g') en unite Caddy ('10MB', '500KB', '2GB')."""
+    m = re.match(r"^(\d+)([kKmMgG]?)$", str(size))
+    if not m:
+        return None
+    number, unit = m.groups()
+    return f"{number}{_CADDY_UNITS.get(unit, 'B')}"
+
+
+def _caddy_security_headers_block():
+    return (
+        "header {\n"
+        '    X-Frame-Options "SAMEORIGIN"\n'
+        '    X-Content-Type-Options "nosniff"\n'
+        '    X-XSS-Protection "1; mode=block"\n'
+        '    Referrer-Policy "strict-origin-when-cross-origin"\n'
+        "}"
+    )
+
+
+def generate_caddy(config):
+    """
+    Genere un Caddyfile (bloc de site) equivalent a la config Nginx fournie.
+
+    Caddy gere le HTTPS automatiquement (Let's Encrypt) des qu'un nom de
+    domaine est utilise comme adresse de site ; `https: false` force l'ecoute
+    en clair via le prefixe `http://`.
+    """
+    errors = validate_config(config, target="caddy")
+    if errors:
+        raise ValueError("Configuration invalide : " + " | ".join(errors))
+
+    mode = config["mode"]
+    server_name = config["server_name"]
+    https = bool(config.get("https"))
+    address = server_name if https else f"http://{server_name}"
+
+    directives = []
+
+    if mode == "static":
+        root = config["root"]
+        index_file = config.get("index_file") or DEFAULT_INDEX
+        directives.append(f"root * {root}")
+        if config.get("spa"):
+            directives.append(f"try_files {{path}} /{index_file}")
+        directives.append("file_server")
+
+    elif mode == "reverse_proxy":
+        host = config["backend_host"]
+        port = config["backend_port"]
+        # Caddy gere nativement les upgrades WebSocket sur reverse_proxy, sans directive dediee.
+        directives.append(f"reverse_proxy {host}:{port}")
+
+    else:  # load_balancer
+        backends = " ".join(f"{b['host']}:{b['port']}" for b in config["backends"])
+        algo = config.get("lb_algorithm", "round_robin")
+        if any(b.get("weight") for b in config["backends"]):
+            directives.append(
+                "# Ponderation par backend ignoree pour la cible Caddy "
+                "(non transposable telle quelle depuis Nginx)."
+            )
+        directives.append(f"reverse_proxy {backends} {{\n    lb_policy {algo}\n}}")
+
+    if config.get("gzip"):
+        directives.append("encode gzip")
+
+    size = config.get("client_max_body_size", DEFAULT_CLIENT_MAX_BODY_SIZE)
+    caddy_size = _caddy_size(size)
+    if caddy_size:
+        directives.append(f"request_body {{\n    max_size {caddy_size}\n}}")
+
+    if config.get("security_headers"):
+        directives.append(_caddy_security_headers_block())
+
+    corps = "\n\n".join(directives)
+    site_block = f"{address} {{\n{_indent(corps)}\n}}"
+
+    header_comment = (
+        f"# Genere par OpsForge — module nginx (cible: caddy, mode: {mode})\n"
+        f"# Pour activer : place ce bloc dans ton Caddyfile puis `caddy reload`"
+        f" (ou `caddy fmt --overwrite` pour reformater)."
+    )
+    if https:
+        header_comment += (
+            "\n# HTTPS automatique : Caddy obtient et renouvelle le certificat "
+            "Let's Encrypt tout seul au premier demarrage (aucune commande certbot requise)."
+        )
+
+    return header_comment + "\n\n" + site_block + "\n"
+
+
+# --------------------------------------------------------------------------
+# Cible Traefik — meme formulaire, sortie en config dynamique YAML (file provider)
+# --------------------------------------------------------------------------
+def _traefik_router_name(server_name):
+    return re.sub(r"[^A-Za-z0-9_]", "_", server_name)
+
+
+def generate_traefik(config):
+    """
+    Genere un fichier de config dynamique Traefik (provider "file", format
+    YAML) : un router + un service loadBalancer equivalents a la config
+    Nginx fournie.
+
+    Traefik n'a pas de mode 'static' (ce n'est pas un serveur de fichiers) :
+    seuls 'reverse_proxy' et 'load_balancer' sont disponibles pour cette
+    cible (voir TARGET_MODES).
+    """
+    errors = validate_config(config, target="traefik")
+    if errors:
+        raise ValueError("Configuration invalide : " + " | ".join(errors))
+
+    mode = config["mode"]
+    server_name = config["server_name"]
+    https = bool(config.get("https"))
+    nom = _traefik_router_name(server_name)
+
+    if mode == "reverse_proxy":
+        servers = [{"url": f"http://{config['backend_host']}:{config['backend_port']}"}]
+        algo = None
+    else:  # load_balancer
+        servers = [{"url": f"http://{b['host']}:{b['port']}"} for b in config["backends"]]
+        algo = config.get("lb_algorithm", "round_robin")
+
+    service = {"loadBalancer": {"servers": servers}}
+    if algo == "ip_hash":
+        # Equivalent le plus proche d'ip_hash cote Traefik : sessions collantes par cookie.
+        service["loadBalancer"]["sticky"] = {"cookie": {"name": "opsforge_lb"}}
+
+    router = {
+        "rule": f"Host(`{server_name}`)",
+        "service": nom,
+        "entryPoints": ["websecure"] if https else ["web"],
+    }
+    if https:
+        router["tls"] = {"certResolver": "letsencrypt"}
+
+    doc = {"http": {"routers": {nom: router}, "services": {nom: service}}}
+    yaml_text = yaml.dump(doc, sort_keys=False, default_flow_style=False, allow_unicode=True)
+
+    header = (
+        f"# Genere par OpsForge — module nginx (cible: traefik, mode: {mode})\n"
+        "# Fichier de config dynamique (provider \"file\") : place-le dans le dossier\n"
+        "# surveille (ex: /etc/traefik/dynamic/) et declare-le dans traefik.yml :\n"
+        "#   providers:\n"
+        "#     file:\n"
+        "#       directory: /etc/traefik/dynamic\n"
+        "#       watch: true\n"
+    )
+    if algo == "least_conn":
+        header += (
+            "# Note : Traefik ne propose pas d'equivalent direct a 'least_conn' ; "
+            "seul le round-robin (pondere) est disponible nativement.\n"
+        )
+    if https:
+        header += (
+            "# HTTPS : necessite un certResolver \"letsencrypt\" configure dans traefik.yml "
+            "(certificatesResolvers) et l'entryPoint \"websecure\" (443).\n"
+        )
+
+    return header + "\n" + yaml_text
+
+
+def generate(config, target="nginx"):
+    """Dispatcher : genere la config pour la cible demandee ('nginx' [defaut], 'caddy', 'traefik')."""
+    if target not in SUPPORTED_TARGETS:
+        raise ValueError(f"Cible non supportee : '{target}'. Cibles disponibles : {', '.join(SUPPORTED_TARGETS)}.")
+    if target == "nginx":
+        return generate_config(config)
+    if target == "caddy":
+        return generate_caddy(config)
+    return generate_traefik(config)
 
 
 # --------------------------------------------------------------------------

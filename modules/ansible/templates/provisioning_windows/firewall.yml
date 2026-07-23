@@ -1,0 +1,39 @@
+    - name: Autoriser RDP (3389/tcp) via le pare-feu Windows
+      community.windows.win_firewall_rule:
+        name: OpsForge-RDP
+        localport: 3389
+        action: allow
+        direction: in
+        protocol: tcp
+        state: present
+        enabled: yes
+
+    - name: Autoriser le port HTTP (80/tcp)
+      community.windows.win_firewall_rule:
+        name: OpsForge-HTTP
+        localport: 80
+        action: allow
+        direction: in
+        protocol: tcp
+        state: present
+        enabled: yes
+
+    - name: Autoriser le port HTTPS (443/tcp)
+      community.windows.win_firewall_rule:
+        name: OpsForge-HTTPS
+        localport: 443
+        action: allow
+        direction: in
+        protocol: tcp
+        state: present
+        enabled: yes
+
+    - name: "Autoriser le port applicatif ({{ health_check_port }}/tcp)"
+      community.windows.win_firewall_rule:
+        name: OpsForge-App
+        localport: "{{ health_check_port }}"
+        action: allow
+        direction: in
+        protocol: tcp
+        state: present
+        enabled: yes

@@ -15,10 +15,11 @@
 | **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs | `/terraform` | `python main.py terraform …` |
 | **Dockerfile** | **`Dockerfile`** multi-stage (build + runtime allégé) + `.dockerignore`, 8 langages, bonnes pratiques (utilisateur non-root) | `/dockerfile` | `python main.py dockerfile …` |
 | **Kubernetes / Helm** | **Manifests** (Deployment + Service + Ingress, probes, resources) prêts pour `kubectl apply`, ou **chart Helm** complet, export `.zip` | `/k8s` | `python main.py k8s …` |
-| **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option | `/nginx` | `python main.py nginx …` |
+| **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option — et variantes **Caddy** (Caddyfile) / **Traefik** (config dynamique YAML) | `/nginx` | `python main.py nginx …` |
 | **systemd** | Unité **`.service`** durcie (utilisateur dédié, redémarrage auto, sandboxing) ou paire **`.service` + `.timer`** planifiée (`OnCalendar`, remplace cron) | `/systemd` | `python main.py systemd …` |
 | **Monitoring** | **`prometheus.yml`** (scrape multi-jobs + Alertmanager), **règles d'alerte** Prometheus (CPU/mém/disque/instance) ou **datasources Grafana** | `/monitoring` | `python main.py monitoring …` |
 | **cloud-init** | **`#cloud-config`** (user-data) de premier boot : utilisateurs, clés SSH, paquets, `write_files`, `runcmd`, durcissement SSH | `/cloudinit` | `python main.py cloudinit …` |
+| **Packer** | **`build.pkr.hcl`** (HCL2) : builder **virtualbox-iso / qemu / amazon-ebs / docker**, provisioners shell/file, post-processors (`vagrant`, `docker-tag`, `compress`) | `/packer` | `python main.py packer …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -97,6 +98,32 @@ python main.py cicd . --matrix-versions 3.10 3.11 3.12 \
 python main.py cicd . --dry-run
 ```
 
+### Module Nginx (+ Caddy / Traefik)
+
+```bash
+# Nginx classique (defaut)
+python main.py nginx --preset api-reverse-proxy --https -o -
+
+# Meme config, en Caddyfile
+python main.py nginx --preset api-reverse-proxy --target caddy --dry-run
+
+# Meme config, en config dynamique Traefik (YAML)
+python main.py nginx --preset load-balanced-app --target traefik --dry-run
+```
+
+### Module Terraform
+
+```bash
+# Depuis un preset, fichier main.tf unique sur stdout
+python main.py terraform --preset ec2-web -o -
+
+# Depuis une config JSON, en fichiers separes (main.tf/variables.tf/outputs.tf)
+python main.py terraform config.json --split -o output/mon-projet/
+
+# Preset avec variables/outputs -> 3 fichiers separes
+python main.py terraform --preset rds-postgres --split -o output/rds/
+```
+
 ### Module Ansible
 
 ```bash
@@ -115,6 +142,18 @@ python main.py ansible --groups-file mes-serveurs.json
 # Aperçu sans rien écrire sur disque (layout flat uniquement)
 python main.py ansible --lang node --repo git@github.com:moi/app.git \
   --provisioning base_packages --deployment git_clone --dry-run
+
+# Base MongoDB + sauvegardes automatiques quotidiennes (cron + rotation)
+python main.py ansible --lang node --repo git@github.com:moi/app.git \
+  --provisioning update_system database backups \
+  --database-engine mongodb --db-name app --db-user app_user \
+  --backup-dir /mnt/backups --backup-retention-days 14 --backup-hour 3
+
+# Cible Windows / WinRM (voir les etapes disponibles avec --list-windows-steps)
+python main.py ansible --lang node --repo git@github.com:moi/app.git \
+  --target-os windows --provisioning update_system base_packages runtime \
+  --deployment git_clone install_deps restart_service \
+  --inventory-host 203.0.113.20 --ssh-user Administrator --winrm-password 'S3cret!'
 ```
 
 Sortie par défaut : dossier `output/` à la racine du projet.
@@ -190,17 +229,22 @@ opsforge/
 │   │   ├── routes.py          Blueprint Flask (préfixe /monitoring) + API
 │   │   └── cli.py             logique CLI du module
 │   │
-│   └── cloudinit/        → module cloud-init (#cloud-config / user-data)
-│       ├── core.py            assemblage YAML (PyYAML) + users/write_files + presets
-│       ├── routes.py          Blueprint Flask (préfixe /cloudinit) + API
+│   ├── cloudinit/        → module cloud-init (#cloud-config / user-data)
+│   │   ├── core.py            assemblage YAML (PyYAML) + users/write_files + presets
+│   │   ├── routes.py          Blueprint Flask (préfixe /cloudinit) + API
+│   │   └── cli.py             logique CLI du module
+│   │
+│   └── packer/           → module Packer (build.pkr.hcl)
+│       ├── core.py            rendu HCL2 (builder/provisioners/post-processors) + presets
+│       ├── routes.py          Blueprint Flask (préfixe /packer) + API
 │       └── cli.py             logique CLI du module
 │
 ├── web/
 │   ├── templates/         → hub.html, cicd.html, ansible.html, vagrant.html,
 │   │                        terraform.html, dockerfile.html, k8s.html, nginx.html,
-│   │                        systemd.html, monitoring.html, cloudinit.html
+│   │                        systemd.html, monitoring.html, cloudinit.html, packer.html
 │   └── static/
-│       ├── theme.js           bascule clair/sombre partagée par les 11 pages
+│       ├── theme.js           bascule clair/sombre partagée par les 12 pages
 │       ├── cicd/{style.css, script.js}
 │       ├── ansible/{style.css, script.js}
 │       ├── dockerfile/{style.css, script.js}
@@ -209,6 +253,7 @@ opsforge/
 │       ├── systemd/{style.css, script.js}
 │       ├── monitoring/{style.css, script.js}
 │       ├── cloudinit/{style.css, script.js}
+│       ├── packer/{style.css, script.js}
 │       ├── manifest.json, service-worker.js, favicon.ico, opsforge-logo.svg, icons/
 │
 ├── tests/
@@ -253,15 +298,43 @@ généré est validé avec `pyyaml` avant d'être renvoyé.
 - **Provisioning** : `update_system`, `base_packages`, `timezone`, `swap`,
   `unattended_upgrades` (MAJ sécurité auto), `users` (utilisateur de déploiement
   + sudo + clé SSH), `docker`, `nginx`, `https` (Let's Encrypt), `database`
-  (PostgreSQL/MySQL/Redis), `firewall` (UFW/firewalld), `ssh_hardening`,
-  `fail2ban`, `monitoring` (Netdata), `runtime` (installe le runtime du langage
-  choisi).
+  (PostgreSQL/MySQL/Redis/**MongoDB**), **`backups`** (sauvegarde quotidienne
+  automatique via cron : dump de la base sélectionnée + archive du dossier
+  applicatif, rotation configurable), `firewall` (UFW/firewalld),
+  `ssh_hardening`, `fail2ban`, `monitoring` (Netdata), `runtime` (installe le
+  runtime du langage choisi).
 - **Déploiement** : `git_clone`, `install_deps`, `build`, `restart_service`,
   `reload_nginx`, `health_check`, `backup_previous`, `zero_downtime_deploy`,
   `notify` (webhook Slack/Discord).
 - **Structures** : `flat` (un seul `playbook.yml`) ou `roles` (un rôle Ansible
   par étape). Génère aussi l'inventaire, un vault chiffré pour les secrets, et
   supporte le mode **multi-serveurs** (plusieurs groupes via un JSON).
+
+### Cible Windows / WinRM
+
+Sélectionnable dans l'UI (bouton « Cible » : Linux/SSH ou Windows/WinRM) ou en
+CLI (`--target-os windows`, `--list-windows-steps` pour lister ce qui est
+disponible). Un sous-ensemble d'étapes est proposé, avec des templates dédiés
+utilisant les collections `ansible.windows.*`, `chocolatey.chocolatey.*` et
+`community.windows.*` (à installer via `ansible-galaxy collection install
+ansible.windows community.windows chocolatey.chocolatey`) plutôt que
+apt/dnf/systemd :
+
+- **Provisioning** : `update_system` (win_updates), `base_packages`
+  (Chocolatey + git/curl/7zip), `users` (win_user + groupe Administrators),
+  `firewall` (win_firewall_rule), `runtime` (Node.js/Python via Chocolatey —
+  seuls ces deux langages sont supportés côté Windows).
+- **Déploiement** : `backup_previous` (robocopy), `git_clone`, `install_deps`
+  (npm/pip), `build`, `restart_service` (win_service), `health_check`
+  (Test-NetConnection, avec message d'échec explicite — le rollback
+  automatique n'est pas disponible côté Windows), `notify` (identique à la
+  cible Linux : le webhook se déclenche depuis le contrôleur).
+- Toute étape ou langage hors de cette liste est refusé avec un message
+  d'erreur explicite listant ce qui est disponible.
+- L'**inventaire** bascule automatiquement en connexion WinRM
+  (`ansible_connection=winrm`, port 5986/HTTPS par défaut, transport `ntlm`
+  par défaut) dès que la cible Windows est choisie — y compris par groupe en
+  mode multi-serveurs.
 
 ## Module Vagrant — détails
 
@@ -284,7 +357,17 @@ ressources, génère un `main.tf` (bloc `terraform{}` + `provider{}` +
   choisi dans un catalogue par provider, nom, arguments) ; un template
   d'arguments est pré-rempli selon le type.
 - **Presets** prêts à l'emploi (`ec2-web`, `s3-static`, `docker-nginx`,
-  `gcp-vm`) — sélectionnables dans l'UI ou en CLI (`--preset`, `--list-presets`).
+  `gcp-vm`, `vpc-basic`, `rds-postgres`, `docker-network-app`, `gcp-network`,
+  `azure-vm`) — sélectionnables dans l'UI ou en CLI (`--preset`,
+  `--list-presets`).
+- **Catalogue de ressources élargi** : en plus des types de base, `aws_internet_gateway`,
+  `aws_route_table` (+ association), `aws_iam_role`, `aws_lambda_function` (AWS) ;
+  `google_compute_firewall`, `google_sql_database_instance` (GCP) ; `azurerm_virtual_network`,
+  `azurerm_linux_virtual_machine` (Azure) ; `docker_network`, `docker_volume` (Docker) ;
+  `local_sensitive_file` (local).
+- **Export en fichiers séparés** : `main.tf` (terraform + provider + ressources),
+  et `variables.tf` / `outputs.tf` dès qu'ils sont utilisés — téléchargeables en
+  **`.zip`** depuis l'UI (bouton « Télécharger .zip ») ou en CLI (`--split -o mon-dossier/`).
 - **Validation par provider** : vérifie les arguments requis de chaque type de
   ressource connu (`RESOURCE_CATALOG`), les noms dupliqués, le provider.
 - **Sortie alignée** façon `terraform fmt` (les `=` d'un même bloc sont alignés).
@@ -363,6 +446,28 @@ Validation intégrée par mode (backend/host/port requis, 2+ backends pour le
 load balancer, algorithme et taille de body reconnus) ; chaque config générée
 est **valide par construction** et a été testée avec `nginx -t` réel.
 
+### Cibles Caddy et Traefik
+
+Le **même formulaire** (mode + options) peut produire trois formats de
+sortie différents, sélectionnables dans l'UI (bouton « Cible ») ou en CLI
+(`--target nginx|caddy|traefik`, défaut `nginx`) :
+
+- **Caddy** (`Caddyfile`) : `file_server` + `try_files` pour le statique,
+  `reverse_proxy` (WebSocket géré nativement) pour le reverse proxy et le
+  load balancer (`lb_policy round_robin|least_conn|ip_hash`), HTTPS
+  automatique par défaut (Caddy gère lui-même Let's Encrypt — `https: false`
+  force le préfixe `http://` pour désactiver le TLS auto), `encode gzip`,
+  `header {}` pour les en-têtes de sécurité, `request_body { max_size … }`
+  pour la taille max.
+- **Traefik** (config dynamique **YAML**, provider `file`) : un `router`
+  (règle `Host(...)`, `entryPoints` web/websecure, `tls.certResolver` si
+  HTTPS) et un `service` `loadBalancer` (un ou plusieurs `servers`). Pas de
+  mode **statique** côté Traefik (ce n'est pas un serveur de fichiers) — seuls
+  `reverse_proxy` et `load_balancer` sont disponibles pour cette cible ;
+  `ip_hash` devient une session collante par cookie (équivalent le plus
+  proche), et `least_conn` n'a pas d'équivalent direct (note ajoutée dans le
+  fichier généré).
+
 ---
 
 ## Module systemd — détails
@@ -439,6 +544,38 @@ cloud, seed ISO NoCloud) et se vérifie avec `cloud-init schema`.
 
 ---
 
+## Module Packer — détails
+
+Dernier maillon de la chaîne : Packer **construit l'image** (ISO → box/VM
+locale, ou instance cloud → AMI, ou conteneur), que Vagrant/Terraform
+**instancient**, que cloud-init **configure au premier boot**, avant qu'Ansible
+ne prenne le relais pour le déploiement applicatif. Un seul formulaire produit
+un template HCL2 (`build.pkr.hcl`) prêt pour `packer build`.
+
+- **Builder** (bloc `source`) : `virtualbox-iso` et `qemu` pour une image
+  locale à partir d'une ISO, `amazon-ebs` pour une AMI AWS, `docker` pour une
+  image de conteneur. Chaque builder a ses champs requis (validés) et ses
+  valeurs par défaut sensées (`disk_size`, `headless`, `communicator`…),
+  surchargeables via le builder d'arguments libre.
+- **Plugin requis** : le bloc `packer { required_plugins { ... } }` est généré
+  automatiquement selon le builder choisi (source + version du plugin
+  HashiCorp officiel).
+- **Variables Packer** : nom, type, valeur par défaut, `sensitive` optionnel —
+  pour surcharger au build (`packer build -var ...`) sans toucher au template.
+- **Provisioners** : `shell` (commandes inline ou script externe) et `file`
+  (upload d'un fichier/dossier local vers l'image en construction).
+- **Post-processors** : filtrés selon compatibilité avec le builder —
+  `vagrant` (export `.box`, pour virtualbox-iso/qemu), `docker-tag` (tag
+  d'image, pour docker), `compress` (archive `.tar.gz` de l'artefact, tous
+  builders).
+
+Presets prêts à l'emploi couvrant chaque famille de builder
+(`ubuntu-vagrant-box`, `debian-qemu-image`, `aws-ami-webserver`,
+`docker-app-image`). Le template se vérifie avec `packer validate` et
+s'initialise avec `packer init` avant `packer build`.
+
+---
+
 ## Tests
 
 ```bash
@@ -454,6 +591,7 @@ pytest tests/nginx/      # module Nginx uniquement
 pytest tests/systemd/    # module systemd uniquement
 pytest tests/monitoring/ # module Monitoring uniquement
 pytest tests/cloudinit/  # module cloud-init uniquement
+pytest tests/packer/     # module Packer uniquement
 ```
 
 > Sous Windows, 3 tests de chiffrement Vault échouent car `ansible-core` a besoin
@@ -464,7 +602,7 @@ pytest tests/cloudinit/  # module cloud-init uniquement
 
 ## Roadmap — reste à faire
 
-Les 10 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+Les 11 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
 
 - [x] ~~Mode sombre unifié~~ — fait (bascule clair/sombre + persistance sur toutes les pages).
 - [x] ~~Module Dockerfile~~ — fait (multi-stage, 8 langages, `.dockerignore`).
@@ -473,13 +611,24 @@ Les 10 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorit
 - [x] ~~Module systemd~~ — fait (unités `.service` durcies / `.timer` planifiées, presets).
 - [x] ~~Module Monitoring~~ — fait (prometheus.yml, règles d'alerte, datasources Grafana).
 - [x] ~~Module cloud-init~~ — fait (#cloud-config : users/SSH, paquets, write_files, runcmd).
-- [ ] *(optionnel)* Cible **Windows / WinRM** pour le module Ansible (comme
-      Vagrant qui gère déjà Windows).
-- [ ] *(optionnel)* Terraform : export de `variables.tf` / `outputs.tf` séparés
-      en `.zip`, davantage de presets et de types de ressources au catalogue.
-- [ ] *(optionnel)* Rôles supplémentaires côté Ansible (bases de données, backup).
-- [ ] *(optionnel)* Variantes **Caddy** et **Traefik** pour le module Nginx
-      (même formulaire, sortie adaptée au format de chaque proxy).
+- [x] ~~Cible **Windows / WinRM** pour le module Ansible~~ — fait (sous-ensemble
+      d'étapes dédiées `ansible.windows.*`/`chocolatey.chocolatey.*` :
+      update_system, base_packages, users, firewall, runtime (node/python),
+      backup_previous, git_clone, install_deps, build, restart_service,
+      health_check, notify ; inventaire WinRM ; sélecteur de cible dans l'UI
+      et `--target-os` en CLI).
+- [x] ~~Terraform : export de `variables.tf` / `outputs.tf` séparés~~ — fait
+      (fichiers séparés en `.zip` depuis l'UI, `--split` en CLI, 5 nouveaux
+      presets et 11 nouveaux types de ressources au catalogue).
+- [x] ~~Rôles supplémentaires côté Ansible (bases de données, backup)~~ — fait
+      (moteur **MongoDB** ajouté, nouvelle étape **`backups`** : sauvegarde
+      quotidienne automatique cron avec rotation, DB + dossier applicatif).
+- [x] ~~Variantes Caddy et Traefik pour le module Nginx~~ — fait (même
+      formulaire, sortie Caddyfile / config dynamique Traefik en YAML,
+      sélecteur de cible dans l'UI et `--target` en CLI).
+- [x] ~~Module Packer~~ — fait (`build.pkr.hcl` HCL2 : builders
+      virtualbox-iso / qemu / amazon-ebs / docker, provisioners shell/file,
+      post-processors vagrant / docker-tag / compress, 4 presets).
 
 ### Nouveaux modules envisagés
 
@@ -489,8 +638,13 @@ Candidats, du plus prioritaire au moins :
 - [x] ~~**systemd**~~ — fait (unité `.service` + `.timer`, prolonge le déploiement Ansible).
 - [x] ~~**Monitoring**~~ — fait (Prometheus `prometheus.yml` + alertes + datasources Grafana).
 - [x] ~~**cloud-init**~~ — fait (`#cloud-config` : users/SSH, paquets, write_files, runcmd).
-- [ ] **Packer** (images de VM) — build de templates HCL, dernier candidat de la
-      liste (complète Vagrant / cloud-init).
+- [x] ~~**Packer**~~ — fait (build de templates HCL2, dernier candidat de la
+      liste — complète Vagrant / cloud-init).
+
+Tous les modules candidats de cette liste sont désormais implémentés. Les
+prochaines pistes d'extension (nouveaux providers CI, nouvelles cibles IaC)
+seront plutôt des ajouts *dans* les modules existants (voir remarque
+ci-dessous) que de nouveaux modules à part entière.
 
 > À intégrer aux modules existants plutôt que comme nouveaux modules : autres
 > systèmes CI (CircleCI, Jenkins, Drone…) = providers du module CI/CD ;
@@ -515,5 +669,12 @@ proxy/load balancer, HTTPS, gzip, en-têtes de sécurité, validation par
 planifiées, durcissement/sandboxing, presets, pense-bête d'installation),
 module Monitoring (prometheus.yml multi-jobs + Alertmanager, catalogue de
 règles d'alerte à seuils, provisioning de datasources Grafana, YAML valide),
-et module cloud-init (`#cloud-config` de premier boot : utilisateurs + clés
-SSH, paquets, write_files, runcmd, durcissement SSH, presets).
+module cloud-init (`#cloud-config` de premier boot : utilisateurs + clés
+SSH, paquets, write_files, runcmd, durcissement SSH, presets), et module
+Packer (`build.pkr.hcl` HCL2 : builders virtualbox-iso / qemu / amazon-ebs /
+docker, builder d'arguments source libre, provisioners shell-inline /
+shell-script / file, post-processors vagrant / docker-tag / compress
+filtrés selon compatibilité builder, variables Packer, 4 presets couvrant
+chaque famille de builder) — dernier maillon de la chaîne Packer (construit
+l'image) → Vagrant/Terraform (l'instancie) → cloud-init (la configure au
+premier boot) → Ansible (déploiement applicatif).

@@ -161,7 +161,7 @@ class TestGeneratePlaybook:
         assert data[0]["vars"]["domain_name"] == "monsite.fr"
         assert data[0]["vars"]["letsencrypt_email"] == "moi@monsite.fr"
 
-    @pytest.mark.parametrize("engine", ["postgresql", "mysql", "redis"])
+    @pytest.mark.parametrize("engine", ["postgresql", "mysql", "redis", "mongodb"])
     def test_database_step_for_each_engine(self, engine):
         config = _base_config(provisioning=["update_system", "database"], database_engine=engine, deployment=[])
         playbook = generate_playbook(config)

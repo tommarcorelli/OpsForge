@@ -160,6 +160,42 @@ async function generer() {
   }
 }
 
+async function telechargerZip() {
+  hide("error"); hide("warn");
+  let config;
+  try {
+    config = buildConfig();
+  } catch (e) {
+    return show("error", e.message);
+  }
+
+  let res;
+  try {
+    res = await fetch("/terraform/api/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    });
+  } catch (e) {
+    return show("error", "Serveur injoignable : " + e.message);
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    return show("error", data.error || "Erreur de génération du .zip.");
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "terraform-project.zip";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function loadPreset(nom) {
   if (!nom) return;
   let cfg;
@@ -183,6 +219,7 @@ async function loadPreset(nom) {
 // ---- Init ----
 $("add-resource-btn").addEventListener("click", addResource);
 $("generate-btn").addEventListener("click", generer);
+$("download-zip-btn").addEventListener("click", telechargerZip);
 $("provider").addEventListener("change", renderResources);
 $("preset-select").addEventListener("change", (e) => loadPreset(e.target.value));
 $("copy-btn").addEventListener("click", async () => {
