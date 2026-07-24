@@ -89,8 +89,20 @@
         <div class="add-row">
           <button type="button" class="btn btn-ghost" data-add-prov="shell-inline">+ shell (inline)</button>
           <button type="button" class="btn btn-ghost" data-add-prov="shell-script">+ shell (script)</button>
+          <button type="button" class="btn btn-ghost" data-add-prov="powershell-inline">+ powershell (Windows)</button>
+          <button type="button" class="btn btn-ghost" data-add-prov="ansible">+ ansible</button>
           <button type="button" class="btn btn-ghost" data-add-prov="file">+ file</button>
         </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ===== Datasources (avance) ===== -->
+      <div class="field-group">
+        <label class="field-label">Datasources <span style="font-weight:500;opacity:.6;">(facultatif, avancé)</span></label>
+        <p class="field-hint">Recherche dynamique (ex : dernier AMI Ubuntu officiel) au lieu d'un ID codé en dur. Référence-la dans un argument source avec <code>=data.amazon-ami.&lt;nom&gt;.id</code>.</p>
+        <div class="prov-list" id="ds-list"></div>
+        <button type="button" id="add-ds-btn" class="btn btn-ghost">+ amazon-ami</button>
       </div>
 
       <hr class="section-divider" />
@@ -99,6 +111,18 @@
       <div class="field-group">
         <label class="field-label">Post-processors</label>
         <div class="jobs-toggles" id="pp-toggles"></div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ===== HCP Packer Registry (facultatif) ===== -->
+      <div class="field-group">
+        <label class="field-label">Publication HCP Packer Registry <span style="font-weight:500;opacity:.6;">(facultatif)</span></label>
+        <p class="field-hint">Laisse le nom de bucket vide pour ignorer cette section — aucun bloc ne sera généré.</p>
+        <div class="input-row">
+          <input type="text" id="hcp-bucket-input" class="text-input" placeholder="bucket_name (ex : mon-app)" style="flex:1;" />
+          <input type="text" id="hcp-desc-input" class="text-input" placeholder="description (optionnel)" style="flex:1;" />
+        </div>
       </div>
 
       <div style="display: flex; gap: 8px; margin-top: 8px;">
@@ -132,6 +156,7 @@
       <div class="result-actions" id="result-actions" hidden>
         <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
         <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+        <button type="button" id="download-zip-btn" class="btn btn-ghost">Télécharger le projet (.zip)</button>
       </div>
 
     </section>

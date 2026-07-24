@@ -562,17 +562,37 @@ un template HCL2 (`build.pkr.hcl`) prêt pour `packer build`.
   HashiCorp officiel).
 - **Variables Packer** : nom, type, valeur par défaut, `sensitive` optionnel —
   pour surcharger au build (`packer build -var ...`) sans toucher au template.
-- **Provisioners** : `shell` (commandes inline ou script externe) et `file`
-  (upload d'un fichier/dossier local vers l'image en construction).
+- **Provisioners** : `shell` (commandes inline ou script externe), `file`
+  (upload d'un fichier/dossier local vers l'image en construction), et
+  `powershell` (commandes inline PowerShell, pour une image Windows via
+  WinRM).
 - **Post-processors** : filtrés selon compatibilité avec le builder —
   `vagrant` (export `.box`, pour virtualbox-iso/qemu), `docker-tag` (tag
   d'image, pour docker), `compress` (archive `.tar.gz` de l'artefact, tous
   builders).
+- **Export en fichiers séparés** : en plus du `build.pkr.hcl` unique,
+  un bouton « Télécharger le projet (.zip) » (et `--split` en CLI) génère
+  un projet Packer en 2-3 fichiers à la convention officielle
+  (`variables.pkr.hcl` si des variables sont définies, `sources.pkr.hcl`,
+  `build.pkr.hcl`), tous ramassés par `packer init <dossier>`.
+- **Datasources** : `amazon-ami` pour piocher dynamiquement le dernier AMI
+  correspondant à des filtres (au lieu d'un ID codé en dur), référencée dans
+  un argument source via `=data.amazon-ami.<nom>.id`. Le plugin requis est
+  fusionné avec celui du builder (pas de doublon si les deux sont `amazon`).
+- **Provisioner `ansible`** : joue un playbook local sur l'image en
+  construction (`playbook_file`, `user`) — relie Packer au module Ansible
+  d'OpsForge dans un même pipeline.
+- **Publication HCP Packer Registry** : bloc `hcp_packer_registry` optionnel
+  dans le `build` (nom de bucket, description, labels), pour suivre l'image
+  produite dans le registre HCP Packer — laisse le champ vide pour l'ignorer.
 
 Presets prêts à l'emploi couvrant chaque famille de builder
 (`ubuntu-vagrant-box`, `debian-qemu-image`, `aws-ami-webserver`,
-`docker-app-image`). Le template se vérifie avec `packer validate` et
-s'initialise avec `packer init` avant `packer build`.
+`windows-server-ami`, `docker-app-image`) — dont un exemple Windows/WinRM
+avec provisioner PowerShell, un exemple AWS avec datasource dynamique et
+provisioner Ansible, et un exemple Docker avec publication HCP Packer
+Registry. Le template se vérifie avec `packer validate` et s'initialise
+avec `packer init` avant `packer build`.
 
 ---
 

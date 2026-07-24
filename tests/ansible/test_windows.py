@@ -16,7 +16,6 @@ from modules.ansible.core import (
     generate_multi_group_roles_project,
     TARGET_OSES,
     WINDOWS_SUPPORTED_PROVISIONING,
-    WINDOWS_SUPPORTED_DEPLOYMENT,
     WINDOWS_SUPPORTED_LANGUAGES,
 )
 

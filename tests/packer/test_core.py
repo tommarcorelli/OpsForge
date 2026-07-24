@@ -4,6 +4,7 @@ import pytest
 
 from modules.packer.core import (
     generate_packer_template,
+    generate_split_files,
     validate_config,
     list_presets,
     get_preset,
@@ -94,7 +95,7 @@ def test_variable_nom_invalide_rejetee():
 
 def test_provisioner_type_inconnu_rejete():
     cfg = _valid_config("docker")
-    cfg["provisioners"] = [{"type": "ansible"}]
+    cfg["provisioners"] = [{"type": "chef"}]
     errors = validate_config(cfg)
     assert any("type inconnu" in e for e in errors)
 
@@ -299,3 +300,206 @@ def test_chaque_builder_du_catalogue_a_un_label():
     for key, info in BUILDER_CATALOG.items():
         assert info["label"]
         assert isinstance(info["required"], list)
+
+
+# --------------------------------------------------------------------------
+# Provisioner powershell-inline (cible Windows/WinRM)
+# --------------------------------------------------------------------------
+
+def test_provisioner_powershell_inline_rendu():
+    cfg = _valid_config("docker")
+    cfg["provisioners"] = [{"type": "powershell-inline", "inline": ["Write-Output 'hello'"]}]
+    text = generate_packer_template(cfg)
+    assert 'provisioner "powershell" {' in text
+    assert "Write-Output" in text
+
+
+def test_provisioner_powershell_inline_sans_commande_rejete():
+    cfg = _valid_config("docker")
+    cfg["provisioners"] = [{"type": "powershell-inline", "inline": []}]
+    errors = validate_config(cfg)
+    assert any("au moins une commande" in e for e in errors)
+
+
+def test_preset_windows_server_ami_valide_et_utilise_winrm():
+    cfg = get_preset("windows-server-ami")
+    assert validate_config(cfg) == []
+    text = generate_packer_template(cfg)
+    assert 'communicator   = "winrm"' in text or "winrm" in text
+    assert 'provisioner "powershell" {' in text
+
+
+# --------------------------------------------------------------------------
+# Export en fichiers separes (variables.pkr.hcl / sources.pkr.hcl / build.pkr.hcl)
+# --------------------------------------------------------------------------
+
+def test_generate_split_files_sans_variables_omet_le_fichier():
+    cfg = _valid_config("docker")
+    fichiers = generate_split_files(cfg)
+    assert "variables.pkr.hcl" not in fichiers
+    assert "sources.pkr.hcl" in fichiers
+    assert "build.pkr.hcl" in fichiers
+
+
+def test_generate_split_files_avec_variables_inclut_le_fichier():
+    cfg = _valid_config("docker")
+    cfg["variables"] = [{"name": "tag", "type": "string", "default": "latest"}]
+    fichiers = generate_split_files(cfg)
+    assert "variables.pkr.hcl" in fichiers
+    assert 'variable "tag" {' in fichiers["variables.pkr.hcl"]
+
+
+def test_generate_split_files_sources_contient_packer_et_source():
+    cfg = _valid_config("docker")
+    fichiers = generate_split_files(cfg)
+    assert "packer {" in fichiers["sources.pkr.hcl"]
+    assert 'source "docker" "app-img" {' in fichiers["sources.pkr.hcl"]
+    assert "build {" not in fichiers["sources.pkr.hcl"]
+
+
+def test_generate_split_files_build_ne_contient_que_le_bloc_build():
+    cfg = _valid_config("docker")
+    fichiers = generate_split_files(cfg)
+    assert fichiers["build.pkr.hcl"].strip().startswith("build {")
+    assert "packer {" not in fichiers["build.pkr.hcl"]
+
+
+def test_generate_split_files_leve_valueerror_si_invalide():
+    with pytest.raises(ValueError):
+        generate_split_files({})
+
+
+def test_generate_split_files_equivalent_au_combine_pour_tous_les_presets():
+    for name in list_presets():
+        cfg = get_preset(name)
+        fichiers = generate_split_files(cfg)
+        assert "sources.pkr.hcl" in fichiers
+        assert "build.pkr.hcl" in fichiers
+
+
+# --------------------------------------------------------------------------
+# Provisioner ansible
+# --------------------------------------------------------------------------
+
+def test_provisioner_ansible_rendu():
+    cfg = _valid_config("docker")
+    cfg["provisioners"] = [{"type": "ansible", "playbook_file": "site.yml", "user": "deploy"}]
+    text = generate_packer_template(cfg)
+    assert 'provisioner "ansible" {' in text
+    assert 'playbook_file = "site.yml"' in text
+    assert 'user          = "deploy"' in text or "user" in text
+
+
+def test_provisioner_ansible_sans_playbook_rejete():
+    cfg = _valid_config("docker")
+    cfg["provisioners"] = [{"type": "ansible"}]
+    errors = validate_config(cfg)
+    assert any("playbook" in e for e in errors)
+
+
+def test_provisioner_ansible_ajoute_le_plugin_ansible():
+    cfg = _valid_config("docker")
+    cfg["provisioners"] = [{"type": "ansible", "playbook_file": "site.yml"}]
+    text = generate_packer_template(cfg)
+    assert "ansible {" in text
+    assert "github.com/hashicorp/ansible" in text
+
+
+# --------------------------------------------------------------------------
+# Datasources (ex : amazon-ami dynamique)
+# --------------------------------------------------------------------------
+
+def test_datasource_amazon_ami_rendue():
+    cfg = _valid_config("amazon-ebs")
+    cfg["datasources"] = [{
+        "type": "amazon-ami",
+        "name": "ubuntu",
+        "args": {"filters": {"name": "ubuntu/*"}, "owners": ["099720109477"]},
+    }]
+    cfg["args"]["source_ami"] = "=data.amazon-ami.ubuntu.id"
+    text = generate_packer_template(cfg)
+    assert 'data "amazon-ami" "ubuntu" {' in text
+    assert "source_ami" in text and "data.amazon-ami.ubuntu.id" in text
+
+
+def test_datasource_type_inconnu_rejete():
+    cfg = _valid_config("amazon-ebs")
+    cfg["datasources"] = [{"type": "gcp-image", "name": "x", "args": {}}]
+    errors = validate_config(cfg)
+    assert any("type inconnu" in e for e in errors)
+
+
+def test_datasource_sans_filters_rejetee():
+    cfg = _valid_config("amazon-ebs")
+    cfg["datasources"] = [{"type": "amazon-ami", "name": "ubuntu", "args": {}}]
+    errors = validate_config(cfg)
+    assert any("champs manquants" in e for e in errors)
+
+
+def test_datasource_nom_invalide_rejetee():
+    cfg = _valid_config("amazon-ebs")
+    cfg["datasources"] = [{
+        "type": "amazon-ami", "name": "mauvais nom",
+        "args": {"filters": {"name": "x"}},
+    }]
+    errors = validate_config(cfg)
+    assert any("invalide" in e for e in errors)
+
+
+def test_datasource_et_builder_amazon_ne_dupliquent_pas_le_plugin():
+    cfg = _valid_config("amazon-ebs")
+    cfg["datasources"] = [{
+        "type": "amazon-ami", "name": "ubuntu",
+        "args": {"filters": {"name": "x"}},
+    }]
+    text = generate_packer_template(cfg)
+    assert text.count("amazon {") == 1
+
+
+def test_preset_aws_ami_webserver_utilise_la_datasource_dynamique():
+    cfg = get_preset("aws-ami-webserver")
+    assert validate_config(cfg) == []
+    text = generate_packer_template(cfg)
+    assert 'data "amazon-ami" "ubuntu" {' in text
+    assert "data.amazon-ami.ubuntu.id" in text
+
+
+# --------------------------------------------------------------------------
+# HCP Packer Registry (publication des metadonnees de build)
+# --------------------------------------------------------------------------
+
+def test_hcp_registry_rendu_dans_le_bloc_build():
+    cfg = _valid_config("docker")
+    cfg["hcp_registry"] = {"bucket_name": "mon-app", "description": "Une image"}
+    text = generate_packer_template(cfg)
+    assert "hcp_packer_registry {" in text
+    assert 'bucket_name = "mon-app"' in text or "bucket_name" in text
+    assert 'description = "Une image"' in text
+
+
+def test_hcp_registry_sans_bucket_name_rejete():
+    cfg = _valid_config("docker")
+    cfg["hcp_registry"] = {"description": "Une image sans bucket"}
+    errors = validate_config(cfg)
+    assert any("bucket_name" in e for e in errors)
+
+
+def test_hcp_registry_absent_par_defaut():
+    cfg = _valid_config("docker")
+    text = generate_packer_template(cfg)
+    assert "hcp_packer_registry" not in text
+
+
+def test_hcp_registry_avec_labels_rendu():
+    cfg = _valid_config("docker")
+    cfg["hcp_registry"] = {"bucket_name": "mon-app", "bucket_labels": {"team": "platform"}}
+    text = generate_packer_template(cfg)
+    assert "bucket_labels" in text
+    assert 'team = "platform"' in text
+
+
+def test_preset_docker_app_image_publie_vers_hcp_registry():
+    cfg = get_preset("docker-app-image")
+    assert validate_config(cfg) == []
+    text = generate_packer_template(cfg)
+    assert "hcp_packer_registry {" in text

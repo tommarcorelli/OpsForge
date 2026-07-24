@@ -17,6 +17,7 @@ const state = {
   builder: Object.keys(CONFIG.builders)[0] || "",
   args: [],       // [{ key, value }]
   provisioners: [], // [{ type, ... }]
+  datasources: [], // [{ type: "amazon-ami", name, filtersText, owners, mostRecent }]
   postProcessors: [], // [{ type, ...args }] ou "type" simple si pas d'args requis
 };
 
@@ -32,6 +33,12 @@ const el = {
 
   provList: document.getElementById("prov-list"),
 
+  dsList: document.getElementById("ds-list"),
+  addDsBtn: document.getElementById("add-ds-btn"),
+
+  hcpBucketInput: document.getElementById("hcp-bucket-input"),
+  hcpDescInput: document.getElementById("hcp-desc-input"),
+
   ppToggles: document.getElementById("pp-toggles"),
 
   generateBtn: document.getElementById("generate-btn"),
@@ -42,6 +49,7 @@ const el = {
   resultActions: document.getElementById("result-actions"),
   copyBtn: document.getElementById("copy-btn"),
   downloadBtn: document.getElementById("download-btn"),
+  downloadZipBtn: document.getElementById("download-zip-btn"),
 
   imageNode: document.querySelector('.node[data-stage="image"]'),
 
@@ -139,11 +147,26 @@ function fillFormFromConfig(cfg) {
   state.provisioners = (cfg.provisioners || []).map((p) => ({ ...p }));
   renderProvList();
 
+  state.datasources = (cfg.datasources || []).map((ds) => ({
+    type: "amazon-ami",
+    name: ds.name || "",
+    filtersText: Object.entries(ds.args?.filters || {})
+      .map(([k, v]) => `${k}=${v}`)
+      .join("\n"),
+    owners: (ds.args?.owners || []).join(", "),
+    mostRecent: ds.args?.most_recent !== false,
+  }));
+  renderDsList();
+
   const ppList = cfg.post_processors || [];
   state.postProcessors = ppList.map((pp) =>
     typeof pp === "string" ? { type: pp } : { ...pp }
   );
   renderPostProcessorToggles();
+
+  const hcp = cfg.hcp_registry || {};
+  el.hcpBucketInput.value = hcp.bucket_name || "";
+  el.hcpDescInput.value = hcp.description || "";
 
   updateTitleBlock();
 }
@@ -218,11 +241,14 @@ function renderProvList() {
     top.appendChild(removeBtn);
     card.appendChild(top);
 
-    if (prov.type === "shell-inline") {
+    if (prov.type === "shell-inline" || prov.type === "powershell-inline") {
       const area = document.createElement("textarea");
       area.className = "full-input area";
       area.rows = 3;
-      area.placeholder = "une commande par ligne&#10;apt-get update";
+      area.placeholder =
+        prov.type === "powershell-inline"
+          ? "une commande PowerShell par ligne&#10;Install-WindowsFeature -Name Web-Server"
+          : "une commande par ligne&#10;apt-get update";
       area.value = (prov.inline || []).join("\n");
       area.addEventListener("input", () => (prov.inline = splitLines(area.value)));
       card.appendChild(area);
@@ -234,6 +260,25 @@ function renderProvList() {
       pathInput.value = prov.script || "";
       pathInput.addEventListener("input", () => (prov.script = pathInput.value));
       card.appendChild(pathInput);
+    } else if (prov.type === "ansible") {
+      const row = document.createElement("div");
+      row.className = "builder-row";
+
+      const playbookInput = document.createElement("input");
+      playbookInput.type = "text";
+      playbookInput.placeholder = "playbook (ex : playbooks/site.yml)";
+      playbookInput.value = prov.playbook_file || "";
+      playbookInput.addEventListener("input", () => (prov.playbook_file = playbookInput.value));
+
+      const userInput = document.createElement("input");
+      userInput.type = "text";
+      userInput.placeholder = "user SSH distant (optionnel)";
+      userInput.value = prov.user || "";
+      userInput.addEventListener("input", () => (prov.user = userInput.value));
+
+      row.appendChild(playbookInput);
+      row.appendChild(userInput);
+      card.appendChild(row);
     } else if (prov.type === "file") {
       const row = document.createElement("div");
       row.className = "builder-row";
@@ -263,6 +308,8 @@ document.querySelectorAll("[data-add-prov]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const type = btn.dataset.addProv;
     if (type === "shell-inline") state.provisioners.push({ type, inline: [] });
+    else if (type === "powershell-inline") state.provisioners.push({ type, inline: [] });
+    else if (type === "ansible") state.provisioners.push({ type, playbook_file: "", user: "" });
     else if (type === "shell-script") state.provisioners.push({ type, script: "" });
     else if (type === "file") state.provisioners.push({ type, source: "", destination: "" });
     renderProvList();
@@ -279,6 +326,89 @@ function makeRemoveBtn(onClick) {
   btn.addEventListener("click", onClick);
   return btn;
 }
+
+// ----------------------------------------------------------------------------
+// Datasources (amazon-ami : recherche dynamique par filtres)
+// ----------------------------------------------------------------------------
+function parseKeyEqualsValue(raw) {
+  const out = {};
+  splitLines(raw).forEach((line) => {
+    const idx = line.indexOf("=");
+    if (idx === -1) return;
+    const key = line.slice(0, idx).trim();
+    const value = line.slice(idx + 1).trim();
+    if (key) out[key] = value;
+  });
+  return out;
+}
+
+function renderDsList() {
+  el.dsList.innerHTML = "";
+  state.datasources.forEach((ds, index) => {
+    const card = document.createElement("div");
+    card.className = "builder-card";
+
+    const top = document.createElement("div");
+    top.className = "builder-row";
+
+    const badge = document.createElement("span");
+    badge.className = "prov-type-badge";
+    badge.textContent = "amazon-ami";
+
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.placeholder = "nom (ex : ubuntu)";
+    nameInput.value = ds.name || "";
+    nameInput.addEventListener("input", () => (ds.name = nameInput.value));
+
+    const removeBtn = makeRemoveBtn(() => {
+      state.datasources.splice(index, 1);
+      renderDsList();
+    });
+
+    top.appendChild(badge);
+    top.appendChild(nameInput);
+    top.appendChild(removeBtn);
+    card.appendChild(top);
+
+    const filtersArea = document.createElement("textarea");
+    filtersArea.className = "full-input area";
+    filtersArea.rows = 2;
+    filtersArea.placeholder = "filtres, une paire clé=valeur par ligne&#10;name=ubuntu/images/*ubuntu-jammy-*";
+    filtersArea.value = ds.filtersText || "";
+    filtersArea.addEventListener("input", () => (ds.filtersText = filtersArea.value));
+    card.appendChild(filtersArea);
+
+    const bottomRow = document.createElement("div");
+    bottomRow.className = "builder-row";
+
+    const ownersInput = document.createElement("input");
+    ownersInput.type = "text";
+    ownersInput.placeholder = "owners, séparés par des virgules (ex : 099720109477)";
+    ownersInput.value = ds.owners || "";
+    ownersInput.addEventListener("input", () => (ds.owners = ownersInput.value));
+
+    const mostRecentLabel = document.createElement("label");
+    mostRecentLabel.className = "inline-check";
+    const mostRecentInput = document.createElement("input");
+    mostRecentInput.type = "checkbox";
+    mostRecentInput.checked = ds.mostRecent !== false;
+    mostRecentInput.addEventListener("change", () => (ds.mostRecent = mostRecentInput.checked));
+    mostRecentLabel.appendChild(mostRecentInput);
+    mostRecentLabel.appendChild(document.createTextNode("most_recent"));
+
+    bottomRow.appendChild(ownersInput);
+    bottomRow.appendChild(mostRecentLabel);
+    card.appendChild(bottomRow);
+
+    el.dsList.appendChild(card);
+  });
+}
+
+el.addDsBtn.addEventListener("click", () => {
+  state.datasources.push({ type: "amazon-ami", name: "", filtersText: "", owners: "", mostRecent: true });
+  renderDsList();
+});
 
 // ----------------------------------------------------------------------------
 // Post-processors (toggles dependants du builder)
@@ -371,13 +501,31 @@ function buildPayload() {
     builder: state.builder,
     name: el.nameInput.value.trim(),
     args,
+    datasources: state.datasources
+      .filter((ds) => (ds.name || "").trim())
+      .map((ds) => ({
+        type: "amazon-ami",
+        name: ds.name.trim(),
+        args: {
+          filters: parseKeyEqualsValue(ds.filtersText),
+          owners: (ds.owners || "").split(",").map((s) => s.trim()).filter(Boolean),
+          most_recent: ds.mostRecent !== false,
+        },
+      })),
     provisioners: state.provisioners.filter((p) => {
-      if (p.type === "shell-inline") return (p.inline || []).length;
+      if (p.type === "shell-inline" || p.type === "powershell-inline") return (p.inline || []).length;
       if (p.type === "shell-script") return (p.script || "").trim();
+      if (p.type === "ansible") return (p.playbook_file || "").trim();
       if (p.type === "file") return (p.source || "").trim() && (p.destination || "").trim();
       return false;
     }),
     post_processors: state.postProcessors,
+    hcp_registry: el.hcpBucketInput.value.trim()
+      ? {
+          bucket_name: el.hcpBucketInput.value.trim(),
+          description: el.hcpDescInput.value.trim() || undefined,
+        }
+      : null,
   };
 }
 
@@ -520,6 +668,45 @@ function handleDownload() {
   URL.revokeObjectURL(url);
 }
 
+async function handleDownloadZip() {
+  const frontError = frontValidate();
+  if (frontError) {
+    showError(frontError);
+    return;
+  }
+
+  const payload = buildPayload();
+  el.downloadZipBtn.disabled = true;
+
+  try {
+    const res = await fetch("/packer/api/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error || "Erreur lors de la génération du projet.");
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "packer-project.zip";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    showError("Impossible de contacter le serveur local.");
+  } finally {
+    el.downloadZipBtn.disabled = false;
+  }
+}
+
 // ----------------------------------------------------------------------------
 // Reset
 // ----------------------------------------------------------------------------
@@ -527,10 +714,15 @@ function handleReset() {
   el.nameInput.value = "";
   state.args = [];
   state.provisioners = [];
+  state.datasources = [];
   state.postProcessors = [];
   renderArgsList();
   renderProvList();
+  renderDsList();
   renderPostProcessorToggles();
+
+  el.hcpBucketInput.value = "";
+  el.hcpDescInput.value = "";
 
   document.querySelectorAll(".preset-chip").forEach((c) => c.classList.remove("active"));
   resetResultBox();
@@ -559,6 +751,7 @@ el.generateBtn.addEventListener("click", handleGenerate);
 el.resetBtn.addEventListener("click", handleReset);
 el.copyBtn.addEventListener("click", handleCopy);
 el.downloadBtn.addEventListener("click", handleDownload);
+el.downloadZipBtn.addEventListener("click", handleDownloadZip);
 el.nameInput.addEventListener("input", updateTitleBlock);
 
 renderBuilderSelect();
@@ -566,5 +759,6 @@ renderBuilderHint();
 renderPresetList();
 renderArgsList();
 renderProvList();
+renderDsList();
 renderPostProcessorToggles();
 updateTitleBlock();

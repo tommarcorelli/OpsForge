@@ -7,7 +7,6 @@ Blueprint Flask du module Nginx (monte sous /nginx).
 from flask import Blueprint, render_template, request, jsonify
 
 from modules.nginx.core import (
-    generate_config,
     generate,
     list_presets,
     get_preset,

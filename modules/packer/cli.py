@@ -12,7 +12,9 @@ import sys
 
 from modules.packer.core import (
     generate_packer_template,
+    generate_split_files,
     write_files,
+    write_split_files,
     list_presets,
     get_preset,
     list_builders,
@@ -67,6 +69,14 @@ def build_parser():
         action="store_true",
         help="Affiche le template genere sans rien ecrire sur disque.",
     )
+    parser.add_argument(
+        "--split",
+        action="store_true",
+        help=(
+            "Ecrit un projet en fichiers separes (variables.pkr.hcl, "
+            "sources.pkr.hcl, build.pkr.hcl) plutot qu'un seul build.pkr.hcl."
+        ),
+    )
     return parser
 
 
@@ -112,19 +122,27 @@ def main(argv=None):
 
     if args.dry_run:
         try:
-            content = generate_packer_template(config)
+            if args.split:
+                fichiers = generate_split_files(config)
+            else:
+                content = generate_packer_template(config)
         except ValueError as e:
             print(f"Erreur : {e}")
             return 1
         print("\n--- Apercu (dry-run) ---\n")
-        print(content)
+        if args.split:
+            for nom, contenu in fichiers.items():
+                print(f"# --- {nom} ---")
+                print(contenu)
+        else:
+            print(content)
         print("--- Fin de l'apercu : rien n'a ete ecrit sur disque ---")
         return 0
 
     output_dir = args.output_dir or OUTPUT_DIR
 
     try:
-        paths = write_files(config, output_dir)
+        paths = write_split_files(config, output_dir) if args.split else write_files(config, output_dir)
     except ValueError as e:
         print(f"Erreur : {e}")
         return 1
@@ -132,8 +150,13 @@ def main(argv=None):
     print("\nTemplate Packer genere avec succes :")
     for path in paths:
         print(f"  - {path}")
-    print(
-        "\nUtilisation : `packer init " + os.path.basename(paths[0]) + "` puis "
-        f"`packer build {os.path.basename(paths[0])}`."
-    )
+    if args.split:
+        print(
+            f"\nUtilisation : `packer init {output_dir}` puis `packer build {output_dir}`."
+        )
+    else:
+        print(
+            "\nUtilisation : `packer init " + os.path.basename(paths[0]) + "` puis "
+            f"`packer build {os.path.basename(paths[0])}`."
+        )
     return 0

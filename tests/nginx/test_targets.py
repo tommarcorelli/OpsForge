@@ -133,7 +133,7 @@ def test_traefik_static_non_supporte():
 def test_traefik_reverse_proxy_yaml_valide():
     conf = generate_traefik(_proxy_cfg())
     # Le contenu apres l'en-tete de commentaires doit etre du YAML valide.
-    yaml_part = "\n".join(l for l in conf.split("\n") if not l.startswith("#"))
+    yaml_part = "\n".join(line for line in conf.split("\n") if not line.startswith("#"))
     doc = yaml.safe_load(yaml_part)
     assert "http" in doc
     router = list(doc["http"]["routers"].values())[0]
@@ -144,7 +144,7 @@ def test_traefik_reverse_proxy_yaml_valide():
 
 def test_traefik_load_balancer_plusieurs_serveurs():
     conf = generate_traefik(_lb_cfg())
-    yaml_part = "\n".join(l for l in conf.split("\n") if not l.startswith("#"))
+    yaml_part = "\n".join(line for line in conf.split("\n") if not line.startswith("#"))
     doc = yaml.safe_load(yaml_part)
     service = list(doc["http"]["services"].values())[0]
     urls = [s["url"] for s in service["loadBalancer"]["servers"]]
@@ -153,7 +153,7 @@ def test_traefik_load_balancer_plusieurs_serveurs():
 
 def test_traefik_ip_hash_devient_sticky_cookie():
     conf = generate_traefik(_lb_cfg(lb_algorithm="ip_hash"))
-    yaml_part = "\n".join(l for l in conf.split("\n") if not l.startswith("#"))
+    yaml_part = "\n".join(line for line in conf.split("\n") if not line.startswith("#"))
     doc = yaml.safe_load(yaml_part)
     service = list(doc["http"]["services"].values())[0]
     assert "sticky" in service["loadBalancer"]
@@ -168,7 +168,7 @@ def test_traefik_least_conn_note_dans_len_tete():
 
 def test_traefik_https_entrypoint_et_tls():
     conf = generate_traefik(_proxy_cfg(https=True))
-    yaml_part = "\n".join(l for l in conf.split("\n") if not l.startswith("#"))
+    yaml_part = "\n".join(line for line in conf.split("\n") if not line.startswith("#"))
     doc = yaml.safe_load(yaml_part)
     router = list(doc["http"]["routers"].values())[0]
     assert router["entryPoints"] == ["websecure"]
@@ -177,7 +177,7 @@ def test_traefik_https_entrypoint_et_tls():
 
 def test_traefik_sans_https_entrypoint_web():
     conf = generate_traefik(_proxy_cfg(https=False))
-    yaml_part = "\n".join(l for l in conf.split("\n") if not l.startswith("#"))
+    yaml_part = "\n".join(line for line in conf.split("\n") if not line.startswith("#"))
     doc = yaml.safe_load(yaml_part)
     router = list(doc["http"]["routers"].values())[0]
     assert router["entryPoints"] == ["web"]

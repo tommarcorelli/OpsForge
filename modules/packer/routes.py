@@ -4,10 +4,14 @@ modules/packer/routes.py
 Blueprint Flask du module Packer (monte sous /packer).
 """
 
-from flask import Blueprint, render_template, request, jsonify
+import io
+import zipfile
+
+from flask import Blueprint, render_template, request, jsonify, send_file
 
 from modules.packer.core import (
     generate_packer_template,
+    generate_split_files,
     list_presets,
     get_preset,
     list_builders,
@@ -75,3 +79,28 @@ def api_generate():
         "combined": content,
         "filename": OUTPUT_FILENAME,
     })
+
+
+@bp.route("/api/download", methods=["POST"])
+def api_download():
+    """Regenere puis renvoie un .zip du projet Packer en fichiers separes
+    (sources.pkr.hcl, build.pkr.hcl, et variables.pkr.hcl s'il y a des variables)."""
+    config = request.get_json(force=True) or {}
+
+    try:
+        fichiers = generate_split_files(config)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for nom, contenu in fichiers.items():
+            zf.writestr(nom, contenu)
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name="packer-project.zip",
+    )

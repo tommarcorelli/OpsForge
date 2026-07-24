@@ -21,6 +21,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="{{ url_for('static', filename='cicd/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
 </head>
 <body>
 
@@ -32,7 +33,8 @@
       <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
       <span class="txt">OpsForge <span class="sub">· CI/CD</span></span>
     </a>
-    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair" style="margin-left:auto">
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-circle-info"></i> Guide d'utilisation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
       <span id="theme-icon">🌙</span>
     </button>
     <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
@@ -256,5 +258,37 @@
 
   <script src="{{ url_for('static', filename='theme.js') }}"></script>
   <script src="{{ url_for('static', filename='cicd/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "GitHub Actions",
+    icon: "fa-brands fa-github",
+    intro: "Le fichier généré est un workflow <b>GitHub Actions</b>. Aucune installation n'est nécessaire : GitHub l'exécute automatiquement dès qu'il est présent dans le dépôt, au bon endroit.",
+    os: [
+      { id: "placer", label: "Placer le fichier", icon: "fa-solid fa-folder-tree", color: "#24292F", steps: [
+        { title: "Créer le dossier workflows", cmd: "mkdir -p .github/workflows" },
+        { title: "Y déposer le fichier généré", cmd: "mv ci.yml .github/workflows/ci.yml" },
+        { title: "Commit et push", cmd: "git add .github/workflows/ci.yml\ngit commit -m \"ci: ajoute le pipeline\"\ngit push" },
+      ]},
+      { id: "secrets", label: "Secrets à configurer", icon: "fa-solid fa-key", color: "#B45309", steps: [
+        { title: "Où les ajouter", cmd: "Settings → Secrets and variables → Actions → New repository secret", note: "Uniquement si un job de déploiement est activé (docker_hub, ssh, aws_s3, vercel...)." },
+        { title: "Docker Hub", cmd: "DOCKERHUB_USERNAME\nDOCKERHUB_TOKEN" },
+        { title: "SSH", cmd: "SSH_HOST\nSSH_USER\nSSH_PRIVATE_KEY" },
+        { title: "AWS S3", cmd: "AWS_ACCESS_KEY_ID\nAWS_SECRET_ACCESS_KEY" },
+        { title: "Vercel", cmd: "VERCEL_TOKEN\nVERCEL_ORG_ID\nVERCEL_PROJECT_ID" },
+        { title: "GitHub Pages", cmd: "Aucun secret : GITHUB_TOKEN est fourni automatiquement.", note: "Active aussi Pages dans Settings → Pages → Source : GitHub Actions." },
+      ]},
+      { id: "declenchement", label: "Déclenchement", icon: "fa-solid fa-bolt", color: "#2563EB", steps: [
+        { title: "Suivre l'exécution", cmd: "Onglet \"Actions\" du dépôt GitHub", note: "Le pipeline se lance automatiquement au push, selon le déclencheur choisi dans le formulaire." },
+        { title: "Lancer manuellement (si workflow_dispatch actif)", cmd: "gh workflow run ci.yml", note: "Nécessite GitHub CLI (`gh`)." },
+      ]},
+      { id: "badge", label: "Badge README", icon: "fa-solid fa-shield-halved", color: "#16a34a", steps: [
+        { title: "Copier le badge généré", cmd: "Voir le bouton \"Copier le badge\" une fois le pipeline généré", note: "Colle-le en haut de ton README.md pour afficher le statut du dernier run." },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
 </body>
 </html>
