@@ -91,6 +91,24 @@ function addResource() {
   renderResources();
 }
 
+// ----------------------------------------------------------------------------
+// CloudFormation est un moteur de sortie a part (YAML, AWS uniquement) :
+// pas de bloc provider ni de backend distant, "Variables" devient
+// "Parametres", un seul fichier template.yaml (pas de .zip).
+// ----------------------------------------------------------------------------
+function updateProviderModeUI() {
+  const isCfn = $("provider").value === "cloudformation";
+
+  $("provider-config-field").hidden = isCfn;
+  $("backend-field").hidden = isCfn;
+  $("cfn-hint").hidden = !isCfn;
+  $("variables-label").textContent = isCfn ? "Paramètres (JSON)" : "Variables (JSON)";
+  $("generate-btn-label").textContent = isCfn ? "Générer template.yaml" : "Générer main.tf";
+  $("download-btn-label").textContent = isCfn ? "Télécharger template.yaml" : "Télécharger .zip";
+  $("zip-hint").hidden = isCfn;
+  $("result-filename").textContent = isCfn ? "template.yaml" : "main.tf";
+}
+
 function parseJSONField(id, label, arrayMode) {
   const raw = ($(id).value || "").trim();
   if (!raw) return arrayMode ? [] : {};
@@ -154,6 +172,7 @@ async function generer() {
   if (!res.ok) return show("error", data.error || "Erreur de génération.");
 
   $("output").textContent = data.terraform;
+  $("result-filename").textContent = data.filename || "main.tf";
   $("copy-btn").hidden = false;
   if (data.avertissements && data.avertissements.length) {
     show("warn", "⚠ " + data.avertissements.join(" · "));
@@ -189,7 +208,7 @@ async function telechargerZip() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "terraform-project.zip";
+  a.download = $("provider").value === "cloudformation" ? "template.yaml" : "terraform-project.zip";
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -213,6 +232,7 @@ async function loadPreset(nom) {
   $("variables").value = cfg.variables ? JSON.stringify(cfg.variables, null, 2) : "";
   $("outputs").value = cfg.outputs ? JSON.stringify(cfg.outputs, null, 2) : "";
   $("backend").value = cfg.backend ? JSON.stringify(cfg.backend, null, 2) : "";
+  updateProviderModeUI();
   renderResources();
 }
 
@@ -220,7 +240,10 @@ async function loadPreset(nom) {
 $("add-resource-btn").addEventListener("click", addResource);
 $("generate-btn").addEventListener("click", generer);
 $("download-zip-btn").addEventListener("click", telechargerZip);
-$("provider").addEventListener("change", renderResources);
+$("provider").addEventListener("change", () => {
+  updateProviderModeUI();
+  renderResources();
+});
 $("preset-select").addEventListener("change", (e) => loadPreset(e.target.value));
 $("copy-btn").addEventListener("click", async () => {
   try {
@@ -231,4 +254,5 @@ $("copy-btn").addEventListener("click", async () => {
 });
 
 // Une ressource d'exemple au démarrage
+updateProviderModeUI();
 addResource();

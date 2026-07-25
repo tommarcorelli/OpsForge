@@ -45,14 +45,37 @@ const el = {
   s3Bucket: document.getElementById("s3-bucket"),
   awsRegion: document.getElementById("aws-region"),
   badgeRepo: document.getElementById("badge-repo"),
+  badgeRepoLabel: document.getElementById("badge-repo-label"),
+  badgeRepoHint: document.getElementById("badge-repo-hint"),
   badgeBox: document.getElementById("badge-box"),
   badgeText: document.getElementById("badge-text"),
   copyBadgeBtn: document.getElementById("copy-badge-btn"),
+  pagesToggleLabel: document.getElementById("pages-toggle-label"),
 };
 
 // ----------------------------------------------------------------------------
-// Selecteur de provider (GitHub Actions / GitLab CI)
+// Selecteur de provider (GitHub Actions / GitLab CI / CircleCI / Jenkins / Drone)
 // ----------------------------------------------------------------------------
+const PROVIDERS_WITHOUT_NATIVE_PAGES = new Set(["circleci", "jenkins", "drone"]);
+
+const SECRETS_LABEL_BY_PROVIDER = {
+  github: "secrets GitHub",
+  gitlab: "variables CI/CD GitLab",
+  circleci: "variables d'environnement CircleCI",
+  jenkins: "credentials Jenkins",
+  drone: "secrets Drone",
+};
+
+const BADGE_HINT_BY_PROVIDER = {
+  jenkins: "Format spécial pour Jenkins : url_jenkins,nom_du_job (ex : https://ci.exemple.com,mon-projet).",
+  default: "Génère un snippet Markdown à coller dans ton README, en plus du pipeline.",
+};
+
+const BADGE_PLACEHOLDER_BY_PROVIDER = {
+  jenkins: "https://ci.exemple.com,mon-projet",
+  default: "monuser/monrepo",
+};
+
 function switchProvider(provider) {
   state.provider = provider;
 
@@ -60,23 +83,61 @@ function switchProvider(provider) {
     btn.classList.toggle("active", btn.dataset.provider === provider);
   });
 
-  if (provider === "gitlab") {
+  const secretsLabel = SECRETS_LABEL_BY_PROVIDER[provider] || SECRETS_LABEL_BY_PROVIDER.github;
+  el.dockerHint.textContent = `Nécessite les ${secretsLabel} : DOCKERHUB_USERNAME, DOCKERHUB_TOKEN`;
+  el.sshHint.textContent = `Nécessite les ${secretsLabel} : SSH_HOST, SSH_USER, SSH_PRIVATE_KEY`;
+
+  const noPages = PROVIDERS_WITHOUT_NATIVE_PAGES.has(provider);
+  if (el.pagesToggleLabel) el.pagesToggleLabel.hidden = noPages;
+  if (noPages) {
+    el.deployPagesCheckbox.checked = false;
+  } else if (provider === "gitlab") {
     el.deployPagesCheckbox.value = "gitlab_pages";
     el.deployPagesLabel.textContent = "GitLab Pages";
     el.pagesHint.textContent = "GitLab Pages nécessite une stack Node dans ta sélection ci-dessus.";
-    el.dockerHint.textContent = "Nécessite les variables CI/CD GitLab : DOCKERHUB_USERNAME, DOCKERHUB_TOKEN";
-    el.sshHint.textContent = "Nécessite les variables CI/CD GitLab : SSH_HOST, SSH_USER, SSH_PRIVATE_KEY";
   } else {
     el.deployPagesCheckbox.value = "github_pages";
     el.deployPagesLabel.textContent = "GitHub Pages";
     el.pagesHint.textContent = "GitHub Pages nécessite une stack Node dans ta sélection ci-dessus.";
-    el.dockerHint.textContent = "Nécessite les secrets GitHub : DOCKERHUB_USERNAME, DOCKERHUB_TOKEN";
-    el.sshHint.textContent = "Nécessite les secrets GitHub : SSH_HOST, SSH_USER, SSH_PRIVATE_KEY";
   }
 
-  // Reinitialise le resultat affiche : un playbook GitHub n'a pas de sens
-  // une fois qu'on a bascule sur GitLab, et vice versa.
+  if (el.badgeRepo) {
+    el.badgeRepo.placeholder = BADGE_PLACEHOLDER_BY_PROVIDER[provider] || BADGE_PLACEHOLDER_BY_PROVIDER.default;
+  }
+  if (el.badgeRepoHint) {
+    el.badgeRepoHint.textContent = BADGE_HINT_BY_PROVIDER[provider] || BADGE_HINT_BY_PROVIDER.default;
+  }
+
+  rebuildInstallGuide(provider);
+  updateDeployFieldsVisibility();
+
+  // Reinitialise le resultat affiche : un fichier genere pour un autre
+  // provider n'a pas de sens une fois qu'on a bascule.
   resetResultBox("Le fichier généré apparaîtra ici.");
+}
+
+// ----------------------------------------------------------------------------
+// Guide d'installation : reconstruit la modale avec le contenu du provider
+// actif (window.INSTALL_GUIDES, defini dans cicd.html).
+// ----------------------------------------------------------------------------
+function rebuildInstallGuide(provider) {
+  if (!window.INSTALL_GUIDES || !window.OpsForgeInstallGuide) return;
+  const guide = window.INSTALL_GUIDES[provider];
+  if (!guide) return;
+  window.INSTALL_GUIDE = guide;
+
+  const oldOverlay = document.getElementById("ig-overlay");
+  if (oldOverlay) oldOverlay.remove();
+
+  // Remplace le bouton par un clone pour repartir sans les anciens
+  // listeners de clic (init() en rajoute un a chaque appel).
+  const oldBtn = document.getElementById("guide-install-btn");
+  if (oldBtn) {
+    const freshBtn = oldBtn.cloneNode(true);
+    oldBtn.replaceWith(freshBtn);
+  }
+
+  window.OpsForgeInstallGuide.init("guide-install-btn");
 }
 
 // ----------------------------------------------------------------------------

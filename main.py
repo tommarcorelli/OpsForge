@@ -64,7 +64,7 @@ MODULES = {
 def _usage():
     print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer} [options]")
     print()
-    print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI)")
+    print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI / CircleCI / Jenkins / Drone)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
     print("  vagrant    Genere un Vagrantfile multi-VM")
     print("  terraform  Genere un main.tf (v0, a enrichir)")

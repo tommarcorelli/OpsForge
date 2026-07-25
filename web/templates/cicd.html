@@ -59,8 +59,11 @@
     <section class="panel form-panel">
 
       <div class="provider-switch">
-        <button type="button" class="provider-btn active" data-provider="github">GitHub Actions</button>
-        <button type="button" class="provider-btn" data-provider="gitlab">GitLab CI</button>
+        <button type="button" class="provider-btn active" data-provider="github">GitHub</button>
+        <button type="button" class="provider-btn" data-provider="gitlab">GitLab</button>
+        <button type="button" class="provider-btn" data-provider="circleci">CircleCI</button>
+        <button type="button" class="provider-btn" data-provider="jenkins">Jenkins</button>
+        <button type="button" class="provider-btn" data-provider="drone">Drone</button>
       </div>
 
       <div class="field-group">
@@ -112,7 +115,7 @@
       <div class="field-group">
         <label class="field-label" for="schedule-cron">Déclenchement planifié — cron (optionnel)</label>
         <input type="text" id="schedule-cron" class="text-input" placeholder="ex : 0 3 * * * (tous les jours à 3h)" />
-        <p class="field-hint" id="cron-hint">Format cron standard. Sur GitLab, une note d'instructions sera ajoutée (à configurer via l'UI).</p>
+        <p class="field-hint" id="cron-hint">Format cron standard. Sur GitLab et Drone, une note d'instructions sera ajoutée (à configurer via l'UI/CLI).</p>
       </div>
 
       <hr class="section-divider" />
@@ -120,7 +123,7 @@
       <div class="field-group">
         <label class="field-label" data-step="5">Déploiement (optionnel)</label>
         <div class="jobs-toggles" style="margin-bottom: 14px;">
-          <label class="toggle">
+          <label class="toggle" id="pages-toggle-label">
             <input type="checkbox" name="deploy" value="github_pages" id="deploy-pages-checkbox" />
             <span id="deploy-pages-label">GitHub Pages</span>
           </label>
@@ -180,9 +183,9 @@
       <hr class="section-divider" />
 
       <div class="field-group">
-        <label class="field-label" for="badge-repo">Badge de statut pour ton README (optionnel)</label>
+        <label class="field-label" for="badge-repo" id="badge-repo-label">Badge de statut pour ton README (optionnel)</label>
         <input type="text" id="badge-repo" class="text-input" placeholder="monuser/monrepo" />
-        <p class="field-hint">Génère un snippet Markdown à coller dans ton README, en plus du pipeline.</p>
+        <p class="field-hint" id="badge-repo-hint">Génère un snippet Markdown à coller dans ton README, en plus du pipeline.</p>
       </div>
 
       <div style="display: flex; gap: 8px; margin-top: 8px;">
@@ -260,33 +263,142 @@
   <script src="{{ url_for('static', filename='cicd/script.js') }}"></script>
 
   <script>
-  window.INSTALL_GUIDE = {
-    tool: "GitHub Actions",
-    icon: "fa-brands fa-github",
-    intro: "Le fichier généré est un workflow <b>GitHub Actions</b>. Aucune installation n'est nécessaire : GitHub l'exécute automatiquement dès qu'il est présent dans le dépôt, au bon endroit.",
-    os: [
-      { id: "placer", label: "Placer le fichier", icon: "fa-solid fa-folder-tree", color: "#24292F", steps: [
-        { title: "Créer le dossier workflows", cmd: "mkdir -p .github/workflows" },
-        { title: "Y déposer le fichier généré", cmd: "mv ci.yml .github/workflows/ci.yml" },
-        { title: "Commit et push", cmd: "git add .github/workflows/ci.yml\ngit commit -m \"ci: ajoute le pipeline\"\ngit push" },
-      ]},
-      { id: "secrets", label: "Secrets à configurer", icon: "fa-solid fa-key", color: "#B45309", steps: [
-        { title: "Où les ajouter", cmd: "Settings → Secrets and variables → Actions → New repository secret", note: "Uniquement si un job de déploiement est activé (docker_hub, ssh, aws_s3, vercel...)." },
-        { title: "Docker Hub", cmd: "DOCKERHUB_USERNAME\nDOCKERHUB_TOKEN" },
-        { title: "SSH", cmd: "SSH_HOST\nSSH_USER\nSSH_PRIVATE_KEY" },
-        { title: "AWS S3", cmd: "AWS_ACCESS_KEY_ID\nAWS_SECRET_ACCESS_KEY" },
-        { title: "Vercel", cmd: "VERCEL_TOKEN\nVERCEL_ORG_ID\nVERCEL_PROJECT_ID" },
-        { title: "GitHub Pages", cmd: "Aucun secret : GITHUB_TOKEN est fourni automatiquement.", note: "Active aussi Pages dans Settings → Pages → Source : GitHub Actions." },
-      ]},
-      { id: "declenchement", label: "Déclenchement", icon: "fa-solid fa-bolt", color: "#2563EB", steps: [
-        { title: "Suivre l'exécution", cmd: "Onglet \"Actions\" du dépôt GitHub", note: "Le pipeline se lance automatiquement au push, selon le déclencheur choisi dans le formulaire." },
-        { title: "Lancer manuellement (si workflow_dispatch actif)", cmd: "gh workflow run ci.yml", note: "Nécessite GitHub CLI (`gh`)." },
-      ]},
-      { id: "badge", label: "Badge README", icon: "fa-solid fa-shield-halved", color: "#16a34a", steps: [
-        { title: "Copier le badge généré", cmd: "Voir le bouton \"Copier le badge\" une fois le pipeline généré", note: "Colle-le en haut de ton README.md pour afficher le statut du dernier run." },
-      ]},
-    ],
+  window.INSTALL_GUIDES = {
+    github: {
+      tool: "GitHub Actions",
+      icon: "fa-brands fa-github",
+      intro: "Le fichier généré est un workflow <b>GitHub Actions</b>. Aucune installation n'est nécessaire : GitHub l'exécute automatiquement dès qu'il est présent dans le dépôt, au bon endroit.",
+      os: [
+        { id: "placer", label: "Placer le fichier", icon: "fa-solid fa-folder-tree", color: "#24292F", steps: [
+          { title: "Créer le dossier workflows", cmd: "mkdir -p .github/workflows" },
+          { title: "Y déposer le fichier généré", cmd: "mv ci.yml .github/workflows/ci.yml" },
+          { title: "Commit et push", cmd: "git add .github/workflows/ci.yml\ngit commit -m \"ci: ajoute le pipeline\"\ngit push" },
+        ]},
+        { id: "secrets", label: "Secrets à configurer", icon: "fa-solid fa-key", color: "#B45309", steps: [
+          { title: "Où les ajouter", cmd: "Settings → Secrets and variables → Actions → New repository secret", note: "Uniquement si un job de déploiement est activé (docker_hub, ssh, aws_s3, vercel...)." },
+          { title: "Docker Hub", cmd: "DOCKERHUB_USERNAME\nDOCKERHUB_TOKEN" },
+          { title: "SSH", cmd: "SSH_HOST\nSSH_USER\nSSH_PRIVATE_KEY" },
+          { title: "AWS S3", cmd: "AWS_ACCESS_KEY_ID\nAWS_SECRET_ACCESS_KEY" },
+          { title: "Vercel", cmd: "VERCEL_TOKEN\nVERCEL_ORG_ID\nVERCEL_PROJECT_ID" },
+          { title: "GitHub Pages", cmd: "Aucun secret : GITHUB_TOKEN est fourni automatiquement.", note: "Active aussi Pages dans Settings → Pages → Source : GitHub Actions." },
+        ]},
+        { id: "declenchement", label: "Déclenchement", icon: "fa-solid fa-bolt", color: "#2563EB", steps: [
+          { title: "Suivre l'exécution", cmd: "Onglet \"Actions\" du dépôt GitHub", note: "Le pipeline se lance automatiquement au push, selon le déclencheur choisi dans le formulaire." },
+          { title: "Lancer manuellement (si workflow_dispatch actif)", cmd: "gh workflow run ci.yml", note: "Nécessite GitHub CLI (`gh`)." },
+        ]},
+        { id: "badge", label: "Badge README", icon: "fa-solid fa-shield-halved", color: "#16a34a", steps: [
+          { title: "Copier le badge généré", cmd: "Voir le bouton \"Copier le badge\" une fois le pipeline généré", note: "Colle-le en haut de ton README.md pour afficher le statut du dernier run." },
+        ]},
+      ],
+    },
+    gitlab: {
+      tool: "GitLab CI",
+      icon: "fa-brands fa-gitlab",
+      intro: "Le fichier généré est un pipeline <b>GitLab CI</b>. GitLab l'exécute automatiquement dès qu'il est présent à la racine du dépôt sous le nom exact <code>.gitlab-ci.yml</code>.",
+      os: [
+        { id: "placer", label: "Placer le fichier", icon: "fa-solid fa-folder-tree", color: "#FC6D26", steps: [
+          { title: "Déposer le fichier à la racine", cmd: "mv config.yml .gitlab-ci.yml" },
+          { title: "Commit et push", cmd: "git add .gitlab-ci.yml\ngit commit -m \"ci: ajoute le pipeline\"\ngit push" },
+        ]},
+        { id: "secrets", label: "Variables à configurer", icon: "fa-solid fa-key", color: "#B45309", steps: [
+          { title: "Où les ajouter", cmd: "Settings → CI/CD → Variables → Add variable", note: "Uniquement si un job de déploiement est activé (docker_hub, ssh, aws_s3, vercel...)." },
+          { title: "Docker Hub", cmd: "DOCKERHUB_USERNAME\nDOCKERHUB_TOKEN" },
+          { title: "SSH", cmd: "SSH_HOST\nSSH_USER\nSSH_PRIVATE_KEY" },
+          { title: "AWS S3", cmd: "AWS_ACCESS_KEY_ID\nAWS_SECRET_ACCESS_KEY" },
+          { title: "Vercel", cmd: "VERCEL_TOKEN" },
+          { title: "GitLab Pages", cmd: "Aucune variable requise.", note: "Le job doit s'appeler exactement 'pages' (déjà le cas dans le fichier généré)." },
+        ]},
+        { id: "declenchement", label: "Déclenchement", icon: "fa-solid fa-bolt", color: "#2563EB", steps: [
+          { title: "Suivre l'exécution", cmd: "Onglet \"CI/CD → Pipelines\" du projet GitLab", note: "Le pipeline se lance automatiquement au push." },
+          { title: "Planifier un run (cron)", cmd: "Settings → CI/CD → Schedules → New schedule", note: "GitLab ne permet pas de définir un déclenchement planifié directement dans le YAML : une note avec l'expression cron choisie a été ajoutée en tête du fichier généré." },
+        ]},
+        { id: "badge", label: "Badge README", icon: "fa-solid fa-shield-halved", color: "#16a34a", steps: [
+          { title: "Copier le badge généré", cmd: "Voir le bouton \"Copier le badge\" une fois le pipeline généré", note: "Colle-le en haut de ton README.md pour afficher le statut du dernier run." },
+        ]},
+      ],
+    },
+    circleci: {
+      tool: "CircleCI",
+      icon: "fa-brands fa-circleci",
+      intro: "Le fichier généré est une config <b>CircleCI</b> (version 2.1). Il doit être placé à un emplacement précis dans le dépôt, puis le projet doit être activé une fois sur le dashboard CircleCI.",
+      os: [
+        { id: "placer", label: "Placer le fichier", icon: "fa-solid fa-folder-tree", color: "#343434", steps: [
+          { title: "Créer le dossier .circleci", cmd: "mkdir -p .circleci" },
+          { title: "Y déposer le fichier généré", cmd: "mv config.yml .circleci/config.yml" },
+          { title: "Commit et push", cmd: "git add .circleci/config.yml\ngit commit -m \"ci: ajoute le pipeline\"\ngit push" },
+          { title: "Activer le projet", cmd: "app.circleci.com → Projects → Set Up Project", note: "Étape unique, à faire une seule fois par dépôt." },
+        ]},
+        { id: "secrets", label: "Variables à configurer", icon: "fa-solid fa-key", color: "#B45309", steps: [
+          { title: "Où les ajouter", cmd: "Project Settings → Environment Variables", note: "Uniquement si un job de déploiement est activé (docker_hub, ssh, aws_s3, vercel...)." },
+          { title: "Docker Hub", cmd: "DOCKERHUB_USERNAME\nDOCKERHUB_TOKEN" },
+          { title: "SSH", cmd: "SSH_HOST\nSSH_USER", note: "La clé privée s'ajoute séparément dans Project Settings → SSH Keys (add_ssh_keys l'utilise automatiquement)." },
+          { title: "AWS S3", cmd: "AWS_ACCESS_KEY_ID\nAWS_SECRET_ACCESS_KEY" },
+          { title: "Vercel", cmd: "VERCEL_TOKEN" },
+        ]},
+        { id: "declenchement", label: "Déclenchement", icon: "fa-solid fa-bolt", color: "#2563EB", steps: [
+          { title: "Suivre l'exécution", cmd: "Onglet \"Pipelines\" du projet sur app.circleci.com", note: "Le pipeline se lance automatiquement au push, une fois le projet activé." },
+          { title: "Run planifié (cron)", cmd: "Déjà inclus nativement", note: "Contrairement à GitLab/Drone, CircleCI supporte un workflow 'nightly' déclenché par schedule directement dans le YAML — rien à configurer en plus." },
+        ]},
+        { id: "badge", label: "Badge README", icon: "fa-solid fa-shield-halved", color: "#16a34a", steps: [
+          { title: "Copier le badge généré", cmd: "Voir le bouton \"Copier le badge\" une fois le pipeline généré", note: "Colle-le en haut de ton README.md pour afficher le statut du dernier run." },
+        ]},
+      ],
+    },
+    jenkins: {
+      tool: "Jenkins",
+      icon: "fa-solid fa-gears",
+      intro: "Le fichier généré est un <b>Jenkinsfile</b> (pipeline déclaratif). Contrairement aux CI cloud, Jenkins est auto-hébergé : il faut créer le job dans l'interface et enregistrer les identifiants utilisés dans le fichier.",
+      os: [
+        { id: "placer", label: "Placer le fichier", icon: "fa-solid fa-folder-tree", color: "#335061", steps: [
+          { title: "Déposer le fichier à la racine", cmd: "mv Jenkinsfile ./Jenkinsfile" },
+          { title: "Commit et push", cmd: "git add Jenkinsfile\ngit commit -m \"ci: ajoute le pipeline\"\ngit push" },
+          { title: "Créer le job", cmd: "New Item → Pipeline (ou Multibranch Pipeline) → Pipeline script from SCM", note: "Multibranch Pipeline recommandé : nécessaire pour que 'when { branch ... }' fonctionne correctement." },
+        ]},
+        { id: "secrets", label: "Credentials à configurer", icon: "fa-solid fa-key", color: "#B45309", steps: [
+          { title: "Où les ajouter", cmd: "Manage Jenkins → Credentials → (global) → Add Credentials", note: "Les identifiants (credentials ID) doivent correspondre exactement à ceux utilisés dans le Jenkinsfile généré." },
+          { title: "Docker Hub", cmd: "ID: dockerhub-credentials\nType: Username with password", note: "Nécessite aussi le plugin 'Docker Pipeline' pour les agents docker { image ... }." },
+          { title: "SSH", cmd: "ID: ssh-deploy-credentials\nType: SSH Username with private key", note: "Nécessite le plugin 'SSH Agent'." },
+          { title: "Vercel", cmd: "ID: vercel-token\nType: Secret text" },
+          { title: "AWS S3", cmd: "ID: aws-s3-credentials\nType: Username with password", note: "Username = access key, password = secret key." },
+        ]},
+        { id: "declenchement", label: "Déclenchement", icon: "fa-solid fa-bolt", color: "#2563EB", steps: [
+          { title: "Suivre l'exécution", cmd: "Page du job dans Jenkins", note: "Configure un webhook (GitHub/GitLab hook trigger) ou un Poll SCM pour déclencher au push." },
+          { title: "Run planifié (cron)", cmd: "Déjà inclus si un cron a été renseigné", note: "Le bloc triggers { cron(...) } est ajouté directement dans le Jenkinsfile généré." },
+        ]},
+        { id: "badge", label: "Badge README", icon: "fa-solid fa-shield-halved", color: "#16a34a", steps: [
+          { title: "Activer le plugin", cmd: "Installer 'Embeddable Build Status Plugin'", note: "Puis cocher 'Enable this project's badge' dans la config du job avant que l'URL du badge fonctionne." },
+          { title: "Copier le badge généré", cmd: "Renseigne l'URL Jenkins + le nom du job dans le champ ci-dessus", note: "Format attendu : url_jenkins,nom_du_job" },
+        ]},
+      ],
+    },
+    drone: {
+      tool: "Drone CI",
+      icon: "fa-solid fa-drone",
+      intro: "Le fichier généré est une pipeline <b>Drone CI</b> (<code>.drone.yml</code>). Le dépôt doit être activé une fois sur ton instance Drone, et les secrets ajoutés via la CLI ou l'UI.",
+      os: [
+        { id: "placer", label: "Placer le fichier", icon: "fa-solid fa-folder-tree", color: "#212121", steps: [
+          { title: "Déposer le fichier à la racine", cmd: "mv config.yml .drone.yml" },
+          { title: "Commit et push", cmd: "git add .drone.yml\ngit commit -m \"ci: ajoute le pipeline\"\ngit push" },
+          { title: "Activer le dépôt", cmd: "UI Drone → Repository → Activate Repository", note: "Étape unique, à faire une seule fois par dépôt." },
+        ]},
+        { id: "secrets", label: "Secrets à configurer", icon: "fa-solid fa-key", color: "#B45309", steps: [
+          { title: "Ajouter un secret (CLI)", cmd: "drone secret add <repo> docker_username <valeur>", note: "Ou via l'UI : Repository Settings → Secrets. Uniquement si un step de déploiement est activé." },
+          { title: "Docker Hub", cmd: "docker_username\ndocker_password" },
+          { title: "SSH", cmd: "ssh_host\nssh_user\nssh_private_key" },
+          { title: "AWS S3", cmd: "aws_access_key_id\naws_secret_access_key" },
+          { title: "Vercel", cmd: "vercel_token" },
+        ]},
+        { id: "declenchement", label: "Déclenchement", icon: "fa-solid fa-bolt", color: "#2563EB", steps: [
+          { title: "Suivre l'exécution", cmd: "UI Drone → Repository → Builds", note: "La pipeline se lance automatiquement au push, une fois le dépôt activé." },
+          { title: "Planifier un run (cron)", cmd: "drone cron add <repo> nightly main --branch=main", note: "Drone ne permet pas de définir un déclenchement planifié directement dans le YAML : une note avec la commande exacte a été ajoutée en tête du fichier généré." },
+        ]},
+        { id: "badge", label: "Badge README", icon: "fa-solid fa-shield-halved", color: "#16a34a", steps: [
+          { title: "Copier le badge généré", cmd: "Voir le bouton \"Copier le badge\" une fois le pipeline généré", note: "Colle-le en haut de ton README.md pour afficher le statut du dernier run." },
+        ]},
+      ],
+    },
   };
+  window.INSTALL_GUIDE = window.INSTALL_GUIDES.github;
   </script>
   <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
   <script>OpsForgeInstallGuide.init("guide-install-btn");</script>

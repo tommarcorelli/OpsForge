@@ -59,8 +59,8 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .preview-panel{position:sticky;top:88px;align-self:start;}
 
 /* Provider switch (segmented) */
-.provider-switch{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:rgba(15,23,42,.05);border:1px solid var(--border-2);border-radius:14px;padding:5px;margin-bottom:20px;}
-.provider-btn{padding:11px;border:none;background:transparent;border-radius:10px;cursor:pointer;font-family:var(--head);font-weight:700;font-size:14px;color:var(--ink-2);transition:all .18s ease;}
+.provider-switch{display:grid;grid-template-columns:repeat(5, 1fr);gap:4px;background:rgba(15,23,42,.05);border:1px solid var(--border-2);border-radius:14px;padding:5px;margin-bottom:20px;}
+.provider-btn{padding:10px 2px;border:none;background:transparent;border-radius:10px;cursor:pointer;font-family:var(--head);font-weight:700;font-size:12px;color:var(--ink-2);transition:all .18s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .provider-btn.active{background:#fff;color:var(--primary-h);box-shadow:var(--shadow);}
 
 /* Champs */

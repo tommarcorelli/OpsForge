@@ -54,12 +54,13 @@
         </div>
       </div>
 
-      <div class="field">
+      <div class="field" id="provider-config-field">
         <label for="provider-config">Configuration du provider (JSON)</label>
         <textarea id="provider-config" rows="3" spellcheck="false">{
   "region": "eu-west-1"
 }</textarea>
       </div>
+      <p class="hint" id="cfn-hint" hidden>CloudFormation est spécifique à AWS : pas de bloc provider, ni de backend distant (géré à l'échelle du stack CloudFormation, pas du template).</p>
 
       <div class="field">
         <div class="field-head">
@@ -71,12 +72,12 @@
 
       <details class="advanced">
         <summary>Backend, variables &amp; outputs (avancé)</summary>
-        <div class="field">
+        <div class="field" id="backend-field">
           <label for="backend">Backend distant — state (JSON)</label>
           <textarea id="backend" rows="3" spellcheck="false" placeholder='{ "type": "s3", "config": { "bucket": "mon-tfstate", "key": "prod/terraform.tfstate", "region": "eu-west-1" } }'></textarea>
         </div>
         <div class="field">
-          <label for="variables">Variables (JSON)</label>
+          <label for="variables" id="variables-label">Variables (JSON)</label>
           <textarea id="variables" rows="3" spellcheck="false" placeholder='{ "region": { "type": "=string", "default": "eu-west-1" } }'></textarea>
         </div>
         <div class="field">
@@ -86,8 +87,8 @@
       </details>
 
       <div class="field two">
-        <button id="generate-btn" class="btn primary"><i class="fa-solid fa-bolt"></i> Générer main.tf</button>
-        <button id="download-zip-btn" class="btn ghost"><i class="fa-solid fa-file-zipper"></i> Télécharger .zip</button>
+        <button id="generate-btn" class="btn primary"><i class="fa-solid fa-bolt"></i> <span id="generate-btn-label">Générer main.tf</span></button>
+        <button id="download-zip-btn" class="btn ghost"><i class="fa-solid fa-file-zipper"></i> <span id="download-btn-label">Télécharger .zip</span></button>
       </div>
       <p id="error" class="error" hidden></p>
       <p id="warn" class="warn" hidden></p>
@@ -95,10 +96,10 @@
 
     <section class="panel result-panel">
       <div class="result-head">
-        <span><i class="fa-regular fa-file-code"></i> main.tf</span>
+        <span><i class="fa-regular fa-file-code"></i> <span id="result-filename">main.tf</span></span>
         <button id="copy-btn" class="btn ghost small" hidden><i class="fa-regular fa-copy"></i> Copier</button>
       </div>
-      <p class="hint">Le .zip sépare aussi <code>variables.tf</code> et <code>outputs.tf</code> quand ils sont utilisés.</p>
+      <p class="hint" id="zip-hint">Le .zip sépare aussi <code>variables.tf</code> et <code>outputs.tf</code> quand ils sont utilisés.</p>
       <pre id="output" class="output">Le résultat s'affichera ici.</pre>
     </section>
   </main>

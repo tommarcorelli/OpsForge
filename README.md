@@ -5,14 +5,29 @@
 > Remplace `ton-user` par ton nom d'utilisateur/organisation GitHub une fois
 > le repo poussé (badge généré avec le propre module `cicd` d'OpsForge 🙂).
 
+## Qu'est-ce qu'OpsForge ?
+
+OpsForge est une suite de **générateurs de fichiers de configuration DevOps/IaC**
+(CI/CD, Terraform, Ansible, Dockerfile, Kubernetes, Nginx, systemd,
+monitoring, cloud-init, Packer) réunis sous un seul hub web + CLI. Au lieu
+d'écrire à la main le YAML/HCL/Groovy répétitif de chacun de ces outils, tu
+remplis un formulaire (ou passes une config JSON), et OpsForge produit un
+fichier **validé et prêt à l'emploi** dans le format natif de l'outil visé —
+un vrai `.gitlab-ci.yml`, un vrai `main.tf`, un vrai `Jenkinsfile`, etc.
+Ce n'est ni un remplaçant de ces outils ni un service : OpsForge ne provisionne
+rien et n'exécute rien lui-même, il se contente de produire le fichier de
+départ, correct du premier coup, que tu commites ensuite dans ton propre
+dépôt. Tout tourne **100 % en local** : rien n'est jamais envoyé sur un
+serveur externe.
+
 **Plusieurs forges DevOps dans un seul atelier**, 100 % en local :
 
 | Module | Ce qu'il génère | Accès web | Sous-commande CLI |
 |---|---|---|---|
-| **CI/CD** | Pipelines **GitHub Actions** (`.github/workflows/ci.yml`) et **GitLab CI** (`.gitlab-ci.yml`) | `/cicd` | `python main.py cicd …` |
+| **CI/CD** | Pipelines **GitHub Actions** (`.github/workflows/ci.yml`), **GitLab CI** (`.gitlab-ci.yml`), **CircleCI** (`.circleci/config.yml`), **Jenkins** (`Jenkinsfile`) et **Drone** (`.drone.yml`) | `/cicd` | `python main.py cicd …` |
 | **Ansible** | Playbooks de **provisioning + déploiement** serveur (paquets, Docker, Nginx, firewall, fail2ban, bases de données, vault chiffré, multi-serveurs) | `/ansible` | `python main.py ansible …` |
 | **Vagrant** | **Vagrantfile multi-VM** (providers, réseau, provisioning, presets, lint) — portage de VagrantForge | `/vagrant` | `python main.py vagrant …` |
-| **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs | `/terraform` | `python main.py terraform …` |
+| **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs — ou export **CloudFormation** (`template.yaml`) | `/terraform` | `python main.py terraform …` |
 | **Dockerfile** | **`Dockerfile`** multi-stage (build + runtime allégé) + `.dockerignore`, 8 langages, bonnes pratiques (utilisateur non-root) | `/dockerfile` | `python main.py dockerfile …` |
 | **Kubernetes / Helm** | **Manifests** (Deployment + Service + Ingress, probes, resources) prêts pour `kubectl apply`, ou **chart Helm** complet, export `.zip` | `/k8s` | `python main.py k8s …` |
 | **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option — et variantes **Caddy** (Caddyfile) / **Traefik** (config dynamique YAML) | `/nginx` | `python main.py nginx …` |
@@ -94,6 +109,11 @@ python main.py cicd . --provider gitlab --deploy docker_hub ssh \
 python main.py cicd . --matrix-versions 3.10 3.11 3.12 \
   --schedule-cron "0 3 * * *" --badge-repo monuser/monrepo
 
+# CircleCI, Jenkins ou Drone (memes options --deploy/--matrix-versions/--schedule-cron)
+python main.py cicd . --provider circleci --deploy aws_s3 --s3-bucket mon-bucket
+python main.py cicd . --provider jenkins --dry-run
+python main.py cicd . --provider drone --dry-run
+
 # Apercu sans rien ecrire sur disque
 python main.py cicd . --dry-run
 ```
@@ -122,6 +142,10 @@ python main.py terraform config.json --split -o output/mon-projet/
 
 # Preset avec variables/outputs -> 3 fichiers separes
 python main.py terraform --preset rds-postgres --split -o output/rds/
+
+# Export CloudFormation (AWS uniquement) au lieu du HCL Terraform
+python main.py terraform --format cloudformation --preset ec2-web -o -
+python main.py terraform --format cloudformation --list-presets
 ```
 
 ### Module Ansible
@@ -170,9 +194,12 @@ opsforge/
 ├── requirements.txt
 │
 ├── modules/
-│   ├── cicd/              → module CI/CD (GitHub Actions & GitLab CI)
+│   ├── cicd/              → module CI/CD (GitHub Actions, GitLab CI, CircleCI, Jenkins, Drone)
 │   │   ├── core.py            assemblage des workflows GitHub Actions
 │   │   ├── gitlab_core.py     assemblage des pipelines GitLab CI
+│   │   ├── circleci_core.py   assemblage des config.yml CircleCI
+│   │   ├── jenkins_core.py    assemblage des Jenkinsfile (pipeline déclaratif)
+│   │   ├── drone_core.py      assemblage des .drone.yml
 │   │   ├── detector.py        détection auto du stack d'un dossier
 │   │   ├── routes.py          Blueprint Flask (préfixe /cicd)
 │   │   ├── cli.py             logique CLI du module
@@ -197,9 +224,10 @@ opsforge/
 │   │   └── cli.py             sous-commandes generer/preset/valider/presets/verifier-box
 │   │
 │   └── terraform/        → module Terraform (builder, presets, backend, validation)
-│       ├── core.py            rendu HCL aligné + catalogue de ressources + presets
-│       ├── routes.py          Blueprint Flask (préfixe /terraform) + API
-│       └── cli.py             génération depuis un JSON de config ou un preset
+│       ├── core.py                  rendu HCL aligné + catalogue de ressources + presets
+│       ├── cloudformation_core.py   export alternatif AWS CloudFormation (template.yaml)
+│       ├── routes.py                Blueprint Flask (préfixe /terraform) + API
+│       └── cli.py                   génération depuis un JSON de config ou un preset (--format)
 │
 │   └── dockerfile/       → module Dockerfile (multi-stage, 8 langages)
 │       ├── core.py            assemblage du Dockerfile + .dockerignore par langage
@@ -243,6 +271,7 @@ opsforge/
 │   ├── templates/         → hub.html, cicd.html, ansible.html, vagrant.html,
 │   │                        terraform.html, dockerfile.html, k8s.html, nginx.html,
 │   │                        systemd.html, monitoring.html, cloudinit.html, packer.html
+│   │                        (terraform.html sert aussi le format CloudFormation)
 │   └── static/
 │       ├── theme.js           bascule clair/sombre partagée par les 12 pages
 │       ├── cicd/{style.css, script.js}
@@ -257,16 +286,17 @@ opsforge/
 │       ├── manifest.json, service-worker.js, favicon.ico, opsforge-logo.svg, icons/
 │
 ├── tests/
-│   ├── cicd/              → 4 suites (detector, core, gitlab, features avancées)
+│   ├── cicd/              → detector, core, gitlab, circleci, jenkins, drone, features avancées
 │   ├── ansible/           → génération playbooks/rôles/inventaire/vault
 │   ├── vagrant/           → génération Vagrantfile / presets / lint
-│   ├── terraform/         → génération main.tf / presets / validation
+│   ├── terraform/         → génération main.tf / cloudformation_core / presets / validation
 │   ├── dockerfile/        → génération Dockerfile multi-stage / .dockerignore, 8 langages
 │   ├── k8s/               → manifests K8s / chart Helm, validation DNS-1123
 │   ├── nginx/             → génération server{}/upstream{}, validation par mode, presets
 │   ├── systemd/           → génération .service/.timer, durcissement, presets
 │   ├── monitoring/        → génération prometheus.yml/alertes/datasources, YAML valide
-│   └── cloudinit/         → génération #cloud-config, users/SSH/write_files, presets
+│   ├── cloudinit/         → génération #cloud-config, users/SSH/write_files, presets
+│   └── packer/            → génération build.pkr.hcl, builders/presets, validation
 │
 └── output/               → fichiers générés par défaut (CLI)
 ```
@@ -280,14 +310,35 @@ Chaque module est un **blueprint Flask** monté sous son préfixe (`/cicd`,
 ## Module CI/CD — détails
 
 Langages supportés : **Python, Node.js, Go, Rust, Java, PHP, Ruby, .NET** (jobs lint / test
-/ build, avec détection du package manager et de la version). Cibles de
-déploiement : **GitHub Pages, Docker Hub, SSH, Vercel, AWS S3** (GitHub) et
-**GitLab Pages, Docker Hub, SSH** (GitLab). Fonctions avancées : matrix builds
-(tester plusieurs versions en parallèle), déclenchement cron, badges de statut
-Markdown, dépendances entre jobs (`needs:`).
+/ build, avec détection du package manager et de la version). **5 plateformes** :
+
+- **GitHub Actions** (`.github/workflows/ci.yml`) — déploiement GitHub Pages,
+  Docker Hub, SSH, Vercel, AWS S3 ; secrets via Settings → Secrets and
+  variables → Actions.
+- **GitLab CI** (`.gitlab-ci.yml`) — déploiement GitLab Pages (job `pages`
+  natif), Docker Hub, SSH, Vercel, AWS S3 ; variables CI/CD via Settings →
+  CI/CD → Variables.
+- **CircleCI** (`.circleci/config.yml`, version 2.1) — Docker Hub, SSH, Vercel,
+  AWS S3 (pas de « pages » natif) ; matrix build via `parameters` +
+  `matrix:` ; variables d'environnement via Project Settings.
+- **Jenkins** (`Jenkinsfile`, pipeline déclaratif) — un `agent { docker {...} }`
+  par stage (mélange de langages dans un seul fichier), identifiants via le
+  Credentials Store (`credentials()`), déploiement SSH via le plugin SSH
+  Agent (`sshagent`).
+- **Drone** (`.drone.yml`) — steps séquentiels par défaut (pas de DAG), plugins
+  officiels pour le déploiement (`plugins/docker`, `plugins/s3-sync`), secrets
+  via `drone secret add`.
+
+Fonctions avancées (communes aux 5 plateformes) : matrix builds (tester
+plusieurs versions en parallèle), déclenchement cron (natif sur
+GitHub/CircleCI/Jenkins ; note d'instructions manuelle sur GitLab/Drone qui ne
+supportent pas de planification directement en YAML), badges de statut
+Markdown, dépendances entre jobs (`needs:`/`requires:`/stages selon la
+plateforme).
 
 Les jobs correspondent à des jobs séparés (`test-python`, `lint-node`…). Le YAML
-généré est validé avec `pyyaml` avant d'être renvoyé.
+généré est validé avec `pyyaml` avant d'être renvoyé (sauf Jenkins, qui génère
+du Groovy).
 
 > Note : la clé `on:` des workflows GitHub Actions est générée entre guillemets
 > (`"on":`) — YAML 1.1 interprète le mot nu `on` comme un booléen, ce qui
@@ -375,6 +426,22 @@ ressources, génère un `main.tf` (bloc `terraform{}` + `provider{}` +
 - Rendu HCL générique (chaînes, booléens, nombres, listes, blocs imbriqués).
   Une valeur préfixée par `=` est écrite **sans guillemets** — pour injecter une
   référence Terraform, ex. `"=aws_instance.web.id"` → `aws_instance.web.id`.
+
+### Export CloudFormation
+
+En plus du HCL Terraform, le module peut sortir un template **AWS
+CloudFormation** (`template.yaml`) — sélecteur de format dans l'UI (le
+builder de ressources devient AWS-only, la config provider/backend
+disparaît) ou `--format cloudformation` en CLI. CloudFormation n'étant pas
+multi-cloud, ce moteur a son propre catalogue de types (`AWS::Service::Resource`,
+13 types : EC2, S3, VPC/Subnet/Route/Gateway, RDS, IAM, Lambda) et ses propres
+presets (`ec2-web`, `s3-static`, `vpc-basic`, `rds-postgres`, préfixés `cfn-`
+côté web pour ne pas entrer en collision avec les presets Terraform de même
+nom). Les références entre ressources utilisent la même échappatoire `=` que
+Terraform, mais en syntaxe courte CloudFormation : `"=!Ref MonBucket"` →
+`!Ref MonBucket`, `"=!GetAtt Web.PublicIp"` → `!GetAtt Web.PublicIp`. Les
+policy documents IAM se rendent nativement en YAML imbriqué (pas besoin d'un
+équivalent à `jsonencode()`).
 
 ## Module Dockerfile — détails
 
@@ -601,7 +668,7 @@ avec `packer init` avant `packer build`.
 ```bash
 pip install -r requirements-dev.txt --break-system-packages
 pytest tests/            # tous les modules
-pytest tests/cicd/       # module CI/CD uniquement
+pytest tests/cicd/       # module CI/CD uniquement (GitHub/GitLab/CircleCI/Jenkins/Drone)
 pytest tests/ansible/    # module Ansible uniquement
 pytest tests/vagrant/    # module Vagrant uniquement
 pytest tests/terraform/  # module Terraform uniquement
@@ -614,9 +681,11 @@ pytest tests/cloudinit/  # module cloud-init uniquement
 pytest tests/packer/     # module Packer uniquement
 ```
 
-> Sous Windows, 3 tests de chiffrement Vault échouent car `ansible-core` a besoin
-> de `fcntl` (module Unix). C'est une limite de plateforme, pas un bug du
-> générateur — ils passent sous Linux/WSL.
+> Sous Windows, 6 tests de chiffrement Vault sont **skippés proprement**
+> (`skipif`) car `ansible-core` a besoin de `fcntl` (module Unix, absent
+> nativement sous Windows). C'est une limite de plateforme, pas un bug du
+> générateur — ils s'exécutent et passent sous Linux/WSL (et en CI GitHub,
+> qui tourne sur `ubuntu-latest`).
 
 ---
 
@@ -649,6 +718,14 @@ Les 11 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorit
 - [x] ~~Module Packer~~ — fait (`build.pkr.hcl` HCL2 : builders
       virtualbox-iso / qemu / amazon-ebs / docker, provisioners shell/file,
       post-processors vagrant / docker-tag / compress, 4 presets).
+- [x] ~~Providers CircleCI, Jenkins, Drone pour le module CI/CD~~ — fait
+      (`.circleci/config.yml`, `Jenkinsfile`, `.drone.yml`, mêmes cibles de
+      déploiement docker_hub/ssh/vercel/aws_s3 que GitHub/GitLab, secrets/
+      credentials/variables dédiés par plateforme, badges de statut).
+- [x] ~~Cible CloudFormation pour le module Terraform~~ — fait
+      (`template.yaml` AWS : catalogue de 13 types de ressources CFN,
+      4 presets, intrinsic functions `!Ref`/`!GetAtt`, sélecteur de format
+      dans l'UI et `--format cloudformation` en CLI).
 
 ### Nouveaux modules envisagés
 
@@ -663,12 +740,14 @@ Candidats, du plus prioritaire au moins :
 
 Tous les modules candidats de cette liste sont désormais implémentés. Les
 prochaines pistes d'extension (nouveaux providers CI, nouvelles cibles IaC)
-seront plutôt des ajouts *dans* les modules existants (voir remarque
-ci-dessous) que de nouveaux modules à part entière.
+sont plutôt des ajouts *dans* les modules existants que de nouveaux modules
+à part entière — CircleCI/Jenkins/Drone (CI/CD) et CloudFormation (Terraform)
+ont déjà été traités ainsi (voir ci-dessus). Reste dans cet esprit :
 
-> À intégrer aux modules existants plutôt que comme nouveaux modules : autres
-> systèmes CI (CircleCI, Jenkins, Drone…) = providers du module CI/CD ;
-> CloudFormation/Pulumi = cibles à côté de Terraform.
+> À intégrer aux modules existants plutôt que comme nouveaux modules : Pulumi
+> = cible supplémentaire à côté de Terraform/CloudFormation ; d'autres
+> systèmes CI (CircleCI/Jenkins/Drone déjà faits) type TeamCity/Bitbucket
+> Pipelines = providers du module CI/CD.
 >
 > À éviter (doublons d'autres projets) : docker-compose = DockerForge ;
 > réseau/firewall/VLAN = NetForge.
@@ -697,4 +776,9 @@ shell-script / file, post-processors vagrant / docker-tag / compress
 filtrés selon compatibilité builder, variables Packer, 4 presets couvrant
 chaque famille de builder) — dernier maillon de la chaîne Packer (construit
 l'image) → Vagrant/Terraform (l'instancie) → cloud-init (la configure au
-premier boot) → Ansible (déploiement applicatif).
+premier boot) → Ansible (déploiement applicatif). Puis extension des modules
+existants plutôt que nouveaux modules : CI/CD passé de 2 à **5 plateformes**
+(ajout CircleCI, Jenkins, Drone, mêmes cibles de déploiement et badges que
+GitHub/GitLab), et Terraform gagne un second moteur de sortie, **CloudFormation**
+(`template.yaml` AWS, catalogue et presets dédiés, sélecteur de format
+UI/CLI).
