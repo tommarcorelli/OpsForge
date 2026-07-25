@@ -11,6 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+import pytest
 import yaml
 
 from modules.ansible.core import (
@@ -19,6 +20,22 @@ from modules.ansible.core import (
     write_multi_group_project,
     write_vault_file,
     generate_playbook,
+)
+
+# Le chiffrement Vault s'appuie sur ansible-core, qui importe `fcntl` : ce
+# module n'existe pas sous Windows natif (seulement Unix/WSL). On saute donc
+# proprement les tests qui chiffrent reellement, sans faire echouer la suite
+# (meme garde que tests/ansible/test_core.py).
+try:
+    import fcntl  # noqa: F401
+
+    _HAS_FCNTL = True
+except ImportError:
+    _HAS_FCNTL = False
+
+requires_vault = pytest.mark.skipif(
+    not _HAS_FCNTL,
+    reason="Ansible Vault necessite le module fcntl (Unix/WSL), absent sous Windows natif",
 )
 
 
@@ -118,6 +135,7 @@ def test_write_multi_group_project_ecrit_tous_les_fichiers(tmp_path):
     assert any("update_system" in n for n in noms_relatifs)
 
 
+@requires_vault
 def test_write_multi_group_project_avec_vault_ecrit_vault_yml(tmp_path):
     secrets = {"db_password": "hunter2"}
     chemins = write_multi_group_project(
@@ -142,6 +160,7 @@ def test_write_multi_group_project_sans_vault_naugmente_pas_vault_yml(tmp_path):
 # write_vault_file
 # --------------------------------------------------------------------------
 
+@requires_vault
 def test_write_vault_file_ecrit_un_vault_chiffre(tmp_path):
     output_path = tmp_path / "secrets" / "vault.yml"
     secrets = {"api_key": "abc123"}
@@ -160,6 +179,7 @@ def test_write_vault_file_ecrit_un_vault_chiffre(tmp_path):
     assert all(re.fullmatch(r"[0-9a-f]+", ligne) for ligne in lignes_hex)
 
 
+@requires_vault
 def test_write_vault_file_cree_les_dossiers_manquants(tmp_path):
     output_path = tmp_path / "a" / "b" / "c" / "vault.yml"
     write_vault_file({"x": "y"}, "pass", str(output_path))

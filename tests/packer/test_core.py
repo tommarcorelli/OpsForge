@@ -1,5 +1,7 @@
 """Tests du coeur du module Packer d'OpsForge."""
 
+import os
+
 import pytest
 
 from modules.packer.core import (
@@ -541,7 +543,7 @@ def test_write_split_files_ecrit_tous_les_fichiers(tmp_path):
     assert len(chemins) == len(attendu)
     for chemin in chemins:
         with open(chemin, encoding="utf-8") as f:
-            nom = chemin.split("/")[-1]
+            nom = os.path.basename(chemin)
             assert f.read() == attendu[nom]
 
 
@@ -550,7 +552,7 @@ def test_write_split_files_avec_variables_inclut_variables_pkr_hcl(tmp_path):
     cfg["variables"] = [{"name": "tag", "type": "string", "default": "latest"}]
     chemins = write_split_files(cfg, str(tmp_path))
 
-    noms = {chemin.split("/")[-1] for chemin in chemins}
+    noms = {os.path.basename(chemin) for chemin in chemins}
     assert "variables.pkr.hcl" in noms
     assert "sources.pkr.hcl" in noms
     assert "build.pkr.hcl" in noms
