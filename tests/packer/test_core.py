@@ -13,6 +13,8 @@ from modules.packer.core import (
     OUTPUT_FILENAME,
     BUILDER_CATALOG,
     PRESETS,
+    write_files,
+    write_split_files,
 )
 
 
@@ -503,3 +505,57 @@ def test_preset_docker_app_image_publie_vers_hcp_registry():
     assert validate_config(cfg) == []
     text = generate_packer_template(cfg)
     assert "hcp_packer_registry {" in text
+
+
+# --------------------------------------------------------------------------
+# Ecriture disque : write_files / write_split_files
+# --------------------------------------------------------------------------
+
+def test_write_files_ecrit_le_fichier_combine(tmp_path):
+    cfg = _valid_config("docker")
+    chemins = write_files(cfg, str(tmp_path))
+
+    assert len(chemins) == 1
+    chemin = chemins[0]
+    assert chemin.endswith(OUTPUT_FILENAME)
+    with open(chemin, encoding="utf-8") as f:
+        assert f.read() == generate_packer_template(cfg)
+
+
+def test_write_files_cree_le_dossier_de_sortie(tmp_path):
+    output_dir = tmp_path / "nouveau" / "dossier"
+    write_files(_valid_config("docker"), str(output_dir))
+    assert output_dir.is_dir()
+
+
+def test_write_files_leve_valueerror_si_invalide(tmp_path):
+    with pytest.raises(ValueError):
+        write_files({}, str(tmp_path))
+
+
+def test_write_split_files_ecrit_tous_les_fichiers(tmp_path):
+    cfg = _valid_config("docker")
+    chemins = write_split_files(cfg, str(tmp_path))
+
+    attendu = generate_split_files(cfg)
+    assert len(chemins) == len(attendu)
+    for chemin in chemins:
+        with open(chemin, encoding="utf-8") as f:
+            nom = chemin.split("/")[-1]
+            assert f.read() == attendu[nom]
+
+
+def test_write_split_files_avec_variables_inclut_variables_pkr_hcl(tmp_path):
+    cfg = _valid_config("docker")
+    cfg["variables"] = [{"name": "tag", "type": "string", "default": "latest"}]
+    chemins = write_split_files(cfg, str(tmp_path))
+
+    noms = {chemin.split("/")[-1] for chemin in chemins}
+    assert "variables.pkr.hcl" in noms
+    assert "sources.pkr.hcl" in noms
+    assert "build.pkr.hcl" in noms
+
+
+def test_write_split_files_leve_valueerror_si_invalide(tmp_path):
+    with pytest.raises(ValueError):
+        write_split_files({}, str(tmp_path))
