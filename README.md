@@ -35,6 +35,7 @@ serveur externe.
 | **Monitoring** | **`prometheus.yml`** (scrape multi-jobs + Alertmanager), **règles d'alerte** Prometheus (CPU/mém/disque/instance), **datasources Grafana** ou **`dashboard.json`** (panels réels prêts à importer) | `/monitoring` | `python main.py monitoring …` |
 | **cloud-init** | **`#cloud-config`** (user-data) de premier boot : utilisateurs, clés SSH, paquets, `write_files`, `runcmd`, durcissement SSH — ou export **Ignition** (`config.ign`, Fedora CoreOS/Flatcar/RHCOS) | `/cloudinit` | `python main.py cloudinit …` |
 | **Packer** | **`build.pkr.hcl`** (HCL2) : builder **virtualbox-iso / qemu / amazon-ebs / docker**, provisioners shell/file, post-processors (`vagrant`, `docker-tag`, `compress`) | `/packer` | `python main.py packer …` |
+| **Vault** | **`config.hcl`** (storage file/raft/consul, seal shamir/awskms/transit, listener), **`policies/*.hcl`** (ACL), **`bootstrap.sh`** (activation auth methods et secrets engines : userpass/approle/kubernetes, kv-v2/pki/database/transit…) | `/vault` | `python main.py vault …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -320,18 +321,24 @@ opsforge/
 │   │   ├── routes.py          Blueprint Flask (préfixe /cloudinit) + API
 │   │   └── cli.py             logique CLI du module
 │   │
-│   └── packer/           → module Packer (build.pkr.hcl)
-│       ├── core.py            rendu HCL2 (builder/provisioners/post-processors) + presets
-│       ├── routes.py          Blueprint Flask (préfixe /packer) + API
+│   ├── packer/           → module Packer (build.pkr.hcl)
+│   │   ├── core.py            rendu HCL2 (builder/provisioners/post-processors) + presets
+│   │   ├── routes.py          Blueprint Flask (préfixe /packer) + API
+│   │   └── cli.py             logique CLI du module
+│   │
+│   └── vault/            → module HashiCorp Vault (config.hcl / policies / bootstrap.sh)
+│       ├── core.py            rendu HCL (storage/seal/listener) + policies ACL + script bootstrap + presets
+│       ├── routes.py          Blueprint Flask (préfixe /vault) + API
 │       └── cli.py             logique CLI du module
 │
 ├── web/
 │   ├── templates/         → hub.html, cicd.html, ansible.html, vagrant.html,
 │   │                        terraform.html, dockerfile.html, k8s.html, nginx.html,
-│   │                        systemd.html, monitoring.html, cloudinit.html, packer.html
+│   │                        systemd.html, monitoring.html, cloudinit.html, packer.html,
+│   │                        vault.html
 │   │                        (terraform.html sert aussi le format CloudFormation)
 │   └── static/
-│       ├── theme.js           bascule clair/sombre partagée par les 12 pages
+│       ├── theme.js           bascule clair/sombre partagée par les 13 pages
 │       ├── cicd/{style.css, script.js}
 │       ├── ansible/{style.css, script.js}
 │       ├── dockerfile/{style.css, script.js}
@@ -341,6 +348,7 @@ opsforge/
 │       ├── monitoring/{style.css, script.js}
 │       ├── cloudinit/{style.css, script.js}
 │       ├── packer/{style.css, script.js}
+│       ├── vault/{style.css, script.js}
 │       ├── manifest.json, service-worker.js, favicon.ico, opsforge-logo.svg, icons/
 │
 ├── tests/
@@ -354,7 +362,8 @@ opsforge/
 │   ├── systemd/           → génération .service/.timer, durcissement, presets
 │   ├── monitoring/        → génération prometheus.yml/alertes/datasources, YAML valide
 │   ├── cloudinit/         → génération #cloud-config, users/SSH/write_files, presets
-│   └── packer/            → génération build.pkr.hcl, builders/presets, validation
+│   ├── packer/            → génération build.pkr.hcl, builders/presets, validation
+│   └── vault/             → génération config.hcl/policies/bootstrap.sh, seal/storage, presets
 │
 └── output/               → fichiers générés par défaut (CLI)
 ```
@@ -780,6 +789,54 @@ avec `packer init` avant `packer build`.
 
 ---
 
+## Module Vault — détails
+
+Distinct de l'**Ansible Vault** existant (qui ne fait que chiffrer des
+variables) : ce module génère la configuration du **serveur** HashiCorp
+Vault lui-même. Trois artefacts, chacun avec le format qui lui correspond
+vraiment :
+
+- **`config.hcl`** (fichier de config natif Vault) :
+  - **Storage** (`storage "..." { ... }`) : `file` (dev/single-node),
+    `raft` (Integrated Storage, HA multi-nœuds, avec `node_id`), ou
+    `consul` (backend externe). Chaque backend a ses arguments requis
+    (validés) et ses valeurs par défaut.
+  - **Listener** (`listener "tcp" { ... }`) : adresse d'écoute, TLS activé
+    par défaut (`tls_cert_file`/`tls_key_file`) ou désactivé explicitement
+    (`tls_disable = true`, dev uniquement).
+  - **Seal** (`seal "..." { ... }`) : `shamir` (défaut, clés de
+    descellement locales, aucun bloc généré car c'est le comportement par
+    défaut de Vault), `awskms` (auto-unseal via AWS KMS) ou `transit`
+    (auto-unseal via un autre cluster Vault) — chacun avec ses arguments
+    requis (`region`/`kms_key_id`, ou `address`/`key_name`/`mount_path`).
+  - `ui`, `api_addr`, `cluster_addr` (Raft), `cluster_name`, `log_level`.
+- **`policies/<nom>.hcl`** (un fichier par policy) : blocs ACL
+  `path "..." { capabilities = [...] }`, capacités validées contre la
+  liste officielle (`create`, `read`, `update`, `delete`, `list`, `sudo`,
+  `deny`).
+- **`bootstrap.sh`** : script shell idempotent qui charge les policies
+  (`vault policy write`), active les méthodes d'authentification
+  (`vault auth enable` — userpass, approle, kubernetes, ldap, github) et
+  les moteurs de secrets (`vault secrets enable` — kv-v2/kv-v1, database,
+  pki, transit, aws, ssh), puis pousse leur configuration (`vault write
+  <path>/config ...`) si fournie. Généré uniquement si au moins une
+  policy, méthode d'auth ou moteur de secrets est déclaré — ce sont des
+  opérations d'API/CLI à l'exécution (après initialisation + descellement),
+  pas un format de fichier natif comme `config.hcl`.
+
+Presets prêts à l'emploi : `dev-single-node` (storage `file`, TLS
+désactivé, KV v2 + userpass — pour tester en local), `ha-raft-cluster`
+(storage `raft`, TLS activé, policy admin), `app-secrets-kv` (KV v2 +
+AppRole, policy applicative read/write), `pki-internal-ca` (moteur `pki`,
+policy d'émission de certificats), `database-dynamic-creds` (moteur
+`database`, auth Kubernetes, seal AWS KMS auto-unseal).
+
+Usage typique : `vault server -config=config.hcl`, puis une fois
+`vault operator init` et `vault operator unseal` effectués,
+`./bootstrap.sh` applique policies/auth/secrets engines d'un coup.
+
+---
+
 ## Tests
 
 ```bash
@@ -797,6 +854,7 @@ pytest tests/systemd/    # module systemd uniquement
 pytest tests/monitoring/ # module Monitoring uniquement
 pytest tests/cloudinit/  # module cloud-init uniquement
 pytest tests/packer/     # module Packer uniquement
+pytest tests/vault/      # module Vault uniquement
 ```
 
 > Sous Windows, 6 tests de chiffrement Vault sont **skippés proprement**
@@ -809,7 +867,9 @@ pytest tests/packer/     # module Packer uniquement
 
 ## Roadmap — reste à faire
 
-Les 11 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+Les 12 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+
+- [x] ~~Module Vault~~ — fait (`config.hcl`, policies ACL, `bootstrap.sh` — voir plus bas).
 
 - [x] ~~Mode sombre unifié~~ — fait (bascule clair/sombre + persistance sur toutes les pages).
 - [x] ~~Module Dockerfile~~ — fait (multi-stage, 8 langages, `.dockerignore`).
@@ -899,7 +959,8 @@ Autres extensions possibles, par module :
       datasource, preset `dashboard-node`).
 - [x] ~~**Ignition** (module cloud-init)~~ — fait (config `config.ign` JSON
       spec 3.4.0, pour Fedora CoreOS/Flatcar/RHCOS : réutilise le MEME
-      formulaire/schéma que `#cloud-config` — hostname, utilisateurs + clés SSH, `write_files` encodés en base64, `runcmd`. Paquets installés
+      formulaire/schéma que `#cloud-config` — hostname, utilisateurs +
+      clés SSH, `write_files` encodés en base64, `runcmd`. Paquets installés
       via `rpm-ostree install` et commandes `runcmd` enchaînées dans une
       unité systemd `oneshot` de premier boot générée automatiquement, avec
       redémarrage géré si des paquets sont demandés ; sélecteur de format
@@ -922,13 +983,26 @@ Autres extensions possibles, par module :
       genere selon le driver, case a cocher + selecteur de driver dans l'UI
       et `--molecule`/`--molecule-driver` en CLI).
 
-Un seul candidat à un **nouveau module à part entière** identifié pour
-l'instant :
+Un seul candidat à un **nouveau module à part entière** avait été identifié,
+et il est désormais traité :
 
-- [ ] **HashiCorp Vault** — policies HCL, auth methods, secret engines.
-      Distinct de l'Ansible Vault existant (qui ne fait que chiffrer des
-      variables) : ici il s'agirait de générer la configuration du serveur
-      Vault lui-même. Pas encore commencé.
+- [x] ~~**HashiCorp Vault**~~ — fait (`config.hcl` : storage
+      file/raft/consul, seal shamir/awskms/transit, listener TCP+TLS ;
+      `policies/<nom>.hcl` : ACL avec capabilities validées ; `bootstrap.sh` :
+      activation idempotente des auth methods — userpass/approle/kubernetes/
+      ldap/github — et des secrets engines — kv-v2/kv-v1/database/pki/
+      transit/aws/ssh — via `vault auth enable`/`vault secrets enable`/
+      `vault policy write`. Distinct de l'Ansible Vault existant, qui ne
+      fait que chiffrer des variables : ici c'est la configuration du
+      serveur Vault lui-même. 5 presets, sélecteurs storage/seal dans l'UI
+      et `--preset`/`--list-*` en CLI).
+
+Tous les modules candidats identifiés dans cette roadmap sont désormais
+implémentés — les 12 modules d'OpsForge couvrent l'ensemble des cibles
+envisagées au départ. Les prochaines pistes restent des ajouts *dans* les
+modules existants (nouveaux providers CI, nouvelles cibles IaC, nouveaux
+auth methods/secrets engines Vault) plutôt que de nouveaux modules à part
+entière.
 
 ### Déjà fait (résumé)
 

@@ -34,6 +34,7 @@ from modules.systemd.routes import bp as systemd_bp
 from modules.monitoring.routes import bp as monitoring_bp
 from modules.cloudinit.routes import bp as cloudinit_bp
 from modules.packer.routes import bp as packer_bp
+from modules.vault.routes import bp as vault_bp
 
 # Chemin de base des templates/static : en dev c'est le dossier de ce fichier,
 # mais une fois empaquete par PyInstaller (voir desktop.py / opsforge.spec),
@@ -60,6 +61,7 @@ app.register_blueprint(systemd_bp)
 app.register_blueprint(monitoring_bp)
 app.register_blueprint(cloudinit_bp)
 app.register_blueprint(packer_bp)
+app.register_blueprint(vault_bp)
 
 
 @app.route("/")

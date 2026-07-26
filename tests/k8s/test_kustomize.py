@@ -1,7 +1,5 @@
 """Tests du mode Kustomize (base/ + overlays/) du module Kubernetes d'OpsForge."""
 
-import os
-
 import yaml
 import pytest
 

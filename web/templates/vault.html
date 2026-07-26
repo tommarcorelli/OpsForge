@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Vault</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#c9a227" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='vault/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+  <div class="wallpaper" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· Vault</span></span>
+    </a>
+    <button class="btn ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-download"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair"><span id="theme-icon">🌙</span></button>
+    <a class="btn ghost" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-badge"><i class="fa-solid fa-vault"></i> OpsForge · Module Vault</div>
+    <h1>Scelle tes secrets, <span class="grad">config.hcl</span></h1>
+    <p class="hero-sub">Backend de storage, seal, policies ACL, méthodes d'authentification et moteurs de secrets : OpsForge génère <code>config.hcl</code> (serveur), les fichiers de policy et un script <code>bootstrap.sh</code> prêts à l'emploi. Rien n'est envoyé nulle part — tout reste sur ta machine.</p>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <div class="field two">
+        <div>
+          <label for="storage-select">Backend de storage</label>
+          <select id="storage-select">
+            {% for k, info in storage_backends.items() %}<option value="{{ k }}">{{ info.label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="preset-select">Preset</label>
+          <select id="preset-select">
+            <option value="">— partir de zéro —</option>
+            {% for p in presets %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="field" id="storage-args-field">
+        <label for="storage-args">Arguments du storage (JSON)</label>
+        <textarea id="storage-args" rows="2" spellcheck="false">{
+  "path": "/opt/vault/data"
+}</textarea>
+      </div>
+
+      <div class="field two">
+        <div>
+          <label for="listener-address">Adresse du listener</label>
+          <input type="text" id="listener-address" value="0.0.0.0:8200" />
+        </div>
+        <div>
+          <label for="tls-disable">TLS</label>
+          <select id="tls-disable">
+            <option value="false">Activé (tls_cert_file / tls_key_file)</option>
+            <option value="true">Désactivé (dev uniquement)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field two">
+        <div>
+          <label for="seal-select">Seal (descellement)</label>
+          <select id="seal-select">
+            {% for k, info in seal_types.items() %}<option value="{{ k }}">{{ info.label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="ui-toggle">Interface web Vault</label>
+          <select id="ui-toggle">
+            <option value="true" selected>Activée (ui = true)</option>
+            <option value="false">Désactivée</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field" id="seal-args-field" hidden>
+        <label for="seal-args">Arguments du seal (JSON)</label>
+        <textarea id="seal-args" rows="2" spellcheck="false" placeholder='{ "region": "eu-west-1", "kms_key_id": "alias/vault-unseal" }'></textarea>
+      </div>
+
+      <details class="advanced" open>
+        <summary>Policies ACL (JSON)</summary>
+        <p class="hint">Un tableau de policies : <code>{ "name": "...", "rules": [{ "path": "...", "capabilities": [...] }] }</code>. Capacités possibles : {{ capabilities|join(', ') }}.</p>
+        <div class="field">
+          <textarea id="policies" rows="6" spellcheck="false" placeholder='[
+  {
+    "name": "app-readonly",
+    "rules": [
+      { "path": "secret/data/app/*", "capabilities": ["read", "list"] }
+    ]
+  }
+]'></textarea>
+        </div>
+      </details>
+
+      <details class="advanced">
+        <summary>Méthodes d'authentification (JSON)</summary>
+        <p class="hint">Gérées : {{ auth_methods.keys()|join(', ') }}.</p>
+        <div class="field">
+          <textarea id="auth-methods" rows="4" spellcheck="false" placeholder='[
+  { "type": "approle", "path": "approle", "config": {} }
+]'></textarea>
+        </div>
+      </details>
+
+      <details class="advanced">
+        <summary>Moteurs de secrets (JSON)</summary>
+        <p class="hint">Gérés : {{ secrets_engines.keys()|join(', ') }}.</p>
+        <div class="field">
+          <textarea id="secrets-engines" rows="4" spellcheck="false" placeholder='[
+  { "type": "kv-v2", "path": "secret", "config": {} }
+]'></textarea>
+        </div>
+      </details>
+
+      <div class="field two">
+        <button id="generate-btn" class="btn primary"><i class="fa-solid fa-lock"></i> Générer</button>
+        <button id="download-zip-btn" class="btn ghost"><i class="fa-solid fa-file-zipper"></i> Télécharger .zip</button>
+      </div>
+      <p id="error" class="error" hidden></p>
+    </section>
+
+    <section class="panel result-panel">
+      <div class="result-head">
+        <span><i class="fa-regular fa-file-code"></i> <span id="result-filename">config.hcl + policies/ + bootstrap.sh</span></span>
+        <button id="copy-btn" class="btn ghost small" hidden><i class="fa-regular fa-copy"></i> Copier</button>
+      </div>
+      <p class="hint">Le .zip contient <code>config.hcl</code>, un fichier <code>policies/&lt;nom&gt;.hcl</code> par policy, et <code>bootstrap.sh</code> (activation des auth methods / secrets engines) si tu en as déclaré.</p>
+      <pre id="output" class="output">Le résultat s'affichera ici.</pre>
+    </section>
+  </main>
+
+  <footer class="footer">Forgé avec <span class="grad"><i class="fa-solid fa-hammer"></i> OpsForge</span> — module Vault.</footer>
+
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='vault/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "Vault",
+    icon: "fa-solid fa-vault",
+    intro: "Installe la CLI Vault, démarre le serveur avec <code>config.hcl</code>, initialise-le puis descelle-le avant de lancer <code>bootstrap.sh</code>.",
+    os: [
+      { id: "install", label: "Installer", icon: "fa-solid fa-download", color: "#c9a227", steps: [
+        { title: "Debian/Ubuntu", cmd: "curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg\nsudo apt update && sudo apt install vault" },
+        { title: "macOS (Homebrew)", cmd: "brew tap hashicorp/tap\nbrew install hashicorp/tap/vault" },
+        { title: "Vérifier", cmd: "vault -version" },
+      ]},
+      { id: "start", label: "Démarrer le serveur", icon: "fa-solid fa-server", color: "#334155", steps: [
+        { title: "Lancer avec la config générée", cmd: "vault server -config=config.hcl" },
+        { title: "Dans un autre terminal : pointer le client", cmd: "export VAULT_ADDR='http://127.0.0.1:8200'" },
+      ]},
+      { id: "init", label: "Initialiser & desceller", icon: "fa-solid fa-key", color: "#a3811c", steps: [
+        { title: "Initialiser (une seule fois)", cmd: "vault operator init" },
+        { title: "Desceller (3 clés sur 5 par défaut)", cmd: "vault operator unseal" },
+      ]},
+      { id: "bootstrap", label: "Bootstrap", icon: "fa-solid fa-play", color: "#16a34a", steps: [
+        { title: "Se connecter avec le root token", cmd: "vault login" },
+        { title: "Appliquer policies / auth / secrets engines", cmd: "chmod +x bootstrap.sh && ./bootstrap.sh" },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>

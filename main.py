@@ -15,6 +15,7 @@ Sous-commandes :
     python main.py monitoring ...   -> generateur de config monitoring (Prometheus/Grafana)
     python main.py cloudinit  ...   -> generateur de fichier cloud-init (#cloud-config)
     python main.py packer     ...   -> generateur de template Packer (build.pkr.hcl)
+    python main.py vault      ...   -> generateur de config HashiCorp Vault (config.hcl/policies/bootstrap)
 
 Chaque sous-commande accepte ses propres options. Exemples :
     python main.py cicd . --provider gitlab --deploy docker_hub
@@ -28,6 +29,7 @@ Chaque sous-commande accepte ses propres options. Exemples :
     python main.py monitoring --preset prometheus-node -o output/
     python main.py cloudinit --preset docker-host --hostname web-01
     python main.py packer --preset ubuntu-vagrant-box --name ubuntu-base
+    python main.py vault --preset app-secrets-kv -o output/vault/
 
 Utilise `python main.py <module> --help` pour voir les options d'un module.
 """
@@ -45,6 +47,7 @@ from modules.systemd import cli as systemd_cli
 from modules.monitoring import cli as monitoring_cli
 from modules.cloudinit import cli as cloudinit_cli
 from modules.packer import cli as packer_cli
+from modules.vault import cli as vault_cli
 
 MODULES = {
     "cicd": cicd_cli.main,
@@ -58,11 +61,12 @@ MODULES = {
     "monitoring": monitoring_cli.main,
     "cloudinit": cloudinit_cli.main,
     "packer": packer_cli.main,
+    "vault": vault_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault} [options]")
     print()
     print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI / CircleCI / Jenkins / Drone)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
@@ -75,6 +79,7 @@ def _usage():
     print("  monitoring Genere de la config monitoring (prometheus.yml / alertes / datasources Grafana)")
     print("  cloudinit  Genere un fichier cloud-init #cloud-config (premier boot d'une machine)")
     print("  packer     Genere un template Packer build.pkr.hcl (image VM/AMI/conteneur)")
+    print("  vault      Genere une config HashiCorp Vault (config.hcl, policies ACL, bootstrap.sh)")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 

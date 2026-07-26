@@ -40,7 +40,6 @@ def test_un_scenario_par_role_quand_active():
     config = _base_config(molecule=True)
     files = generate_role_based_project(config)
 
-    provisioning, deployment = config["provisioning"], config["deployment"]
     # runtime => role suffixe par langage
     expected_roles = ["update_system", "docker", "nginx", "runtime_python",
                        "git_clone", "install_deps_python", "restart_service"]
