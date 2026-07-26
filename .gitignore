@@ -7,7 +7,9 @@ output/*
 !output/.gitkeep
 .venv/
 venv/
-# Artefacts de build PyInstaller (voir opsforge.spec) : regeneres par
-# `pyinstaller opsforge.spec`, jamais a committer (gros binaires).
+# Artefacts de build PyInstaller (voir opsforge.spec) et de l'installateur
+# Inno Setup (voir opsforge-installer.iss) : regeneres a chaque build,
+# jamais a committer (gros binaires).
 build/
 dist/
+installer/

@@ -108,6 +108,25 @@ cible. `ansible-core` est volontairement exclu du bundle (voir `opsforge.spec`)
 — le chiffrement Vault reste indisponible dans l'exe, comme sous Windows natif
 en usage normal (voir note ci-dessus).
 
+Cet `.exe` est **portable** (aucune installation, tu le lances où qu'il soit).
+Pour un vrai installateur Windows (icône Bureau + Menu Démarrer, désinstalleur
+listé dans « Programmes ») :
+
+```bash
+winget install JRSoftware.InnoSetup      # une seule fois
+iscc opsforge-installer.iss              # -> installer/OpsForge-Setup.exe
+```
+
+Installe **par utilisateur** (`{localappdata}\Programs\OpsForge`), sans droits
+administrateur ni invite UAC — plus adapté à un outil perso qu'une installation
+machine entière dans `Program Files`.
+
+> ⚠️ Le build PyInstaller/Inno Setup est **spécifique à Windows** : `desktop.py`
+> tourne aussi sur Linux/Mac (pywebview y a des backends natifs — GTK/Qt,
+> Cocoa/WebKit), mais produire un vrai binaire natif pour ces plateformes
+> nécessite de relancer le build **depuis** un Mac/Linux — PyInstaller ne
+> fait pas de cross-compilation, et Inno Setup est Windows-only.
+
 ---
 
 ## Ligne de commande
