@@ -899,8 +899,7 @@ Autres extensions possibles, par module :
       datasource, preset `dashboard-node`).
 - [x] ~~**Ignition** (module cloud-init)~~ — fait (config `config.ign` JSON
       spec 3.4.0, pour Fedora CoreOS/Flatcar/RHCOS : réutilise le MEME
-      formulaire/schéma que `#cloud-config` — hostname, utilisateurs +
-      clés SSH, `write_files` encodés en base64, `runcmd`. Paquets installés
+      formulaire/schéma que `#cloud-config` — hostname, utilisateurs + clés SSH, `write_files` encodés en base64, `runcmd`. Paquets installés
       via `rpm-ostree install` et commandes `runcmd` enchaînées dans une
       unité systemd `oneshot` de premier boot générée automatiquement, avec
       redémarrage géré si des paquets sont demandés ; sélecteur de format
