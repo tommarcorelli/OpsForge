@@ -1,0 +1,19 @@
+# render.yaml
+# -----------
+# Blueprint Render pour deployer OpsForge (app Flask) en un clic :
+# https://dashboard.render.com -> New -> Blueprint -> selectionner ce repo.
+# Render detecte ce fichier automatiquement et pre-remplit tout.
+#
+# ansible-core s'installe normalement sur Linux (contrairement a Windows) :
+# le chiffrement Ansible Vault fonctionne donc ici, `fcntl` etant present.
+
+services:
+  - type: web
+    name: opsforge
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7

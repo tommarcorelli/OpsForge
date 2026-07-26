@@ -1,3 +1,4 @@
 flask>=3.0
 pyyaml>=6.0
 ansible-core>=2.15
+gunicorn>=21.0  # serveur WSGI de production (Render...) ; pas utilise par `python app.py` en local
