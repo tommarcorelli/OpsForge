@@ -791,6 +791,14 @@ ont déjà été traités ainsi (voir ci-dessus). Reste dans cet esprit :
 > À éviter (doublons d'autres projets) : docker-compose = DockerForge ;
 > réseau/firewall/VLAN = NetForge.
 
+Un seul candidat à un **nouveau module à part entière** identifié pour
+l'instant :
+
+- [ ] **HashiCorp Vault** — policies HCL, auth methods, secret engines.
+      Distinct de l'Ansible Vault existant (qui ne fait que chiffrer des
+      variables) : ici il s'agirait de générer la configuration du serveur
+      Vault lui-même. Pas encore commencé.
+
 ### Déjà fait (résumé)
 
 
