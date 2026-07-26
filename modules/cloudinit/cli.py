@@ -16,6 +16,10 @@ from modules.cloudinit.core import (
     list_presets,
     get_preset,
 )
+from modules.cloudinit.ignition_core import (
+    generate_ignition,
+    write_files as write_ignition_files,
+)
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "output")
@@ -49,6 +53,13 @@ def build_parser():
         "--hostname",
         default=None,
         help="Surcharge le hostname.",
+    )
+    parser.add_argument(
+        "--format",
+        choices=["cloud-config", "ignition"],
+        default="cloud-config",
+        help="Format de sortie : 'cloud-config' (user-data, defaut) ou "
+             "'ignition' (config.ign JSON pour Fedora CoreOS/Flatcar/RHCOS).",
     )
     parser.add_argument(
         "-o", "--output-dir",
@@ -99,7 +110,10 @@ def main(argv=None):
 
     if args.dry_run:
         try:
-            content = generate_cloud_config(config)
+            content = (
+                generate_ignition(config) if args.format == "ignition"
+                else generate_cloud_config(config)
+            )
         except ValueError as e:
             print(f"Erreur : {e}")
             return 1
@@ -111,16 +125,26 @@ def main(argv=None):
     output_dir = args.output_dir or OUTPUT_DIR
 
     try:
-        paths = write_files(config, output_dir)
+        paths = (
+            write_ignition_files(config, output_dir) if args.format == "ignition"
+            else write_files(config, output_dir)
+        )
     except ValueError as e:
         print(f"Erreur : {e}")
         return 1
 
-    print("\nFichier cloud-init genere avec succes :")
+    print(f"\nFichier {'Ignition' if args.format == 'ignition' else 'cloud-init'} genere avec succes :")
     for path in paths:
         print(f"  - {path}")
-    print(
-        "\nUtilisation : passe-le en user-data (Terraform user_data, "
-        "cloud provider, ou NoCloud seed.iso a cote du meta-data)."
-    )
+    if args.format == "ignition":
+        print(
+            "\nUtilisation : passe-le en user-data/Ignition config a une VM "
+            "Fedora CoreOS/Flatcar/RHCOS (Terraform ignition/butane_content, "
+            "libvirt fw_cfg, ou config drive selon le provider)."
+        )
+    else:
+        print(
+            "\nUtilisation : passe-le en user-data (Terraform user_data, "
+            "cloud provider, ou NoCloud seed.iso a cote du meta-data)."
+        )
     return 0

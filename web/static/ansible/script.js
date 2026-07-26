@@ -74,6 +74,11 @@ const el = {
   nodeTargetLabel: document.getElementById("node-target-label"),
   singleTargetFields: document.getElementById("single-target-fields"),
   multiTargetFields: document.getElementById("multi-target-fields"),
+  moleculeDivider: document.getElementById("molecule-divider"),
+  moleculeFieldsGroup: document.getElementById("molecule-fields-group"),
+  moleculeEnabled: document.getElementById("molecule-enabled"),
+  moleculeDriverRow: document.getElementById("molecule-driver-row"),
+  moleculeDriver: document.getElementById("molecule-driver"),
   groupsBuilder: document.getElementById("groups-builder"),
   addGroupBtn: document.getElementById("add-group-btn"),
   groupsJsonPreview: document.getElementById("groups-json-preview"),
@@ -264,6 +269,8 @@ function collectGroupsFromCards() {
       notify_webhook_url: get("notify_webhook_url") || null,
       hosts: hosts,
       ssh_user: get("ssh_user") || "deploy",
+      molecule: el.moleculeEnabled.checked,
+      molecule_driver: el.moleculeDriver.value || "docker",
     };
   });
 }
@@ -322,6 +329,8 @@ function switchLayout(layout) {
   el.rolesView.hidden = layout === "flat";
   el.singleTargetFields.hidden = layout === "multi";
   el.multiTargetFields.hidden = layout !== "multi";
+  el.moleculeDivider.hidden = layout === "flat";
+  el.moleculeFieldsGroup.hidden = layout === "flat";
   const labels = { flat: "Playbook unique", roles: "Projet en rôles", multi: "Multi-serveurs" };
   el.tbLayout.textContent = labels[layout];
   clearError();
@@ -486,6 +495,8 @@ function buildPayload() {
       winrm_port: el.winrmPort.value.trim() || null,
       vault_vars: Object.keys(vaultVars).length > 0 ? vaultVars : null,
       vault_password: vaultPassword || null,
+      molecule: el.moleculeEnabled.checked,
+      molecule_driver: el.moleculeDriver.value || "docker",
     },
     provisioning,
     deployment,
@@ -963,6 +974,9 @@ el.tabButtons.forEach((btn) => {
 });
 el.layoutButtons.forEach((btn) => {
   btn.addEventListener("click", () => switchLayout(btn.dataset.layout));
+});
+el.moleculeEnabled.addEventListener("change", () => {
+  el.moleculeDriverRow.hidden = !el.moleculeEnabled.checked;
 });
 el.loadExampleBtn.addEventListener("click", () => {
   el.groupsBuilder.innerHTML = "";

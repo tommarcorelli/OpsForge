@@ -28,12 +28,12 @@ serveur externe.
 | **Ansible** | Playbooks de **provisioning + déploiement** serveur (paquets, Docker, Nginx, firewall, fail2ban, bases de données, vault chiffré, multi-serveurs) | `/ansible` | `python main.py ansible …` |
 | **Vagrant** | **Vagrantfile multi-VM** (providers, réseau, provisioning, presets, lint) — portage de VagrantForge | `/vagrant` | `python main.py vagrant …` |
 | **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs — ou export **CloudFormation** (`template.yaml`) | `/terraform` | `python main.py terraform …` |
-| **Dockerfile** | **`Dockerfile`** multi-stage (build + runtime allégé) + `.dockerignore`, 8 langages, bonnes pratiques (utilisateur non-root) | `/dockerfile` | `python main.py dockerfile …` |
+| **Dockerfile** | **`Dockerfile`** multi-stage (build + runtime allégé) + `.dockerignore`, 8 langages, bonnes pratiques (utilisateur non-root), option **`docker-bake.hcl`** (build multi-tags/multi-plateformes via `docker buildx bake`) | `/dockerfile` | `python main.py dockerfile …` |
 | **Kubernetes / Helm / Kustomize** | **Manifests** (Deployment + Service + Ingress, probes, resources) prêts pour `kubectl apply`, **chart Helm** complet, ou structure **Kustomize** (`base/` + `overlays/dev,staging,prod`) — export `.zip` | `/k8s` | `python main.py k8s …` |
 | **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option — et variantes **Caddy** (Caddyfile) / **Traefik** (config dynamique YAML) / **HAProxy** (fragment `haproxy.cfg`) | `/nginx` | `python main.py nginx …` |
 | **systemd** | Unité **`.service`** durcie (utilisateur dédié, redémarrage auto, sandboxing) ou paire **`.service` + `.timer`** planifiée (`OnCalendar`, remplace cron) | `/systemd` | `python main.py systemd …` |
 | **Monitoring** | **`prometheus.yml`** (scrape multi-jobs + Alertmanager), **règles d'alerte** Prometheus (CPU/mém/disque/instance), **datasources Grafana** ou **`dashboard.json`** (panels réels prêts à importer) | `/monitoring` | `python main.py monitoring …` |
-| **cloud-init** | **`#cloud-config`** (user-data) de premier boot : utilisateurs, clés SSH, paquets, `write_files`, `runcmd`, durcissement SSH | `/cloudinit` | `python main.py cloudinit …` |
+| **cloud-init** | **`#cloud-config`** (user-data) de premier boot : utilisateurs, clés SSH, paquets, `write_files`, `runcmd`, durcissement SSH — ou export **Ignition** (`config.ign`, Fedora CoreOS/Flatcar/RHCOS) | `/cloudinit` | `python main.py cloudinit …` |
 | **Packer** | **`build.pkr.hcl`** (HCL2) : builder **virtualbox-iso / qemu / amazon-ebs / docker**, provisioners shell/file, post-processors (`vagrant`, `docker-tag`, `compress`) | `/packer` | `python main.py packer …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
@@ -445,6 +445,42 @@ apt/dnf/systemd :
   par défaut) dès que la cible Windows est choisie — y compris par groupe en
   mode multi-serveurs.
 
+### Tests de rôles avec Molecule
+
+Disponible uniquement en mode `--layout roles` (ou `--groups-file`, par
+groupe). Ajoute, pour **chaque rôle** du projet généré, un scénario
+`roles/<rôle>/molecule/default/` complet :
+
+- **`molecule.yml`** : driver au choix — `docker` (défaut, conteneur jetable
+  `geerlingguy/docker-ubuntu2204-ansible`, systemd actif via `/usr/sbin/init`
+  + cgroups montés, adapté aux rôles qui gèrent des services), `delegated`
+  (applique directement sur la machine locale, sans VM ni conteneur — le
+  plus rapide, utile en CI ou pour un test rapide) ou `vagrant` (VM
+  VirtualBox, box `generic/ubuntu2204`, pour les rôles qui ont vraiment
+  besoin d'un noyau/systemd complet, ex. modules bas niveau).
+- **`converge.yml`** : applique le rôle seul sur `hosts: all`.
+- **`verify.yml`** : assertions post-convergence en modules Ansible natifs
+  (`ansible.builtin.assert`, `service_facts`, `package_facts` — pas de
+  dépendance Testinfra). Une douzaine d'étapes ont une vérification dédiée
+  (`docker`, `nginx`, `firewall`, `fail2ban`, `monitoring`, `https`,
+  `users`, `swap`, `database`, `restart_service`, `runtime`) ; les autres
+  reçoivent une vérification générique (confirme que `molecule converge`
+  s'est terminé sans erreur) à compléter au besoin.
+- **`requirements-molecule.txt`** : généré à la racine du projet
+  (`pip install molecule ansible-core` + `molecule-plugins[docker]` ou
+  `molecule-plugins[vagrant]` selon le driver ; rien de plus pour
+  `delegated`).
+
+```bash
+pip install -r requirements-molecule.txt --break-system-packages
+cd roles/docker && molecule test     # converge + verify + destroy
+```
+
+Sélecteur dans l'UI (case à cocher + choix du driver, section « Tests
+Molecule ») ou `--molecule --molecule-driver docker|delegated|vagrant` en
+CLI ; refusé avec un message explicite si combiné à `--layout flat` (pas de
+rôles à tester individuellement dans ce mode).
+
 ## Module Vagrant — détails
 
 Portage du cœur Python de **VagrantForge**. Génère un `Vagrantfile` multi-VM à
@@ -751,6 +787,7 @@ pip install -r requirements-dev.txt --break-system-packages
 pytest tests/            # tous les modules
 pytest tests/cicd/       # module CI/CD uniquement (GitHub/GitLab/CircleCI/Jenkins/Drone)
 pytest tests/ansible/    # module Ansible uniquement
+pytest tests/ansible/test_molecule.py   # scaffolding Molecule uniquement
 pytest tests/vagrant/    # module Vagrant uniquement
 pytest tests/terraform/  # module Terraform uniquement
 pytest tests/dockerfile/ # module Dockerfile uniquement
@@ -860,14 +897,31 @@ Autres extensions possibles, par module :
       de 6 panels node_exporter — CPU/mémoire/disque/réseau/charge/uptime —
       types timeseries/gauge/stat, disposition en grille, sélecteur de
       datasource, preset `dashboard-node`).
-- [ ] **Ignition** (module cloud-init) — équivalent premier-boot pour
-      CoreOS/Fedora CoreOS, en parallèle du `#cloud-config` déjà fait.
-- [ ] **Docker Bake** (`docker-bake.hcl`, module Dockerfile) — format de
-      build multi-cible/multi-plateforme alternatif à un `docker build`
-      simple.
-- [ ] **Scaffolding Molecule** (module Ansible) — structure de tests pour
-      les rôles générés (`molecule.yml`, scénarios). Idée plus niche que
-      les autres.
+- [x] ~~**Ignition** (module cloud-init)~~ — fait (config `config.ign` JSON
+      spec 3.4.0, pour Fedora CoreOS/Flatcar/RHCOS : réutilise le MEME
+      formulaire/schéma que `#cloud-config` — hostname, utilisateurs +
+      clés SSH, `write_files` encodés en base64, `runcmd`. Paquets installés
+      via `rpm-ostree install` et commandes `runcmd` enchaînées dans une
+      unité systemd `oneshot` de premier boot générée automatiquement, avec
+      redémarrage géré si des paquets sont demandés ; sélecteur de format
+      dans l'UI et `--format ignition` en CLI).
+- [x] ~~**Docker Bake** (`docker-bake.hcl`, module Dockerfile)~~ — fait
+      (fichier `docker-bake.hcl` généré à côté du Dockerfile : `group
+      "default"` + `target`, tags/nom d'image personnalisables, build
+      multi-plateforme (`linux/amd64`/`linux/arm64` par défaut), variable
+      `VERSION`, option `--push` pour pousser directement vers un registry ;
+      case à cocher dans l'UI et `--bake` en CLI).
+- [x] ~~**Scaffolding Molecule** (module Ansible)~~ — fait (un scenario
+      `molecule/default/{molecule,converge,verify}.yml` genere par role en
+      mode `--layout roles` / `--groups-file` : 3 drivers au choix
+      (`docker` — conteneur jetable geerlingguy/Ubuntu 22.04, `delegated` —
+      hote local sans VM, `vagrant` — VM VirtualBox), assertions de
+      verification natives Ansible (`assert`/`service_facts`/`package_facts`)
+      specifiques a une douzaine d'etapes (docker, nginx, firewall, fail2ban,
+      monitoring, https, users, swap, database, restart_service, runtime),
+      fallback generique pour les autres, `requirements-molecule.txt`
+      genere selon le driver, case a cocher + selecteur de driver dans l'UI
+      et `--molecule`/`--molecule-driver` en CLI).
 
 Un seul candidat à un **nouveau module à part entière** identifié pour
 l'instant :

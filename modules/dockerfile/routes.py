@@ -10,6 +10,7 @@ from modules.cicd.detector import detect_stack
 from modules.dockerfile.core import (
     generate_dockerfile,
     generate_dockerignore,
+    generate_docker_bake,
     SUPPORTED_LANGUAGES,
     DEFAULT_PORTS,
     DEFAULT_ENTRYPOINTS,
@@ -78,8 +79,27 @@ def api_generate():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-    return jsonify({
+    response = {
         "dockerfile": dockerfile_text,
         "dockerignore": dockerignore_text,
         "filename": "Dockerfile",
-    })
+    }
+
+    if data.get("bake"):
+        image_name = (data.get("image_name") or "app").strip() or "app"
+        raw_tags = data.get("tags")
+        tags = [t.strip() for t in raw_tags if t.strip()] if isinstance(raw_tags, list) else None
+        raw_platforms = data.get("platforms")
+        platforms = (
+            [p.strip() for p in raw_platforms if p.strip()]
+            if isinstance(raw_platforms, list) else None
+        )
+        try:
+            response["docker_bake"] = generate_docker_bake(
+                stack, image_name=image_name, tags=tags, platforms=platforms,
+                push=bool(data.get("push")),
+            )
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+
+    return jsonify(response)

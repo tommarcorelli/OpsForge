@@ -36,6 +36,7 @@ const state = {
   detectedStacks: null,
   lastDockerfile: "",
   lastDockerignore: "",
+  lastBake: "",
   portTouched: false,
   entrypointTouched: false,
 };
@@ -54,6 +55,15 @@ const el = {
   entrypointHint: document.getElementById("entrypoint-hint"),
   workdirInput: document.getElementById("workdir-input"),
   dockerignoreCheckbox: document.getElementById("dockerignore-checkbox"),
+  bakeCheckbox: document.getElementById("bake-checkbox"),
+  bakeOptions: document.getElementById("bake-options"),
+  bakeImageName: document.getElementById("bake-image-name"),
+  bakeTags: document.getElementById("bake-tags"),
+  bakePlatforms: document.getElementById("bake-platforms"),
+  bakePushCheckbox: document.getElementById("bake-push-checkbox"),
+  bakeBox: document.getElementById("bake-box"),
+  bakeText: document.getElementById("bake-text"),
+  copyBakeBtn: document.getElementById("copy-bake-btn"),
   generateBtn: document.getElementById("generate-btn"),
   resetBtn: document.getElementById("reset-btn"),
   errorMsg: document.getElementById("error-msg"),
@@ -232,6 +242,14 @@ async function handleGenerate() {
     workdir: el.workdirInput.value.trim() || "/app",
   };
 
+  if (el.bakeCheckbox.checked) {
+    payload.bake = true;
+    payload.image_name = el.bakeImageName.value.trim() || "app";
+    payload.tags = el.bakeTags.value.split(",").map((t) => t.trim()).filter(Boolean);
+    payload.platforms = el.bakePlatforms.value.split(",").map((p) => p.trim()).filter(Boolean);
+    payload.push = el.bakePushCheckbox.checked;
+  }
+
   el.generateBtn.disabled = true;
   el.generateBtn.textContent = "…";
 
@@ -257,6 +275,15 @@ async function handleGenerate() {
     } else {
       state.lastDockerignore = "";
       el.dockerignoreBox.hidden = true;
+    }
+
+    if (el.bakeCheckbox.checked && data.docker_bake) {
+      state.lastBake = data.docker_bake;
+      el.bakeText.textContent = data.docker_bake;
+      el.bakeBox.hidden = false;
+    } else {
+      state.lastBake = "";
+      el.bakeBox.hidden = true;
     }
 
     updateTitleBlock();
@@ -320,8 +347,10 @@ function resetResultBox(message) {
   el.resultBox.appendChild(p);
   el.resultActions.hidden = true;
   el.dockerignoreBox.hidden = true;
+  el.bakeBox.hidden = true;
   state.lastDockerfile = "";
   state.lastDockerignore = "";
+  state.lastBake = "";
 }
 
 function updateTitleBlock() {
@@ -356,6 +385,17 @@ async function handleCopyDockerignore() {
   }
 }
 
+async function handleCopyBake() {
+  if (!state.lastBake) return;
+  try {
+    await navigator.clipboard.writeText(state.lastBake);
+    el.copyBakeBtn.textContent = "Copié !";
+    setTimeout(() => (el.copyBakeBtn.textContent = "Copier le docker-bake.hcl"), 1500);
+  } catch (err) {
+    showError("Impossible de copier automatiquement, sélectionne le texte manuellement.");
+  }
+}
+
 function handleDownload() {
   if (!state.lastDockerfile) return;
   const blob = new Blob([state.lastDockerfile], { type: "text/plain" });
@@ -382,6 +422,12 @@ function handleReset() {
   el.entrypointInput.value = "";
   el.workdirInput.value = "/app";
   el.dockerignoreCheckbox.checked = true;
+  el.bakeCheckbox.checked = false;
+  el.bakeOptions.hidden = true;
+  el.bakeImageName.value = "app";
+  el.bakeTags.value = "";
+  el.bakePlatforms.value = "";
+  el.bakePushCheckbox.checked = false;
   renderLanguageList();
   resetResultBox();
   clearError();
@@ -412,6 +458,10 @@ el.resetBtn.addEventListener("click", handleReset);
 el.copyBtn.addEventListener("click", handleCopy);
 el.downloadBtn.addEventListener("click", handleDownload);
 el.copyDockerignoreBtn.addEventListener("click", handleCopyDockerignore);
+el.copyBakeBtn.addEventListener("click", handleCopyBake);
+el.bakeCheckbox.addEventListener("change", () => {
+  el.bakeOptions.hidden = !el.bakeCheckbox.checked;
+});
 el.portInput.addEventListener("input", () => (state.portTouched = true));
 el.entrypointInput.addEventListener("input", () => (state.entrypointTouched = true));
 

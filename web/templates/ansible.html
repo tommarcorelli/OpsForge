@@ -403,6 +403,26 @@
       </div>
       <!-- /multi-target-fields -->
 
+      <hr class="section-divider" id="molecule-divider" hidden />
+
+      <div class="field-group" id="molecule-fields-group" hidden>
+        <label class="field-label">05b — Tests Molecule (optionnel)</label>
+        <p class="field-hint">Génère un scénario <code>molecule/default/</code> (molecule.yml + converge.yml + verify.yml) pour chaque rôle du projet, prêt pour <code>molecule test</code>.</p>
+        <label class="toggle">
+          <input type="checkbox" id="molecule-enabled" />
+          <span><span class="toggle-title">Générer les scénarios de test Molecule</span><span class="toggle-sub">un scénario "default" par rôle</span></span>
+        </label>
+        <div id="molecule-driver-row" hidden style="margin-top: 8px;">
+          <label class="field-label" for="molecule-driver">Driver</label>
+          <select id="molecule-driver" class="text-input">
+            {% for driver in molecule_drivers %}
+            <option value="{{ driver }}">{{ driver }}</option>
+            {% endfor %}
+          </select>
+          <p class="field-hint">docker : conteneur jetable (recommandé). delegated : applique sur l'hôte local, sans VM/conteneur. vagrant : VM VirtualBox.</p>
+        </div>
+      </div>
+
       <hr class="section-divider" />
 
       <div class="field-group">

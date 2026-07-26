@@ -124,6 +124,27 @@
         <textarea id="runcmd-input" class="text-input area" rows="3" placeholder="une commande par ligne&#10;systemctl enable --now nginx"></textarea>
       </div>
 
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label">Format de sortie</label>
+        <div class="stack-list" id="format-list">
+          <label class="stack-item" style="cursor:pointer;">
+            <span style="display:flex; align-items:center; gap:10px;">
+              <input type="radio" name="output-format" id="format-cloudconfig-radio" value="cloud-config" checked />
+              <span>cloud-init <code>#cloud-config</code> (user-data)</span>
+            </span>
+          </label>
+          <label class="stack-item" style="cursor:pointer;">
+            <span style="display:flex; align-items:center; gap:10px;">
+              <input type="radio" name="output-format" id="format-ignition-radio" value="ignition" />
+              <span>Ignition <code>config.ign</code> (Fedora CoreOS / Flatcar / RHCOS)</span>
+            </span>
+          </label>
+        </div>
+        <p class="field-hint" id="format-hint">Même formulaire, deux formats de premier boot possibles.</p>
+      </div>
+
       <div style="display: flex; gap: 8px; margin-top: 8px;">
         <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top: 0;">
           GÉNÉRER →
@@ -151,7 +172,7 @@
         </div>
       </div>
 
-      <p class="field-label" style="margin-bottom:8px;">Fichier <code>user-data</code></p>
+      <p class="field-label" style="margin-bottom:8px;">Fichier <code id="result-filename-label">user-data</code></p>
       <div class="result-box" id="result-box">
         <p class="result-placeholder">Le fichier généré apparaîtra ici.</p>
       </div>

@@ -20,6 +20,7 @@ from modules.ansible.core import (
     SUPPORTED_LANGUAGES,
     DATABASE_ENGINES,
     TARGET_OSES,
+    MOLECULE_DRIVERS,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge
@@ -157,6 +158,22 @@ def build_parser():
     )
 
     parser.add_argument(
+        "--molecule",
+        action="store_true",
+        help=(
+            "Genere un scenario de test Molecule ('molecule/default/') pour "
+            "chaque role du projet (disponible uniquement avec --layout roles "
+            "ou --groups-file)."
+        ),
+    )
+    parser.add_argument(
+        "--molecule-driver",
+        choices=MOLECULE_DRIVERS,
+        default="docker",
+        help="Driver Molecule a utiliser : docker (defaut), delegated (hote local, aucune VM) ou vagrant.",
+    )
+
+    parser.add_argument(
         "--groups-file",
         default=None,
         help=(
@@ -200,6 +217,11 @@ def main(argv=None):
               "(pas --layout roles ni --groups-file).")
         sys.exit(1)
 
+    if args.molecule and not (args.groups_file or args.layout == "roles"):
+        print("Erreur : --molecule necessite --layout roles (ou --groups-file) : "
+              "le mode 'flat' ne genere pas de roles a tester individuellement.")
+        sys.exit(1)
+
     vault_vars = {}
     if args.vault_var:
         for item in args.vault_var:
@@ -233,6 +255,11 @@ def main(argv=None):
         if not isinstance(groups, list):
             print("Erreur : le fichier --groups-file doit contenir une liste de groupes (JSON array).")
             sys.exit(1)
+
+        if args.molecule:
+            for group in groups:
+                group.setdefault("molecule", True)
+                group.setdefault("molecule_driver", args.molecule_driver)
 
         output_dir = args.output or OUTPUT_DIR
 
@@ -291,6 +318,8 @@ def main(argv=None):
         "deploy_user": args.ssh_user,
         "ssh_public_key": args.ssh_public_key,
         "target_os": args.target_os,
+        "molecule": args.molecule,
+        "molecule_driver": args.molecule_driver,
     }
 
     if args.layout == "roles":
@@ -306,6 +335,10 @@ def main(argv=None):
         print(f"Projet en roles genere dans : {output_dir}/")
         print("  - playbook.yml, vars.yml, ansible.cfg")
         print(f"  - {len(written) - 3} fichiers de roles ({', '.join(config['provisioning'] + config['deployment'])})")
+
+        if args.molecule:
+            print(f"  - scenario Molecule 'default' par role (driver: {args.molecule_driver}), requirements-molecule.txt")
+            print(f"  Pour lancer les tests : pip install -r requirements-molecule.txt && cd {output_dir}/roles/<role> && molecule test")
 
         if vault_vars:
             vault_path = os.path.join(output_dir, "vault.yml")

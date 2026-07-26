@@ -33,6 +33,10 @@ const el = {
 
   runcmdInput: document.getElementById("runcmd-input"),
 
+  formatCloudconfigRadio: document.getElementById("format-cloudconfig-radio"),
+  formatIgnitionRadio: document.getElementById("format-ignition-radio"),
+  resultFilenameLabel: document.getElementById("result-filename-label"),
+
   generateBtn: document.getElementById("generate-btn"),
   resetBtn: document.getElementById("reset-btn"),
   errorMsg: document.getElementById("error-msg"),
@@ -287,6 +291,8 @@ function buildPayload() {
   if (el.disableRootCheckbox.checked) payload.disable_root = true;
   if (el.noPwauthCheckbox.checked) payload.ssh_pwauth = false;
 
+  payload.format = el.formatIgnitionRadio.checked ? "ignition" : "cloud-config";
+
   return payload;
 }
 
@@ -333,7 +339,8 @@ async function handleGenerate() {
     }
 
     state.lastFilename = data.filename || "user-data";
-    renderResult(data.combined);
+    el.resultFilenameLabel.textContent = state.lastFilename;
+    renderResult(data.combined, data.format || "cloud-config");
     updateTitleBlock();
     flashSuccess();
   } catch (err) {
@@ -376,11 +383,19 @@ function highlightYaml(text) {
     .join("\n");
 }
 
-function renderResult(combined) {
+function highlightJson(text) {
+  const escaped = escapeHtml(text);
+  return escaped.replace(
+    /("[^"]*")(\s*:)/g,
+    '<span class="yaml-key">$1</span>$2'
+  );
+}
+
+function renderResult(combined, format) {
   state.lastCombined = combined;
   el.resultBox.innerHTML = "";
   const pre = document.createElement("pre");
-  pre.innerHTML = highlightYaml(combined);
+  pre.innerHTML = format === "ignition" ? highlightJson(combined) : highlightYaml(combined);
   el.resultBox.appendChild(pre);
   el.resultActions.hidden = false;
 }
@@ -441,6 +456,8 @@ function handleReset() {
   el.noPwauthCheckbox.checked = false;
   el.packagesInput.value = "";
   el.runcmdInput.value = "";
+  el.formatCloudconfigRadio.checked = true;
+  el.resultFilenameLabel.textContent = "user-data";
 
   state.users = [];
   state.writeFiles = [];

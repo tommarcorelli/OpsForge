@@ -181,6 +181,87 @@ def generate_dockerfile(stack, port=None, entrypoint=None, workdir="/app"):
     return _replace_placeholders(template_text, values)
 
 
+DEFAULT_PLATFORMS = ["linux/amd64", "linux/arm64"]
+
+
+def generate_docker_bake(
+    stack,
+    image_name="app",
+    tags=None,
+    platforms=None,
+    dockerfile="Dockerfile",
+    context=".",
+    push=False,
+):
+    """
+    Genere un `docker-bake.hcl` (format Docker Bake / buildx bake) pour
+    l'image dont le Dockerfile a ete produit par `generate_dockerfile`.
+
+    Docker Bake remplace une commande `docker build` longue (multi-tags,
+    multi-plateformes, build-args) par un fichier declaratif que l'on
+    construit avec `docker buildx bake`. Complementaire du Dockerfile
+    genere (il le reference), pas un remplacant.
+
+    Args:
+        stack (dict): meme forme que pour generate_dockerfile
+            ({"language", "version", "package_manager"}).
+        image_name (str): nom de l'image (defaut "app").
+        tags (list[str]|None): tags a appliquer (defaut : ["latest"]).
+        platforms (list[str]|None): plateformes cibles pour le build
+            multi-arch (defaut : linux/amd64 + linux/arm64).
+        dockerfile (str): chemin du Dockerfile a utiliser (defaut "Dockerfile").
+        context (str): contexte de build (defaut ".").
+        push (bool): ajoute `output = ["type=registry"]` pour pousser
+            directement l'image apres build (defaut False, build local).
+
+    Returns:
+        str: contenu du fichier docker-bake.hcl.
+    """
+    language = stack.get("language")
+    if language not in SUPPORTED_LANGUAGES:
+        raise ValueError(
+            f"Langage non supporte : '{language}'. "
+            f"Langages disponibles : {', '.join(SUPPORTED_LANGUAGES)}."
+        )
+
+    version = stack.get("version") or DEFAULT_VERSIONS.get(language, "latest")
+    resolved_tags = tags or ["latest"]
+    resolved_platforms = platforms or DEFAULT_PLATFORMS
+
+    tags_hcl = ", ".join(f'"{image_name}:{t}"' for t in resolved_tags)
+    platforms_hcl = ", ".join(f'"{p}"' for p in resolved_platforms)
+
+    lines = [
+        "# docker-bake.hcl genere par OpsForge",
+        "# Construction : docker buildx bake",
+        "",
+        'variable "VERSION" {',
+        f'  default = "{version}"',
+        "}",
+        "",
+        'group "default" {',
+        f'  targets = ["{image_name}"]',
+        "}",
+        "",
+        f'target "{image_name}" {{',
+        f'  context    = "{context}"',
+        f'  dockerfile = "{dockerfile}"',
+        f"  tags       = [{tags_hcl}]",
+        f"  platforms  = [{platforms_hcl}]",
+        "  args = {",
+        "    VERSION = \"${VERSION}\"",
+        "  }",
+    ]
+
+    if push:
+        lines.append('  output = ["type=registry"]')
+
+    lines.append("}")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
 def generate_dockerignore(language):
     """Genere le contenu d'un .dockerignore adapte au langage."""
     if language not in SUPPORTED_LANGUAGES:
@@ -206,6 +287,19 @@ def write_dockerfile(stack, output_path, port=None, entrypoint=None, workdir="/a
 def write_dockerignore(language, output_path):
     """Genere le .dockerignore et l'ecrit directement dans un fichier."""
     content = generate_dockerignore(language)
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return output_path
+
+
+def write_docker_bake(stack, output_path, image_name="app", tags=None, platforms=None,
+                       dockerfile="Dockerfile", context=".", push=False):
+    """Genere le docker-bake.hcl et l'ecrit directement dans un fichier."""
+    content = generate_docker_bake(
+        stack, image_name=image_name, tags=tags, platforms=platforms,
+        dockerfile=dockerfile, context=context, push=push,
+    )
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(content)

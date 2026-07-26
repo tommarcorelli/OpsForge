@@ -133,6 +133,244 @@ ROLE_DESCRIPTIONS = {
     "notify": "Envoie une notification Slack/Discord a la fin du deploiement.",
 }
 
+# --------------------------------------------------------------------------
+# Scaffolding Molecule (tests de roles) — mode "roles" uniquement.
+# Un scenario "default" (molecule/default/{molecule,converge,verify}.yml)
+# est genere par role, avec un driver au choix (docker/delegated/vagrant).
+# --------------------------------------------------------------------------
+MOLECULE_DRIVERS = ["docker", "delegated", "vagrant"]
+
+MOLECULE_DEFAULT_DRIVER = "docker"
+
+# Image Docker par defaut (Ubuntu 22.04 avec systemd + Python pre-installes,
+# necessaire car la plupart des roles utilisent `service`/`systemd`).
+MOLECULE_DOCKER_IMAGE = "geerlingguy/docker-ubuntu2204-ansible:latest"
+
+# Box Vagrant par defaut, coherente avec le reste d'OpsForge (module Vagrant).
+MOLECULE_VAGRANT_BOX = "generic/ubuntu2204"
+
+# Assertions de verification specifiques a certaines etapes (mode "roles").
+# Cle = nom d'etape generique. Chaque valeur est un fragment de taches YAML
+# (deja indente a 2 espaces), insere tel quel dans verify.yml.
+MOLECULE_VERIFY_SNIPPETS = {
+    "docker": (
+        "  - name: Verifier que Docker est installe\n"
+        "    ansible.builtin.command: docker --version\n"
+        "    changed_when: false\n\n"
+        "  - name: Verifier que le service Docker tourne\n"
+        "    ansible.builtin.service_facts:\n\n"
+        "  - name: Assertion service Docker actif\n"
+        "    ansible.builtin.assert:\n"
+        "      that:\n"
+        "        - \"'docker.service' in ansible_facts.services\"\n"
+        "        - \"ansible_facts.services['docker.service'].state == 'running'\"\n"
+    ),
+    "nginx": (
+        "  - name: Verifier que Nginx est installe et actif\n"
+        "    ansible.builtin.service_facts:\n\n"
+        "  - name: Assertion service Nginx actif\n"
+        "    ansible.builtin.assert:\n"
+        "      that:\n"
+        "        - \"'nginx.service' in ansible_facts.services\"\n"
+        "        - \"ansible_facts.services['nginx.service'].state == 'running'\"\n"
+    ),
+    "firewall": (
+        "  - name: Verifier la presence du pare-feu (ufw ou firewalld)\n"
+        "    ansible.builtin.package_facts:\n\n"
+        "  - name: Assertion pare-feu installe\n"
+        "    ansible.builtin.assert:\n"
+        "      that:\n"
+        "        - \"'ufw' in ansible_facts.packages or 'firewalld' in ansible_facts.packages\"\n"
+    ),
+    "fail2ban": (
+        "  - name: Verifier que fail2ban tourne\n"
+        "    ansible.builtin.service_facts:\n\n"
+        "  - name: Assertion service fail2ban actif\n"
+        "    ansible.builtin.assert:\n"
+        "      that:\n"
+        "        - \"'fail2ban.service' in ansible_facts.services\"\n"
+        "        - \"ansible_facts.services['fail2ban.service'].state == 'running'\"\n"
+    ),
+    "monitoring": (
+        "  - name: Verifier que Netdata tourne\n"
+        "    ansible.builtin.service_facts:\n\n"
+        "  - name: Assertion service Netdata actif\n"
+        "    ansible.builtin.assert:\n"
+        "      that:\n"
+        "        - \"'netdata.service' in ansible_facts.services\"\n"
+    ),
+    "https": (
+        "  - name: Verifier que certbot est installe\n"
+        "    ansible.builtin.package_facts:\n\n"
+        "  - name: Assertion certbot installe\n"
+        "    ansible.builtin.assert:\n"
+        "      that:\n"
+        "        - \"'certbot' in ansible_facts.packages\"\n"
+    ),
+    "users": (
+        "  - name: Verifier que l'utilisateur de deploiement existe\n"
+        "    ansible.builtin.command: id {{ deploy_user | default('deploy') }}\n"
+        "    register: molecule_user_check\n"
+        "    changed_when: false\n"
+        "    failed_when: molecule_user_check.rc != 0\n"
+    ),
+    "swap": (
+        "  - name: Verifier la presence de swap\n"
+        "    ansible.builtin.command: swapon --show\n"
+        "    register: molecule_swap_check\n"
+        "    changed_when: false\n\n"
+        "  - name: Assertion swap actif\n"
+        "    ansible.builtin.assert:\n"
+        "      that:\n"
+        "        - \"molecule_swap_check.stdout | length > 0\"\n"
+    ),
+    "database": (
+        "  - name: Verifier que le moteur de base de donnees tourne\n"
+        "    ansible.builtin.service_facts:\n\n"
+        "  - name: Assertion service base de donnees actif\n"
+        "    ansible.builtin.assert:\n"
+        "      that:\n"
+        "        - >-\n"
+        "          ansible_facts.services\n"
+        "          | dict2items\n"
+        "          | selectattr('key', 'search', 'postgres|mysql|mariadb|redis|mongod')\n"
+        "          | selectattr('value.state', 'equalto', 'running')\n"
+        "          | list | length > 0\n"
+    ),
+    "restart_service": (
+        "  - name: Verifier que le service applicatif est actif\n"
+        "    ansible.builtin.service_facts:\n\n"
+        "  - name: Assertion service applicatif actif\n"
+        "    ansible.builtin.assert:\n"
+        "      that:\n"
+        "        - \"(service_name ~ '.service') in ansible_facts.services\"\n"
+        "      quiet: true\n"
+        "      success_msg: \"Service applicatif actif (ou variable service_name absente du contexte molecule).\"\n"
+    ),
+    "runtime": (
+        "  - name: Verifier que le runtime applicatif est installe\n"
+        "    ansible.builtin.package_facts:\n\n"
+        "  - name: Afficher les paquets installes (info)\n"
+        "    ansible.builtin.debug:\n"
+        "      msg: \"Runtime provisionne — verifie manuellement selon le langage (node/python/go/...).\"\n"
+    ),
+}
+
+# Snippet generique utilise pour toute etape sans verification dediee
+# ci-dessus : se contente de confirmer que le role s'est applique sans
+# erreur (idempotence testee separement par `molecule idempotence`).
+MOLECULE_VERIFY_GENERIC_SNIPPET = (
+    "  - name: Aucune verification specifique pour cette etape\n"
+    "    ansible.builtin.debug:\n"
+    "      msg: >-\n"
+    "        Role applique sans erreur par 'molecule converge'. Complete ce\n"
+    "        verify.yml avec des assertions specifiques si besoin\n"
+    "        (ansible.builtin.stat, service_facts, package_facts, uri...).\n"
+)
+
+
+def _molecule_driver_config(driver):
+    """Bloc `driver:` + `platforms:` YAML selon le driver Molecule choisi."""
+    if driver == "delegated":
+        return (
+            "driver:\n"
+            "  name: delegated\n"
+            "platforms:\n"
+            "  - name: localhost\n"
+            "    groups:\n"
+            "      - molecule\n"
+        )
+    if driver == "vagrant":
+        return (
+            "driver:\n"
+            "  name: vagrant\n"
+            "  provider:\n"
+            "    name: virtualbox\n"
+            "platforms:\n"
+            "  - name: instance\n"
+            f"    box: {MOLECULE_VAGRANT_BOX}\n"
+            "    memory: 1024\n"
+            "    cpus: 1\n"
+        )
+    # defaut : docker
+    return (
+        "driver:\n"
+        "  name: docker\n"
+        "platforms:\n"
+        "  - name: instance\n"
+        f"    image: {MOLECULE_DOCKER_IMAGE}\n"
+        "    pre_build_image: true\n"
+        "    privileged: true\n"
+        "    cgroupns_mode: host\n"
+        "    command: /usr/sbin/init\n"
+        "    volumes:\n"
+        "      - /sys/fs/cgroup:/sys/fs/cgroup:rw\n"
+    )
+
+
+def _molecule_scenario_files(role_name, step, config):
+    """
+    Genere le scenario Molecule "default" d'un role : molecule.yml
+    (driver + platform + provisioner), converge.yml (applique le role
+    seul) et verify.yml (assertions post-convergence, specifiques a
+    l'etape quand un snippet existe dans MOLECULE_VERIFY_SNIPPETS,
+    sinon generique).
+
+    Args:
+        role_name (str): nom du dossier de role (ex: "runtime_node")
+        step (str): nom brut de l'etape (ex: "runtime", "docker") — utilise
+            pour choisir le snippet de verification, independamment du
+            suffixe langage/moteur/windows du role_name.
+        config (dict): configuration complete (lu pour "molecule_driver")
+
+    Returns:
+        dict: {chemin_relatif: contenu} des 3 fichiers du scenario.
+    """
+    driver = config.get("molecule_driver") or MOLECULE_DEFAULT_DRIVER
+    if driver not in MOLECULE_DRIVERS:
+        driver = MOLECULE_DEFAULT_DRIVER
+
+    base = f"roles/{role_name}/molecule/default"
+
+    molecule_yml = (
+        "---\n"
+        "dependency:\n"
+        "  name: galaxy\n"
+        f"{_molecule_driver_config(driver)}"
+        "provisioner:\n"
+        "  name: ansible\n"
+        "  playbooks:\n"
+        "    converge: converge.yml\n"
+        "    verify: verify.yml\n"
+        "verifier:\n"
+        "  name: ansible\n"
+    )
+
+    converge_yml = (
+        "---\n"
+        f"- name: Converge ({role_name})\n"
+        "  hosts: all\n"
+        "  become: true\n"
+        "  roles:\n"
+        f"    - {role_name}\n"
+    )
+
+    snippet = MOLECULE_VERIFY_SNIPPETS.get(step, MOLECULE_VERIFY_GENERIC_SNIPPET)
+    verify_yml = (
+        "---\n"
+        f"- name: Verify ({role_name})\n"
+        "  hosts: all\n"
+        "  gather_facts: true\n"
+        "  tasks:\n"
+        f"{snippet}"
+    )
+
+    return {
+        f"{base}/molecule.yml": molecule_yml,
+        f"{base}/converge.yml": converge_yml,
+        f"{base}/verify.yml": verify_yml,
+    }
+
 
 def _load_template(relative_path):
     """Charge le contenu brut d'un template .yml, ou None si absent."""
@@ -501,6 +739,9 @@ def generate_role_based_project(config):
             "dependencies: []\n"
         )
 
+        if config.get("molecule"):
+            files.update(_molecule_scenario_files(role_name, step, config))
+
     if not role_entries:
         raise ValueError(
             "Aucune tache generee : selectionne au moins une etape "
@@ -539,7 +780,26 @@ def generate_role_based_project(config):
         "stdout_callback = yaml\n"
     )
 
+    if config.get("molecule"):
+        files["requirements-molecule.txt"] = _molecule_requirements_txt(config)
+
     return files
+
+
+def _molecule_requirements_txt(config):
+    """Contenu de requirements-molecule.txt selon le driver choisi."""
+    driver = config.get("molecule_driver") or MOLECULE_DEFAULT_DRIVER
+    if driver not in MOLECULE_DRIVERS:
+        driver = MOLECULE_DEFAULT_DRIVER
+    driver_package = {
+        "docker": "molecule-plugins[docker]",
+        "vagrant": "molecule-plugins[vagrant]",
+        "delegated": "",
+    }[driver]
+    packages = ["molecule", "ansible-core"]
+    if driver_package:
+        packages.insert(1, driver_package)
+    return "\n".join(packages) + "\n"
 
 
 def generate_inventory(hosts_group, host, ssh_user="deploy", ssh_key_path=None,
@@ -722,6 +982,9 @@ def generate_multi_group_roles_project(groups, vault_vars=None):
                     "dependencies: []\n"
                 )
 
+                if group.get("molecule"):
+                    files.update(_molecule_scenario_files(role_name, step, group))
+
         vars_dict = _build_vars(group)
         vars_lines = "\n".join(_vars_to_yaml_lines(vars_dict))
         vars_filename = f"vars_{group['hosts_group']}.yml"
@@ -753,6 +1016,10 @@ def generate_multi_group_roles_project(groups, vault_vars=None):
         "host_key_checking = False\n"
         "stdout_callback = yaml\n"
     )
+
+    molecule_group = next((g for g in groups if g.get("molecule")), None)
+    if molecule_group:
+        files["requirements-molecule.txt"] = _molecule_requirements_txt(molecule_group)
 
     return files
 

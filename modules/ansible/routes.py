@@ -20,6 +20,7 @@ from modules.ansible.core import (
     WINDOWS_SUPPORTED_PROVISIONING,
     WINDOWS_SUPPORTED_DEPLOYMENT,
     WINDOWS_SUPPORTED_LANGUAGES,
+    MOLECULE_DRIVERS,
 )
 
 bp = Blueprint("ansible", __name__, url_prefix="/ansible")
@@ -55,6 +56,8 @@ def _config_from_payload(data):
         "ssh_public_key": data.get("ssh_public_key"),
         "target_os": data.get("target_os") or "linux",
         "deploy_user_password": data.get("deploy_user_password"),
+        "molecule": bool(data.get("molecule")),
+        "molecule_driver": data.get("molecule_driver") or "docker",
     }, vault_vars
 
 
@@ -66,6 +69,7 @@ def index():
         windows_provisioning=WINDOWS_SUPPORTED_PROVISIONING,
         windows_deployment=WINDOWS_SUPPORTED_DEPLOYMENT,
         windows_languages=WINDOWS_SUPPORTED_LANGUAGES,
+        molecule_drivers=MOLECULE_DRIVERS,
     )
 
 
