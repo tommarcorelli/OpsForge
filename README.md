@@ -791,6 +791,26 @@ ont déjà été traités ainsi (voir ci-dessus). Reste dans cet esprit :
 > À éviter (doublons d'autres projets) : docker-compose = DockerForge ;
 > réseau/firewall/VLAN = NetForge.
 
+Autres extensions possibles, par module (aucune commencée) :
+
+- [ ] **Kustomize** (module K8s) — troisième format à côté des manifests
+      bruts et du chart Helm (overlays base/patches). Le plus solide des
+      candidats ci-dessous : complète directement ce que fait déjà le module,
+      sans redite avec un autre projet.
+- [ ] **HAProxy** (module Nginx) — même principe que les variantes Caddy/
+      Traefik déjà faites, autre load balancer courant.
+- [ ] **Dashboards Grafana** en JSON de panels réels (module Monitoring) —
+      aujourd'hui il ne génère que les datasources, pas les dashboards
+      eux-mêmes.
+- [ ] **Ignition** (module cloud-init) — équivalent premier-boot pour
+      CoreOS/Fedora CoreOS, en parallèle du `#cloud-config` déjà fait.
+- [ ] **Docker Bake** (`docker-bake.hcl`, module Dockerfile) — format de
+      build multi-cible/multi-plateforme alternatif à un `docker build`
+      simple.
+- [ ] **Scaffolding Molecule** (module Ansible) — structure de tests pour
+      les rôles générés (`molecule.yml`, scénarios). Idée plus niche que
+      les autres.
+
 Un seul candidat à un **nouveau module à part entière** identifié pour
 l'instant :
 
