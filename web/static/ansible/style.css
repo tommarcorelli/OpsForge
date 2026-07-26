@@ -94,13 +94,16 @@ select.text-input{cursor:pointer;}
 .segmented-btn.active .segmented-hint{color:var(--dim);}
 
 /* Toggles (cases a cocher) : grille 2 colonnes plutot qu'une longue
-   colonne unique - les descriptions restent lisibles (elles wrappent sur
-   leur propre colonne), mais la liste prend moitie moins de hauteur. */
-.checkbox-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.toggle{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:12px;background:var(--glass-strong);border:1px solid var(--border-2);cursor:pointer;transition:all .15s ease;font-size:13.5px;color:var(--ink-2);}
+   colonne unique - un titre court en gras + un sous-titre compact pour
+   le detail technique (au lieu d'une seule longue phrase qui wrappe sur
+   plusieurs lignes), pour une liste bien plus courte a scroller. */
+.checkbox-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.toggle{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:11px;background:var(--glass-strong);border:1px solid var(--border-2);cursor:pointer;transition:all .15s ease;font-size:13.5px;color:var(--ink-2);}
 .toggle:hover{border-color:rgba(229,114,11,.4);}
-.toggle input{margin-top:2px;width:17px;height:17px;accent-color:var(--primary);cursor:pointer;flex:0 0 auto;}
+.toggle input{width:16px;height:16px;accent-color:var(--primary);cursor:pointer;flex:0 0 auto;}
 .toggle:has(input:checked){background:rgba(229,114,11,.09);border-color:rgba(229,114,11,.45);color:var(--ink);}
+.toggle-title{display:block;font-weight:600;line-height:1.25;}
+.toggle-sub{display:block;font-size:10.5px;font-weight:400;color:var(--dim);line-height:1.2;margin-top:1px;}
 .toggle.step-disabled{opacity:.35;cursor:not-allowed;}
 .toggle.step-disabled:hover{border-color:var(--border-2);}
 

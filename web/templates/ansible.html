@@ -166,67 +166,67 @@
         <div class="checkbox-grid">
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="update_system" checked />
-            <span>Mettre à jour le système (apt update/upgrade)</span>
+            <span><span class="toggle-title">Mettre à jour le système</span><span class="toggle-sub">apt update/upgrade</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="base_packages" checked />
-            <span>Installer les paquets de base (git, curl, build-essential)</span>
+            <span><span class="toggle-title">Paquets de base</span><span class="toggle-sub">git, curl, build-essential</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="timezone" />
-            <span>Définir le fuseau horaire (Europe/Paris par défaut)</span>
+            <span><span class="toggle-title">Fuseau horaire</span><span class="toggle-sub">Europe/Paris par défaut</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="swap" />
-            <span>Créer un fichier de swap (2 Go par défaut)</span>
+            <span><span class="toggle-title">Fichier de swap</span><span class="toggle-sub">2 Go par défaut</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="unattended_upgrades" />
-            <span>Activer les mises à jour de sécurité automatiques</span>
+            <span><span class="toggle-title">MAJ sécurité auto</span><span class="toggle-sub">unattended-upgrades</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="users" />
-            <span>Créer l'utilisateur de déploiement (sudo + clé SSH)</span>
+            <span><span class="toggle-title">Utilisateur de déploiement</span><span class="toggle-sub">sudo + clé SSH</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="firewall" />
-            <span>Configurer le pare-feu (UFW/firewalld : SSH, HTTP, HTTPS uniquement)</span>
+            <span><span class="toggle-title">Pare-feu</span><span class="toggle-sub">UFW/firewalld : SSH, HTTP, HTTPS</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="ssh_hardening" />
-            <span>Durcir SSH (désactive le login root et les mots de passe)</span>
+            <span><span class="toggle-title">Durcir SSH</span><span class="toggle-sub">désactive root + mots de passe</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="fail2ban" />
-            <span>Installer Fail2ban (anti brute-force SSH)</span>
+            <span><span class="toggle-title">Fail2ban</span><span class="toggle-sub">anti brute-force SSH</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="monitoring" />
-            <span>Installer l'agent de supervision (Netdata)</span>
+            <span><span class="toggle-title">Agent de supervision</span><span class="toggle-sub">Netdata</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="runtime" checked />
-            <span>Installer le runtime applicatif (langage choisi ci-dessus)</span>
+            <span><span class="toggle-title">Runtime applicatif</span><span class="toggle-sub">langage choisi ci-dessus</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="docker" />
-            <span>Installer Docker + Docker Compose</span>
+            <span><span class="toggle-title">Docker</span><span class="toggle-sub">+ Docker Compose</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="nginx" />
-            <span>Installer Nginx</span>
+            <span><span class="toggle-title">Nginx</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="https" />
-            <span>HTTPS automatique (Certbot / Let's Encrypt, nécessite Nginx)</span>
+            <span><span class="toggle-title">HTTPS automatique</span><span class="toggle-sub">Certbot/Let's Encrypt, nécessite Nginx</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="database" />
-            <span>Installer une base de données</span>
+            <span><span class="toggle-title">Base de données</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="provisioning" value="backups" />
-            <span>Sauvegardes automatiques (DB + appli, cron quotidien + rotation)</span>
+            <span><span class="toggle-title">Sauvegardes automatiques</span><span class="toggle-sub">DB + appli, cron + rotation</span></span>
           </label>
         </div>
 
@@ -276,39 +276,39 @@
         <div class="checkbox-grid">
           <label class="toggle">
             <input type="checkbox" name="deployment" value="backup_previous" />
-            <span>Sauvegarder l'ancienne version avant déploiement (rollback)</span>
+            <span><span class="toggle-title">Sauvegarder l'ancienne version</span><span class="toggle-sub">avant déploiement (rollback)</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="deployment" value="git_clone" checked />
-            <span>Cloner / mettre à jour le dépôt Git</span>
+            <span><span class="toggle-title">Cloner / mettre à jour le dépôt Git</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="deployment" value="zero_downtime_deploy" />
-            <span>Déploiement zero-downtime (releases horodatées + symlink, alternative au clone simple)</span>
+            <span><span class="toggle-title">Déploiement zero-downtime</span><span class="toggle-sub">releases horodatées + symlink</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="deployment" value="install_deps" checked />
-            <span>Installer les dépendances du projet</span>
+            <span><span class="toggle-title">Installer les dépendances</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="deployment" value="build" />
-            <span>Exécuter une commande de build</span>
+            <span><span class="toggle-title">Commande de build</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="deployment" value="restart_service" checked />
-            <span>Redémarrer le service applicatif (systemd)</span>
+            <span><span class="toggle-title">Redémarrer le service</span><span class="toggle-sub">systemd</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="deployment" value="reload_nginx" />
-            <span>Recharger Nginx</span>
+            <span><span class="toggle-title">Recharger Nginx</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="deployment" value="health_check" />
-            <span>Vérifier que le service répond après déploiement</span>
+            <span><span class="toggle-title">Vérifier la disponibilité</span><span class="toggle-sub">après déploiement</span></span>
           </label>
           <label class="toggle">
             <input type="checkbox" name="deployment" value="notify" />
-            <span>Notifier Slack/Discord à la fin du déploiement</span>
+            <span><span class="toggle-title">Notifier Slack/Discord</span><span class="toggle-sub">à la fin du déploiement</span></span>
           </label>
         </div>
         <div class="field-group" id="health-check-port-group" hidden style="margin-top: 10px;">
