@@ -27,7 +27,7 @@ def build_parser():
         prog="opsforge monitoring",
         description=(
             "Genere de la configuration de monitoring : prometheus.yml, "
-            "regles d'alerte Prometheus, ou datasources Grafana."
+            "regles d'alerte Prometheus, datasources Grafana, ou dashboard.json."
         ),
     )
     parser.add_argument(

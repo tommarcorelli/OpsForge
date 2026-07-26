@@ -15,6 +15,9 @@ Trois modes :
                    avec seuils configurables.
   - "grafana"    : fichier de provisioning de datasources Grafana
                    (`datasource.yml`) : Prometheus, Loki, InfluxDB...
+  - "dashboards" : dashboard Grafana pret a importer (`dashboard.json`) —
+                   panels reels (pas juste les datasources) a partir d'un
+                   catalogue node_exporter (CPU/mem/disk/reseau/charge/up).
 
 Le YAML est produit via PyYAML (garanti valide), puis chaque fichier est
 prefixe d'un pense-bete d'installation en commentaire.
@@ -30,12 +33,13 @@ Usage basique :
 """
 
 import copy
+import json
 import os
 import re
 
 import yaml
 
-SUPPORTED_MODES = ["prometheus", "alerts", "grafana"]
+SUPPORTED_MODES = ["prometheus", "alerts", "grafana", "dashboards"]
 DATASOURCE_TYPES = ["prometheus", "loki", "influxdb", "postgres", "tempo", "elasticsearch"]
 
 DEFAULT_INTERVAL = "15s"
@@ -97,6 +101,62 @@ RULES_CATALOG = {
         "severity": "warning",
         "summary": "Charge systeme elevee sur {{ $labels.instance }}",
         "description": "La charge sur 15 min depasse 1.5x le nombre de coeurs depuis 10 minutes.",
+    },
+}
+
+# Catalogue de panels Grafana (base node_exporter), un panel = un couple
+# (requete PromQL, type de panel). Contrairement a RULES_CATALOG, les
+# expressions n'ont pas besoin de seuils : ce sont des courbes/jauges, pas
+# des alertes.
+PANEL_CATALOG = {
+    "cpu": {
+        "label": "Utilisation CPU",
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "unit": "percent",
+        "expr": '100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
+        "legend": "{{instance}}",
+    },
+    "memory": {
+        "label": "Utilisation memoire",
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "unit": "percent",
+        "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+        "legend": "{{instance}}",
+    },
+    "disk": {
+        "label": "Espace disque utilise",
+        "title": "Disk Usage",
+        "type": "gauge",
+        "unit": "percent",
+        "expr": '(1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / '
+                'node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100',
+        "legend": "{{instance}} {{mountpoint}}",
+    },
+    "network": {
+        "label": "Trafic reseau",
+        "title": "Network Traffic",
+        "type": "timeseries",
+        "unit": "Bps",
+        "expr": 'rate(node_network_receive_bytes_total{device!="lo"}[5m])',
+        "legend": "{{instance}} {{device}}",
+    },
+    "load": {
+        "label": "Charge systeme (15 min)",
+        "title": "System Load (15m)",
+        "type": "timeseries",
+        "unit": "short",
+        "expr": "node_load15",
+        "legend": "{{instance}}",
+    },
+    "uptime": {
+        "label": "Disponibilite (up)",
+        "title": "Instances Up",
+        "type": "stat",
+        "unit": "short",
+        "expr": "sum(up)",
+        "legend": "up",
     },
 }
 
@@ -185,6 +245,21 @@ def validate_config(config):
                     f"Datasource #{i + 1} : type '{ds_type}' non reconnu "
                     f"(disponibles : {', '.join(DATASOURCE_TYPES)})."
                 )
+
+    elif mode == "dashboards":
+        if not _clean(config.get("title")):
+            errors.append("Le titre du dashboard est requis.")
+        panels = config.get("panels") or []
+        if not panels:
+            errors.append("Selectionne au moins un panel.")
+        for key in panels:
+            if key not in PANEL_CATALOG:
+                errors.append(f"Panel inconnu : '{key}'.")
+        if not _clean(config.get("datasource_name")):
+            errors.append("Le nom de la datasource Prometheus (UID) est requis.")
+        refresh = config.get("refresh")
+        if refresh and not _duration_ok(refresh):
+            errors.append(f"Intervalle de rafraichissement invalide : '{refresh}' (ex. valides : 15s, 1m).")
 
     return errors
 
@@ -297,16 +372,84 @@ def _build_grafana(config):
     return header + "\n" + _dump_yaml(data)
 
 
+def _panel_gridpos(index):
+    """
+    Dispose les panels en grille 2 colonnes x 8 unites de large chacune
+    (grille Grafana standard = 24 unites de large), 8 unites de haut.
+    """
+    col = index % 2
+    row = index // 2
+    return {"h": 8, "w": 12, "x": col * 12, "y": row * 8}
+
+
+def _build_dashboard_panel(key, index, datasource_uid):
+    spec = PANEL_CATALOG[key]
+    panel = {
+        "id": index + 1,
+        "title": spec["title"],
+        "type": spec["type"],
+        "gridPos": _panel_gridpos(index),
+        "datasource": {"type": "prometheus", "uid": datasource_uid},
+        "fieldConfig": {
+            "defaults": {"unit": spec["unit"]},
+            "overrides": [],
+        },
+        "targets": [
+            {
+                "expr": spec["expr"],
+                "legendFormat": spec["legend"],
+                "refId": "A",
+                "datasource": {"type": "prometheus", "uid": datasource_uid},
+            }
+        ],
+    }
+    if spec["type"] == "timeseries":
+        panel["options"] = {"legend": {"displayMode": "list", "placement": "bottom"}}
+    elif spec["type"] == "gauge":
+        panel["options"] = {"showThresholdLabels": False, "showThresholdMarkers": True}
+        panel["fieldConfig"]["defaults"]["max"] = 100
+        panel["fieldConfig"]["defaults"]["min"] = 0
+    elif spec["type"] == "stat":
+        panel["options"] = {"colorMode": "value", "graphMode": "area"}
+    return panel
+
+
+def _build_dashboards(config):
+    datasource_uid = _clean(config["datasource_name"])
+    panels = [
+        _build_dashboard_panel(key, i, datasource_uid)
+        for i, key in enumerate(config["panels"])
+    ]
+
+    data = {
+        "title": _clean(config["title"]),
+        "uid": _clean(config.get("uid")) or None,
+        "tags": ["opsforge", "monitoring"],
+        "timezone": "browser",
+        "schemaVersion": 39,
+        "version": 1,
+        "refresh": config.get("refresh") or "30s",
+        "time": {"from": "now-6h", "to": "now"},
+        "panels": panels,
+    }
+    if not data["uid"]:
+        del data["uid"]
+
+    return json.dumps(data, indent=2, ensure_ascii=False)
+
+
 _BUILDERS = {
     "prometheus": _build_prometheus,
     "alerts": _build_alerts,
     "grafana": _build_grafana,
+    "dashboards": _build_dashboards,
 }
 
 _FILENAMES = {
     "prometheus": "prometheus.yml",
     "alerts": "alert.rules.yml",
     "grafana": "datasource.yml",
+    "dashboards": "dashboard.json",
 }
 
 
@@ -358,6 +501,14 @@ def list_rules():
     ]
 
 
+def list_panels():
+    """Catalogue des panels de dashboard, pour l'interface."""
+    return [
+        {"key": key, "label": spec["label"], "type": spec["type"]}
+        for key, spec in PANEL_CATALOG.items()
+    ]
+
+
 # --------------------------------------------------------------------------
 # Presets prets a l'emploi
 # --------------------------------------------------------------------------
@@ -403,6 +554,13 @@ PRESETS = {
             {"name": "Prometheus", "type": "prometheus", "url": "http://localhost:9090", "is_default": True},
             {"name": "Loki", "type": "loki", "url": "http://localhost:3100"},
         ],
+    },
+    "dashboard-node": {
+        "mode": "dashboards",
+        "title": "Node Overview",
+        "datasource_name": "prometheus",
+        "refresh": "30s",
+        "panels": ["cpu", "memory", "disk", "network", "load", "uptime"],
     },
 }
 

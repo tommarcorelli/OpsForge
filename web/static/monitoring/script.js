@@ -15,12 +15,14 @@ const FILENAMES = {
   prometheus: "prometheus.yml",
   alerts: "alert.rules.yml",
   grafana: "datasource.yml",
+  dashboards: "dashboard.json",
 };
 
 const MODE_LABELS = {
   prometheus: "Prometheus",
   alerts: "Alertes",
   grafana: "Grafana",
+  dashboards: "Dashboards",
 };
 
 const state = {
@@ -56,6 +58,12 @@ const el = {
   fieldsGrafana: document.getElementById("fields-grafana"),
   datasourcesList: document.getElementById("datasources-list"),
   addDatasourceBtn: document.getElementById("add-datasource-btn"),
+
+  fieldsDashboards: document.getElementById("fields-dashboards"),
+  dashboardTitleInput: document.getElementById("dashboard-title-input"),
+  dashboardRefreshInput: document.getElementById("dashboard-refresh-input"),
+  dashboardDatasourceInput: document.getElementById("dashboard-datasource-input"),
+  panelsList: document.getElementById("panels-list"),
 
   generateBtn: document.getElementById("generate-btn"),
   resetBtn: document.getElementById("reset-btn"),
@@ -131,6 +139,15 @@ function fillFormFromConfig(cfg) {
     cb.checked = selected.has(cb.dataset.rule);
   });
 
+  // Dashboards
+  el.dashboardTitleInput.value = cfg.title || "";
+  el.dashboardRefreshInput.value = cfg.refresh || "30s";
+  el.dashboardDatasourceInput.value = cfg.datasource_name || "prometheus";
+  const selectedPanels = new Set(cfg.panels || []);
+  el.panelsList.querySelectorAll(".panel-check").forEach((cb) => {
+    cb.checked = selectedPanels.has(cb.dataset.panel);
+  });
+
   // Grafana
   if (Array.isArray(cfg.datasources)) {
     state.datasources = cfg.datasources.map((d) => ({
@@ -157,6 +174,7 @@ function setMode(mode) {
   el.fieldsPrometheus.hidden = mode !== "prometheus";
   el.fieldsAlerts.hidden = mode !== "alerts";
   el.fieldsGrafana.hidden = mode !== "grafana";
+  el.fieldsDashboards.hidden = mode !== "dashboards";
 
   updateTitleBlock();
 }
@@ -299,6 +317,12 @@ function checkedRules() {
     .map((cb) => cb.dataset.rule);
 }
 
+function checkedPanels() {
+  return Array.from(el.panelsList.querySelectorAll(".panel-check"))
+    .filter((cb) => cb.checked)
+    .map((cb) => cb.dataset.panel);
+}
+
 function buildPayload() {
   if (state.mode === "prometheus") {
     return {
@@ -322,16 +346,25 @@ function buildPayload() {
       disk_threshold: parseInt(el.diskThresholdInput.value, 10) || 85,
     };
   }
+  if (state.mode === "grafana") {
+    return {
+      mode: "grafana",
+      datasources: state.datasources
+        .filter((d) => (d.name || "").trim())
+        .map((d) => ({
+          name: d.name.trim(),
+          type: d.type,
+          url: (d.url || "").trim(),
+          is_default: !!d.is_default,
+        })),
+    };
+  }
   return {
-    mode: "grafana",
-    datasources: state.datasources
-      .filter((d) => (d.name || "").trim())
-      .map((d) => ({
-        name: d.name.trim(),
-        type: d.type,
-        url: (d.url || "").trim(),
-        is_default: !!d.is_default,
-      })),
+    mode: "dashboards",
+    title: el.dashboardTitleInput.value.trim() || "Node Overview",
+    refresh: el.dashboardRefreshInput.value.trim() || "30s",
+    datasource_name: el.dashboardDatasourceInput.value.trim() || "prometheus",
+    panels: checkedPanels(),
   };
 }
 
@@ -344,6 +377,11 @@ function frontValidate() {
   }
   if (state.mode === "grafana" && !state.datasources.some((d) => (d.name || "").trim())) {
     return "Ajoute au moins une datasource.";
+  }
+  if (state.mode === "dashboards") {
+    if (!el.dashboardTitleInput.value.trim()) return "Le titre du dashboard est requis.";
+    if (!el.dashboardDatasourceInput.value.trim()) return "Le nom de la datasource Prometheus est requis.";
+    if (checkedPanels().length === 0) return "Sélectionne au moins un panel.";
   }
   return null;
 }
@@ -420,11 +458,22 @@ function highlightYaml(text) {
     .join("\n");
 }
 
+function highlightJson(text) {
+  const escaped = escapeHtml(text);
+  return escaped.replace(
+    /("(?:[^"\\]|\\.)*")(\s*:)?/g,
+    (match, str, colon) => {
+      const cls = colon ? "yaml-key" : "yaml-comment";
+      return `<span class="${cls}">${str}</span>${colon || ""}`;
+    }
+  );
+}
+
 function renderResult(combined) {
   state.lastCombined = combined;
   el.resultBox.innerHTML = "";
   const pre = document.createElement("pre");
-  pre.innerHTML = highlightYaml(combined);
+  pre.innerHTML = state.mode === "dashboards" ? highlightJson(combined) : highlightYaml(combined);
   el.resultBox.appendChild(pre);
   el.resultActions.hidden = false;
 }
@@ -447,6 +496,9 @@ function currentCount() {
   }
   if (state.mode === "alerts") {
     return `${checkedRules().length} règle(s)`;
+  }
+  if (state.mode === "dashboards") {
+    return `${checkedPanels().length} panel(s)`;
   }
   return `${state.datasources.filter((d) => (d.name || "").trim()).length} source(s)`;
 }
@@ -498,6 +550,10 @@ function handleReset() {
   el.memThresholdInput.value = 85;
   el.diskThresholdInput.value = 85;
   el.rulesList.querySelectorAll(".rule-check").forEach((cb) => (cb.checked = false));
+  el.dashboardTitleInput.value = "";
+  el.dashboardRefreshInput.value = "30s";
+  el.dashboardDatasourceInput.value = "prometheus";
+  el.panelsList.querySelectorAll(".panel-check").forEach((cb) => (cb.checked = false));
 
   state.jobs = [{ job_name: "node", targets: "localhost:9100" }];
   state.datasources = [
@@ -533,6 +589,7 @@ el.resetBtn.addEventListener("click", handleReset);
 el.copyBtn.addEventListener("click", handleCopy);
 el.downloadBtn.addEventListener("click", handleDownload);
 el.rulesList.addEventListener("change", updateTitleBlock);
+el.panelsList.addEventListener("change", updateTitleBlock);
 
 renderPresetList();
 renderJobsList();

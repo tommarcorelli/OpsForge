@@ -11,6 +11,7 @@ from modules.monitoring.core import (
     list_presets,
     get_preset,
     list_rules,
+    list_panels,
     SUPPORTED_MODES,
     DATASOURCE_TYPES,
 )
@@ -25,6 +26,7 @@ def index():
         modes=SUPPORTED_MODES,
         datasource_types=DATASOURCE_TYPES,
         rules=list_rules(),
+        panels=list_panels(),
         presets=list_presets(),
     )
 

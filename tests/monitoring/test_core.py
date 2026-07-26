@@ -10,8 +10,10 @@ from modules.monitoring.core import (
     list_presets,
     get_preset,
     list_rules,
+    list_panels,
     SUPPORTED_MODES,
     RULES_CATALOG,
+    PANEL_CATALOG,
     PRESETS,
 )
 
@@ -44,6 +46,17 @@ def _grafana_cfg(**overrides):
     cfg = {
         "mode": "grafana",
         "datasources": [{"name": "Prometheus", "type": "prometheus", "url": "http://localhost:9090"}],
+    }
+    cfg.update(overrides)
+    return cfg
+
+
+def _dashboards_cfg(**overrides):
+    cfg = {
+        "mode": "dashboards",
+        "title": "Node Overview",
+        "datasource_name": "prometheus",
+        "panels": ["cpu", "memory"],
     }
     cfg.update(overrides)
     return cfg
@@ -110,10 +123,36 @@ def test_grafana_type_inconnu_rejete():
     assert any("non reconnu" in e for e in errors)
 
 
+def test_dashboards_sans_titre_rejete():
+    errors = validate_config(_dashboards_cfg(title=""))
+    assert any("titre" in e for e in errors)
+
+
+def test_dashboards_sans_panel_rejete():
+    errors = validate_config(_dashboards_cfg(panels=[]))
+    assert any("panel" in e for e in errors)
+
+
+def test_dashboards_panel_inconnu_rejete():
+    errors = validate_config(_dashboards_cfg(panels=["cpu", "gpu"]))
+    assert any("Panel inconnu" in e for e in errors)
+
+
+def test_dashboards_sans_datasource_rejete():
+    errors = validate_config(_dashboards_cfg(datasource_name=""))
+    assert any("datasource" in e for e in errors)
+
+
+def test_dashboards_refresh_invalide_rejete():
+    errors = validate_config(_dashboards_cfg(refresh="pas-une-duree"))
+    assert any("rafraichissement" in e for e in errors)
+
+
 def test_configs_valides_ne_levent_aucune_erreur():
     assert validate_config(_prom_cfg()) == []
     assert validate_config(_alerts_cfg()) == []
     assert validate_config(_grafana_cfg()) == []
+    assert validate_config(_dashboards_cfg()) == []
 
 
 # --------------------------------------------------------------------------
@@ -219,6 +258,52 @@ def test_grafana_is_default_present_seulement_si_demande():
 
 
 # --------------------------------------------------------------------------
+# Generation : Dashboards
+# --------------------------------------------------------------------------
+
+def test_dashboards_produit_dashboard_json():
+    files = generate_files(_dashboards_cfg())
+    assert list(files.keys()) == ["dashboard.json"]
+
+
+def test_dashboards_json_valide_et_structure():
+    import json
+    data = json.loads(generate_files(_dashboards_cfg())["dashboard.json"])
+    assert data["title"] == "Node Overview"
+    assert data["schemaVersion"] == 39
+    assert len(data["panels"]) == 2
+    assert {p["title"] for p in data["panels"]} == {"CPU Usage", "Memory Usage"}
+
+
+def test_dashboards_panels_referencent_la_datasource():
+    import json
+    data = json.loads(generate_files(_dashboards_cfg(datasource_name="ma-source"))["dashboard.json"])
+    for panel in data["panels"]:
+        assert panel["datasource"]["uid"] == "ma-source"
+        assert panel["targets"][0]["datasource"]["uid"] == "ma-source"
+
+
+def test_dashboards_gridpos_deux_colonnes():
+    import json
+    cfg = _dashboards_cfg(panels=["cpu", "memory", "disk"])
+    data = json.loads(generate_files(cfg)["dashboard.json"])
+    positions = [(p["gridPos"]["x"], p["gridPos"]["y"]) for p in data["panels"]]
+    assert positions == [(0, 0), (12, 0), (0, 8)]
+
+
+def test_dashboards_uid_absent_si_non_fourni():
+    import json
+    data = json.loads(generate_files(_dashboards_cfg())["dashboard.json"])
+    assert "uid" not in data
+
+
+def test_dashboards_uid_present_si_fourni():
+    import json
+    data = json.loads(generate_files(_dashboards_cfg(uid="node-overview"))["dashboard.json"])
+    assert data["uid"] == "node-overview"
+
+
+# --------------------------------------------------------------------------
 # Combine + config invalide
 # --------------------------------------------------------------------------
 
@@ -241,6 +326,11 @@ def test_list_rules_retourne_le_catalogue():
     assert keys == set(RULES_CATALOG.keys())
 
 
+def test_list_panels_retourne_le_catalogue():
+    keys = {p["key"] for p in list_panels()}
+    assert keys == set(PANEL_CATALOG.keys())
+
+
 def test_tous_les_presets_sont_valides():
     for name in list_presets():
         cfg = get_preset(name)
@@ -259,6 +349,6 @@ def test_get_preset_retourne_une_copie_independante():
     assert len(preset_b["jobs"]) == 2
 
 
-def test_presets_couvrent_les_trois_modes():
+def test_presets_couvrent_tous_les_modes():
     modes_couverts = {PRESETS[name]["mode"] for name in list_presets()}
     assert modes_couverts == set(SUPPORTED_MODES)
