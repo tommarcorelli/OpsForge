@@ -56,8 +56,10 @@ function setMode(mode) {
   el.modeHint.innerHTML =
     mode === "helm"
       ? "Squelette de chart complet : <code>helm install mon-app ./mon-app</code>."
+      : mode === "kustomize"
+      ? "Base + overlays dev/staging/prod : <code>kubectl apply -k overlays/prod</code>."
       : "Fichiers YAML directement applicables avec <code>kubectl apply -f</code>.";
-  el.tbMode.textContent = mode === "helm" ? "Chart Helm" : "Manifests";
+  el.tbMode.textContent = mode === "helm" ? "Chart Helm" : mode === "kustomize" ? "Kustomize" : "Manifests";
 }
 
 el.modeButtons.forEach((btn) => {
@@ -272,9 +274,12 @@ async function handleDownload() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = state.mode === "helm"
-      ? `${payload.name}-chart.zip`
-      : `${payload.name}-manifests.zip`;
+    a.download =
+      state.mode === "helm"
+        ? `${payload.name}-chart.zip`
+        : state.mode === "kustomize"
+        ? `${payload.name}-kustomize.zip`
+        : `${payload.name}-manifests.zip`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

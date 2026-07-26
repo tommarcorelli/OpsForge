@@ -57,8 +57,9 @@ def build_parser():
         choices=SUPPORTED_TARGETS,
         default="nginx",
         help="Format de sortie : nginx (defaut, server{}/upstream{}), "
-             "caddy (Caddyfile) ou traefik (config dynamique YAML). "
-             "Traefik ne supporte pas le mode 'static'.",
+             "caddy (Caddyfile), traefik (config dynamique YAML) ou "
+             "haproxy (fragment haproxy.cfg). Traefik et HAProxy ne "
+             "supportent pas le mode 'static'.",
     )
     parser.add_argument(
         "--server-name",
@@ -133,7 +134,7 @@ def main(argv=None):
         return 0
 
     server_name = (config.get("server_name") or "app").strip()
-    ext = {"nginx": "conf", "caddy": "Caddyfile", "traefik": "yml"}.get(args.target, "conf")
+    ext = {"nginx": "conf", "caddy": "Caddyfile", "traefik": "yml", "haproxy": "cfg"}.get(args.target, "conf")
     default_name = "Caddyfile" if args.target == "caddy" else f"{server_name}.{ext}"
     output_path = args.output or os.path.join(OUTPUT_DIR, default_name)
 
@@ -156,6 +157,12 @@ def main(argv=None):
         )
     elif args.target == "caddy":
         print(f"Pour l'activer : ajoute le contenu de {output_path} a ton Caddyfile, puis `caddy reload`.")
+    elif args.target == "haproxy":
+        print(
+            f"Pour l'activer : insere le contenu de {output_path} dans /etc/haproxy/haproxy.cfg "
+            "(ou charge-le en fichier separe via `haproxy -f haproxy.cfg -f "
+            f"{output_path}`), puis `haproxy -c -f /etc/haproxy/haproxy.cfg` avant de recharger le service."
+        )
     else:
         print(
             f"Pour l'activer : copie {output_path} dans le dossier surveille par le provider "

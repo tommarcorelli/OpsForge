@@ -409,6 +409,124 @@ def generate_helm_chart(config):
 
 
 # ---------------------------------------------------------------------------
+# Mode 3 : overlays Kustomize (base + overlays/<env>)
+# ---------------------------------------------------------------------------
+
+# Presets d'overlays par defaut : dev et staging patchent les replicas (empreinte
+# reduite), prod reste tel quel (les replicas de la config de base font foi).
+DEFAULT_KUSTOMIZE_OVERLAYS = {
+    "dev": {"replicas": 1},
+    "staging": {"replicas": 2},
+    "prod": {},
+}
+
+
+def _normalize_overlays(overlays):
+    """
+    Normalise le parametre 'overlays' en dict {nom: options}.
+
+    Accepte :
+      - None                      -> presets par defaut (dev/staging/prod)
+      - liste de noms              -> options du preset si connu, {} sinon
+      - dict {nom: {...options}}   -> utilise tel quel
+    """
+    if overlays is None:
+        return dict(DEFAULT_KUSTOMIZE_OVERLAYS)
+    if isinstance(overlays, dict):
+        return overlays
+    # liste/tuple de noms
+    return {name: DEFAULT_KUSTOMIZE_OVERLAYS.get(name, {}) for name in overlays}
+
+
+def generate_kustomize(config, overlays=None):
+    """
+    Genere une structure Kustomize (base/ + overlays/<env>/) a partir de la
+    meme config que generate_manifests.
+
+    Args:
+        config: meme config que pour generate_manifests/generate_helm_chart.
+        overlays: None (presets dev/staging/prod), liste de noms d'overlay
+                  (presets connus repris, sinon overlay "vide"), ou dict
+                  {nom: {"replicas": int, "namespace": str}} pour un controle
+                  complet.
+
+    Returns:
+        dict {chemin_relatif: contenu} :
+          - base/kustomization.yaml + base/deployment.yaml + base/service.yaml
+            (+ base/ingress.yaml si demande)
+          - overlays/<env>/kustomization.yaml (+ patch-replicas.yaml si l'overlay
+            fixe un nombre de replicas different de la base)
+    """
+    _valider_ou_lever(config)
+    overlays_map = _normalize_overlays(overlays)
+
+    name = config["name"].strip()
+    files = {}
+
+    # --- base/ : les memes manifests bruts, sans prefixe numerique ---
+    base_resources = ["deployment.yaml", "service.yaml"]
+    files["base/deployment.yaml"] = _dump(
+        generate_deployment(config), "Genere par OpsForge — base kustomize : deployment"
+    )
+    files["base/service.yaml"] = _dump(
+        generate_service(config), "Genere par OpsForge — base kustomize : service"
+    )
+    ing = generate_ingress(config)
+    if ing:
+        files["base/ingress.yaml"] = _dump(
+            ing, "Genere par OpsForge — base kustomize : ingress"
+        )
+        base_resources.append("ingress.yaml")
+
+    files["base/kustomization.yaml"] = _dump({
+        "apiVersion": "kustomize.config.k8s.io/v1beta1",
+        "kind": "Kustomization",
+        "resources": base_resources,
+    }, "Genere par OpsForge — base kustomize")
+
+    # --- overlays/<env>/ ---
+    for env_name, opts in overlays_map.items():
+        opts = opts or {}
+        overlay_dir = f"overlays/{env_name}"
+
+        kustomization = {
+            "apiVersion": "kustomize.config.k8s.io/v1beta1",
+            "kind": "Kustomization",
+            "namePrefix": opts.get("name_prefix", f"{env_name}-"),
+            "commonLabels": {"app.kubernetes.io/environment": env_name},
+            "resources": ["../../base"],
+        }
+
+        namespace = (opts.get("namespace") or "").strip()
+        if namespace:
+            kustomization["namespace"] = namespace
+
+        patches = []
+        replicas = opts.get("replicas")
+        if replicas is not None:
+            if not isinstance(replicas, int) or replicas < 1:
+                raise ValueError(
+                    f"Overlay '{env_name}' : 'replicas' doit etre un entier >= 1."
+                )
+            files[f"{overlay_dir}/patch-replicas.yaml"] = _dump({
+                "apiVersion": "apps/v1",
+                "kind": "Deployment",
+                "metadata": {"name": name},
+                "spec": {"replicas": replicas},
+            }, f"Genere par OpsForge — overlay {env_name} : patch replicas")
+            patches.append({"path": "patch-replicas.yaml"})
+
+        if patches:
+            kustomization["patches"] = patches
+
+        files[f"{overlay_dir}/kustomization.yaml"] = _dump(
+            kustomization, f"Genere par OpsForge — overlay {env_name}"
+        )
+
+    return files
+
+
+# ---------------------------------------------------------------------------
 # Ecriture sur disque
 # ---------------------------------------------------------------------------
 
@@ -431,3 +549,9 @@ def write_manifests(config, output_dir):
 def write_helm_chart(config, output_dir):
     """Ecrit le chart Helm dans un dossier. Retourne les chemins ecrits."""
     return _write_files(generate_helm_chart(config), output_dir)
+
+
+def write_kustomize(config, output_dir, overlays=None):
+    """Ecrit la structure Kustomize (base/ + overlays/) dans un dossier."""
+    return _write_files(generate_kustomize(config, overlays=overlays), output_dir)
+

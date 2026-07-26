@@ -48,7 +48,7 @@ def api_preset(nom):
 @bp.route("/api/generate", methods=["POST"])
 def api_generate():
     """Genere la config a partir des choix faits dans le formulaire, pour la
-    cible demandee (nginx [defaut], caddy ou traefik)."""
+    cible demandee (nginx [defaut], caddy, traefik ou haproxy)."""
     config = request.get_json(force=True) or {}
     target = (config.pop("target", None) or "nginx").strip()
 
@@ -58,7 +58,7 @@ def api_generate():
         return jsonify({"error": str(e)}), 400
 
     server_name = (config.get("server_name") or "app").strip()
-    ext = {"nginx": "conf", "caddy": "Caddyfile", "traefik": "yml"}.get(target, "conf")
+    ext = {"nginx": "conf", "caddy": "Caddyfile", "traefik": "yml", "haproxy": "cfg"}.get(target, "conf")
     filename = "Caddyfile" if target == "caddy" else f"{server_name}.{ext}"
 
     return jsonify({

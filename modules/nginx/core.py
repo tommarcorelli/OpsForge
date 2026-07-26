@@ -35,13 +35,14 @@ import yaml
 
 SUPPORTED_MODES = ["static", "reverse_proxy", "load_balancer"]
 LB_ALGORITHMS = ["round_robin", "least_conn", "ip_hash"]
-SUPPORTED_TARGETS = ["nginx", "caddy", "traefik"]
-# Traefik est un reverse proxy / load balancer : pas de mode "static" (pas de
-# serveur de fichiers integre a la config dynamique).
+SUPPORTED_TARGETS = ["nginx", "caddy", "traefik", "haproxy"]
+# Traefik et HAProxy sont des reverse proxy / load balancer : pas de mode "static"
+# (ni l'un ni l'autre n'est un serveur de fichiers a proprement parler).
 TARGET_MODES = {
     "nginx": SUPPORTED_MODES,
     "caddy": SUPPORTED_MODES,
     "traefik": ["reverse_proxy", "load_balancer"],
+    "haproxy": ["reverse_proxy", "load_balancer"],
 }
 
 DEFAULT_LISTEN_PORT = 80
@@ -488,15 +489,140 @@ def generate_traefik(config):
     return header + "\n" + yaml_text
 
 
+# --------------------------------------------------------------------------
+# Cible HAProxy — meme formulaire, sortie en fragment haproxy.cfg
+# --------------------------------------------------------------------------
+HAPROXY_BALANCE = {"round_robin": "roundrobin", "least_conn": "leastconn", "ip_hash": "source"}
+
+
+def _haproxy_slug(server_name):
+    """Nom de domaine -> identifiant valide pour un nom de frontend/backend HAProxy."""
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", server_name).strip("_").lower()
+    return slug or "app"
+
+
+def _haproxy_security_lines():
+    return [
+        'http-response set-header X-Frame-Options "SAMEORIGIN"',
+        'http-response set-header X-Content-Type-Options "nosniff"',
+        'http-response set-header X-XSS-Protection "1; mode=block"',
+        'http-response set-header Referrer-Policy "strict-origin-when-cross-origin"',
+    ]
+
+
+def _haproxy_block(name, lines):
+    body = "\n".join("    " + line for line in lines)
+    return f"{name}\n{body}"
+
+
+def _haproxy_backend_servers(config):
+    mode = config["mode"]
+    if mode == "reverse_proxy":
+        return [f"server srv1 {config['backend_host']}:{config['backend_port']} check"]
+    lines = []
+    for i, b in enumerate(config["backends"], start=1):
+        weight = b.get("weight")
+        weight_str = f" weight={weight}" if weight else ""
+        lines.append(f"server srv{i} {b['host']}:{b['port']} check{weight_str}")
+    return lines
+
+
+def generate_haproxy(config):
+    """
+    Genere un fragment `haproxy.cfg` (frontend + backend) equivalent a la
+    config Nginx fournie.
+
+    HAProxy n'a pas de mode 'static' (ce n'est pas un serveur de fichiers) :
+    seuls 'reverse_proxy' et 'load_balancer' sont disponibles pour cette
+    cible (voir TARGET_MODES). Comme pour Traefik, 'ip_hash' est traduit par
+    l'equivalent le plus proche disponible nativement (`balance source`).
+    """
+    errors = validate_config(config, target="haproxy")
+    if errors:
+        raise ValueError("Configuration invalide : " + " | ".join(errors))
+
+    mode = config["mode"]
+    server_name = config["server_name"]
+    slug = _haproxy_slug(server_name)
+    https = bool(config.get("https"))
+    listen_port = config.get("listen_port", DEFAULT_LISTEN_PORT)
+    websocket = bool(config.get("websocket"))
+
+    frontend_name = f"fe_{slug}"
+    backend_name = f"be_{slug}"
+
+    if https:
+        redirect_lines = [
+            f"bind *:{listen_port}",
+            "redirect scheme https code 301 if !{ ssl_fc }",
+        ]
+        https_lines = [f"bind *:{DEFAULT_HTTPS_PORT} ssl crt /etc/haproxy/certs/{server_name}.pem"]
+        if config.get("security_headers"):
+            https_lines += _haproxy_security_lines()
+        https_lines.append(f"default_backend {backend_name}")
+        frontend_block = (
+            _haproxy_block(f"frontend {frontend_name}_http", redirect_lines)
+            + "\n\n"
+            + _haproxy_block(f"frontend {frontend_name}", https_lines)
+        )
+    else:
+        lines = [f"bind *:{listen_port}"]
+        if config.get("security_headers"):
+            lines += _haproxy_security_lines()
+        lines.append(f"default_backend {backend_name}")
+        frontend_block = _haproxy_block(f"frontend {frontend_name}", lines)
+
+    backend_lines = []
+    algo = config.get("lb_algorithm", "round_robin")
+    if mode == "load_balancer":
+        backend_lines.append(f"balance {HAPROXY_BALANCE.get(algo, 'roundrobin')}")
+    if config.get("gzip"):
+        backend_lines.append("compression algo gzip")
+        backend_lines.append(
+            "compression type text/plain text/css application/json application/javascript "
+            "text/xml application/xml text/javascript"
+        )
+    if websocket:
+        backend_lines.append("timeout tunnel 1h")
+    backend_lines.extend(_haproxy_backend_servers(config))
+    backend_block = _haproxy_block(f"backend {backend_name}", backend_lines)
+
+    header_comment = (
+        f"# Genere par OpsForge — module nginx (cible: haproxy, mode: {mode})\n"
+        "# Fragment a inserer dans /etc/haproxy/haproxy.cfg (sections frontend/backend),\n"
+        "# ou dans un fichier separe charge via `haproxy -f haproxy.cfg -f ce-fichier.cfg`.\n"
+        "# Verifie ensuite avec : haproxy -c -f /etc/haproxy/haproxy.cfg"
+    )
+    if https:
+        header_comment += (
+            f"\n# HTTPS : fournit un bundle PEM (certificat + cle concatenes) a l'emplacement"
+            f" indique par 'bind ... ssl crt' — ex. via certbot puis "
+            f"`cat fullchain.pem privkey.pem > {server_name}.pem`."
+        )
+    header_comment += (
+        "\n# Note : pas d'equivalent direct a client_max_body_size cote HAProxy ; utilise "
+        "'http-request deny if { req.body_len gt <octets> }' en frontend, ou un WAF en amont."
+    )
+    if mode == "load_balancer" and algo == "ip_hash":
+        header_comment += (
+            "\n# Note : 'ip_hash' est traduit par 'balance source' (hash de l'IP cliente), "
+            "l'equivalent HAProxy le plus proche."
+        )
+
+    return header_comment + "\n\n" + frontend_block + "\n\n" + backend_block + "\n"
+
+
 def generate(config, target="nginx"):
-    """Dispatcher : genere la config pour la cible demandee ('nginx' [defaut], 'caddy', 'traefik')."""
+    """Dispatcher : genere la config pour la cible demandee ('nginx' [defaut], 'caddy', 'traefik', 'haproxy')."""
     if target not in SUPPORTED_TARGETS:
         raise ValueError(f"Cible non supportee : '{target}'. Cibles disponibles : {', '.join(SUPPORTED_TARGETS)}.")
     if target == "nginx":
         return generate_config(config)
     if target == "caddy":
         return generate_caddy(config)
-    return generate_traefik(config)
+    if target == "traefik":
+        return generate_traefik(config)
+    return generate_haproxy(config)
 
 
 # --------------------------------------------------------------------------

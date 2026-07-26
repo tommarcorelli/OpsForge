@@ -79,7 +79,7 @@
           <button type="button" class="provider-btn{% if t == 'nginx' %} active{% endif %}" data-target="{{ t }}">{{ t }}</button>
           {% endfor %}
         </div>
-        <p class="hint" id="target-hint" hidden>Traefik est un reverse proxy / load balancer : le mode « statique » n'est pas disponible pour cette cible.</p>
+        <p class="hint" id="target-hint" hidden>Cette cible est un reverse proxy / load balancer : le mode « statique » n'est pas disponible pour elle.</p>
       </div>
 
       <div class="field-group">

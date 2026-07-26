@@ -7,6 +7,7 @@ from modules.nginx.core import (
     generate,
     generate_caddy,
     generate_traefik,
+    generate_haproxy,
     validate_config,
     list_presets,
     get_preset,
@@ -54,7 +55,7 @@ def _lb_cfg(**overrides):
 # Dispatcher generate() / SUPPORTED_TARGETS
 # ---------------------------------------------------------------------------
 def test_supported_targets():
-    assert set(SUPPORTED_TARGETS) == {"nginx", "caddy", "traefik"}
+    assert set(SUPPORTED_TARGETS) == {"nginx", "caddy", "traefik", "haproxy"}
 
 
 def test_generate_dispatch_par_defaut_nginx():
@@ -63,7 +64,7 @@ def test_generate_dispatch_par_defaut_nginx():
 
 def test_generate_cible_inconnue_leve_valueerror():
     with pytest.raises(ValueError):
-        generate(_proxy_cfg(), target="haproxy")
+        generate(_proxy_cfg(), target="varnish")
 
 
 # ---------------------------------------------------------------------------
@@ -190,6 +191,97 @@ def test_traefik_invalide_leve_valueerror():
 
 
 # ---------------------------------------------------------------------------
+# Cible HAProxy
+# ---------------------------------------------------------------------------
+def test_haproxy_static_non_supporte():
+    errors = validate_config(_static_cfg(), target="haproxy")
+    assert any("static" in e for e in errors)
+    with pytest.raises(ValueError):
+        generate_haproxy(_static_cfg())
+
+
+def test_haproxy_reverse_proxy_frontend_et_backend():
+    conf = generate_haproxy(_proxy_cfg())
+    assert "frontend fe_api_example_com" in conf
+    assert "bind *:80" in conf
+    assert "default_backend be_api_example_com" in conf
+    assert "backend be_api_example_com" in conf
+    assert "server srv1 127.0.0.1:3000 check" in conf
+
+
+def test_haproxy_load_balancer_plusieurs_serveurs_et_poids():
+    conf = generate_haproxy(_lb_cfg(backends=[
+        {"host": "127.0.0.1", "port": 3001, "weight": 3},
+        {"host": "127.0.0.1", "port": 3002},
+    ]))
+    assert "server srv1 127.0.0.1:3001 check weight=3" in conf
+    assert "server srv2 127.0.0.1:3002 check" in conf
+    assert "server srv2 127.0.0.1:3002 check weight" not in conf
+
+
+@pytest.mark.parametrize("algo,expected", [
+    ("round_robin", "balance roundrobin"),
+    ("least_conn", "balance leastconn"),
+    ("ip_hash", "balance source"),
+])
+def test_haproxy_algorithmes_de_repartition(algo, expected):
+    conf = generate_haproxy(_lb_cfg(lb_algorithm=algo))
+    assert expected in conf
+
+
+def test_haproxy_ip_hash_note_dans_len_tete():
+    conf = generate_haproxy(_lb_cfg(lb_algorithm="ip_hash"))
+    assert "balance source" in conf
+    assert "equivalent HAProxy le plus proche" in conf
+
+
+def test_haproxy_reverse_proxy_pas_de_directive_balance():
+    # Un seul serveur en reverse_proxy : pas de round-robin a annoncer.
+    conf = generate_haproxy(_proxy_cfg())
+    assert "balance" not in conf
+
+
+def test_haproxy_https_deux_frontends_et_redirection():
+    conf = generate_haproxy(_proxy_cfg(https=True))
+    assert "frontend fe_api_example_com_http" in conf
+    assert "redirect scheme https code 301 if !{ ssl_fc }" in conf
+    assert "bind *:443 ssl crt /etc/haproxy/certs/api.example.com.pem" in conf
+
+
+def test_haproxy_sans_https_un_seul_frontend():
+    conf = generate_haproxy(_proxy_cfg(https=False))
+    assert "frontend fe_api_example_com_http" not in conf
+    assert "bind *:80" in conf
+
+
+def test_haproxy_gzip_et_security_headers():
+    conf = generate_haproxy(_proxy_cfg(gzip=True, security_headers=True))
+    assert "compression algo gzip" in conf
+    assert 'X-Frame-Options "SAMEORIGIN"' in conf
+
+
+def test_haproxy_websocket_timeout_tunnel():
+    conf = generate_haproxy(_proxy_cfg(websocket=True))
+    assert "timeout tunnel 1h" in conf
+
+
+def test_haproxy_note_client_max_body_size_toujours_presente():
+    conf = generate_haproxy(_proxy_cfg())
+    assert "pas d'equivalent direct a client_max_body_size" in conf
+
+
+def test_haproxy_slug_caracteres_non_alphanumeriques():
+    conf = generate_haproxy(_proxy_cfg(server_name="my-app_01.example.com"))
+    assert "fe_my_app_01_example_com" in conf
+    assert "be_my_app_01_example_com" in conf
+
+
+def test_haproxy_invalide_leve_valueerror():
+    with pytest.raises(ValueError):
+        generate_haproxy(_proxy_cfg(backend_host=""))
+
+
+# ---------------------------------------------------------------------------
 # Coherence des presets existants avec chaque cible compatible
 # ---------------------------------------------------------------------------
 def test_tous_les_presets_compatibles_generent_pour_caddy():
@@ -206,3 +298,11 @@ def test_tous_les_presets_compatibles_generent_pour_traefik():
         if cfg["mode"] in TARGET_MODES["traefik"]:
             conf = generate(cfg, target="traefik")
             assert "http:" in conf
+
+
+def test_tous_les_presets_compatibles_generent_pour_haproxy():
+    for name in list_presets():
+        cfg = get_preset(name)
+        if cfg["mode"] in TARGET_MODES["haproxy"]:
+            conf = generate(cfg, target="haproxy")
+            assert "frontend fe_" in conf and "backend be_" in conf

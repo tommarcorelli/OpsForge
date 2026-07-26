@@ -13,6 +13,7 @@ from modules.k8s.core import (
     generate_manifests,
     generate_manifests_combined,
     generate_helm_chart,
+    generate_kustomize,
     valider_config,
     SERVICE_TYPES,
 )
@@ -61,7 +62,10 @@ def api_generate():
         return jsonify({"error": " ".join(erreurs)}), 400
 
     try:
-        if mode == "helm":
+        if mode == "kustomize":
+            files = generate_kustomize(config)
+            combined = None
+        elif mode == "helm":
             files = generate_helm_chart(config)
             combined = None
         else:
@@ -91,7 +95,11 @@ def api_download():
         return jsonify({"error": " ".join(erreurs)}), 400
 
     try:
-        if mode == "helm":
+        if mode == "kustomize":
+            files = generate_kustomize(config)
+            root = f"{config['name']}-kustomize"
+            zip_name = f"{config['name']}-kustomize.zip"
+        elif mode == "helm":
             files = generate_helm_chart(config)
             root = config["name"]
             zip_name = f"{config['name']}-chart.zip"

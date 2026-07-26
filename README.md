@@ -29,10 +29,10 @@ serveur externe.
 | **Vagrant** | **Vagrantfile multi-VM** (providers, réseau, provisioning, presets, lint) — portage de VagrantForge | `/vagrant` | `python main.py vagrant …` |
 | **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs — ou export **CloudFormation** (`template.yaml`) | `/terraform` | `python main.py terraform …` |
 | **Dockerfile** | **`Dockerfile`** multi-stage (build + runtime allégé) + `.dockerignore`, 8 langages, bonnes pratiques (utilisateur non-root) | `/dockerfile` | `python main.py dockerfile …` |
-| **Kubernetes / Helm** | **Manifests** (Deployment + Service + Ingress, probes, resources) prêts pour `kubectl apply`, ou **chart Helm** complet, export `.zip` | `/k8s` | `python main.py k8s …` |
-| **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option — et variantes **Caddy** (Caddyfile) / **Traefik** (config dynamique YAML) | `/nginx` | `python main.py nginx …` |
+| **Kubernetes / Helm / Kustomize** | **Manifests** (Deployment + Service + Ingress, probes, resources) prêts pour `kubectl apply`, **chart Helm** complet, ou structure **Kustomize** (`base/` + `overlays/dev,staging,prod`) — export `.zip` | `/k8s` | `python main.py k8s …` |
+| **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option — et variantes **Caddy** (Caddyfile) / **Traefik** (config dynamique YAML) / **HAProxy** (fragment `haproxy.cfg`) | `/nginx` | `python main.py nginx …` |
 | **systemd** | Unité **`.service`** durcie (utilisateur dédié, redémarrage auto, sandboxing) ou paire **`.service` + `.timer`** planifiée (`OnCalendar`, remplace cron) | `/systemd` | `python main.py systemd …` |
-| **Monitoring** | **`prometheus.yml`** (scrape multi-jobs + Alertmanager), **règles d'alerte** Prometheus (CPU/mém/disque/instance) ou **datasources Grafana** | `/monitoring` | `python main.py monitoring …` |
+| **Monitoring** | **`prometheus.yml`** (scrape multi-jobs + Alertmanager), **règles d'alerte** Prometheus (CPU/mém/disque/instance), **datasources Grafana** ou **`dashboard.json`** (panels réels prêts à importer) | `/monitoring` | `python main.py monitoring …` |
 | **cloud-init** | **`#cloud-config`** (user-data) de premier boot : utilisateurs, clés SSH, paquets, `write_files`, `runcmd`, durcissement SSH | `/cloudinit` | `python main.py cloudinit …` |
 | **Packer** | **`build.pkr.hcl`** (HCL2) : builder **virtualbox-iso / qemu / amazon-ebs / docker**, provisioners shell/file, post-processors (`vagrant`, `docker-tag`, `compress`) | `/packer` | `python main.py packer …` |
 
@@ -157,7 +157,23 @@ python main.py cicd . --provider drone --dry-run
 python main.py cicd . --dry-run
 ```
 
-### Module Nginx (+ Caddy / Traefik)
+### Module Kubernetes / Helm / Kustomize
+
+```bash
+# Manifests bruts, prets pour kubectl apply -f
+python main.py k8s --name mon-app --image monuser/mon-app:1.0.0
+
+# Chart Helm
+python main.py k8s --name mon-app --image monuser/mon-app:1.0.0 --helm
+
+# Kustomize : base + overlays dev/staging/prod (defaut)
+python main.py k8s --name mon-app --image monuser/mon-app:1.0.0 --kustomize
+
+# Kustomize avec overlays personnalises
+python main.py k8s --name mon-app --image monuser/mon-app:1.0.0 --kustomize --overlays dev staging prod qa
+```
+
+### Module Nginx (+ Caddy / Traefik / HAProxy)
 
 ```bash
 # Nginx classique (defaut)
@@ -168,6 +184,9 @@ python main.py nginx --preset api-reverse-proxy --target caddy --dry-run
 
 # Meme config, en config dynamique Traefik (YAML)
 python main.py nginx --preset load-balanced-app --target traefik --dry-run
+
+# Meme config, en fragment haproxy.cfg
+python main.py nginx --preset load-balanced-app --target haproxy --dry-run
 ```
 
 ### Module Terraform
@@ -518,6 +537,18 @@ Deux modes de génération à partir du même formulaire (nom + image suffisent)
   sont générés depuis la config (l'`appVersion` reprend le tag de l'image) ;
   les templates Go sont statiques et entièrement pilotés par `values.yaml`.
   Téléchargeable en `.zip` depuis l'interface web.
+- **Kustomize** : structure `base/` (les mêmes manifests, sans préfixe
+  numérique) + `overlays/<env>/`, prête pour `kubectl apply -k`. Trois
+  overlays par défaut — `dev` (1 replica), `staging` (2 replicas), `prod`
+  (hérite du nombre de replicas de la base, sans patch) — chacun avec son
+  propre `namePrefix` (`dev-`, `staging-`...) et un `commonLabels`
+  (`app.kubernetes.io/environment`). Les patches de replicas sont des
+  patchs stratégiques minimalistes (`patch-replicas.yaml`), référencés
+  sans `target` explicite (matchés par `apiVersion`/`kind`/`metadata.name`).
+  Personnalisable en CLI (`--overlays dev staging prod qa`, tout nom hors
+  des presets connus produit un overlay sans patch) ou via l'API Python
+  (`generate_kustomize(config, overlays={...})` pour fixer replicas/namespace
+  par overlay).
 
 Options couvertes : replicas, ports (conteneur/service), type de Service
 (ClusterIP/NodePort/LoadBalancer), namespace, variables d'environnement,
@@ -552,11 +583,11 @@ Validation intégrée par mode (backend/host/port requis, 2+ backends pour le
 load balancer, algorithme et taille de body reconnus) ; chaque config générée
 est **valide par construction** et a été testée avec `nginx -t` réel.
 
-### Cibles Caddy et Traefik
+### Cibles Caddy, Traefik et HAProxy
 
-Le **même formulaire** (mode + options) peut produire trois formats de
+Le **même formulaire** (mode + options) peut produire quatre formats de
 sortie différents, sélectionnables dans l'UI (bouton « Cible ») ou en CLI
-(`--target nginx|caddy|traefik`, défaut `nginx`) :
+(`--target nginx|caddy|traefik|haproxy`, défaut `nginx`) :
 
 - **Caddy** (`Caddyfile`) : `file_server` + `try_files` pour le statique,
   `reverse_proxy` (WebSocket géré nativement) pour le reverse proxy et le
@@ -573,6 +604,17 @@ sortie différents, sélectionnables dans l'UI (bouton « Cible ») ou en CLI
   `ip_hash` devient une session collante par cookie (équivalent le plus
   proche), et `least_conn` n'a pas d'équivalent direct (note ajoutée dans le
   fichier généré).
+- **HAProxy** (fragment `haproxy.cfg`) : un `frontend fe_<nom>` (+ un second
+  `frontend fe_<nom>_http` qui redirige en 301 vers HTTPS si HTTPS est actif)
+  et un `backend be_<nom>` avec `balance roundrobin|leastconn|source` selon
+  l'algorithme choisi (`ip_hash` → `source`, le hash d'IP le plus proche
+  nativement disponible), `server srv<n> host:port check` par backend (poids
+  optionnel), `compression algo gzip` si gzip est activé, `http-response
+  set-header` pour les en-têtes de sécurité, et `timeout tunnel 1h` si
+  WebSocket est activé. Pas de mode **statique** non plus (pas de serveur de
+  fichiers intégré) ; `client_max_body_size` n'a pas d'équivalent direct côté
+  HAProxy (note ajoutée dans le fichier généré, avec la piste `http-request
+  deny` ou un WAF en amont). Vérifiable avec `haproxy -c -f`.
 
 ---
 
@@ -765,6 +807,15 @@ Les 11 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorit
       (`template.yaml` AWS : catalogue de 13 types de ressources CFN,
       4 presets, intrinsic functions `!Ref`/`!GetAtt`, sélecteur de format
       dans l'UI et `--format cloudformation` en CLI).
+- [x] ~~Kustomize pour le module Kubernetes~~ — fait (troisième format à
+      côté des manifests bruts et du chart Helm : `base/` + `overlays/dev,
+      staging,prod/`, patches de replicas, `namePrefix`/`commonLabels` par
+      overlay, overlays personnalisables en CLI et via l'API Python,
+      sélecteur de mode dans l'UI).
+- [x] ~~HAProxy pour le module Nginx~~ — fait (quatrième cible à côté de
+      Nginx/Caddy/Traefik : fragment `haproxy.cfg`, `frontend`/`backend`,
+      redirection HTTPS, compression, en-têtes de sécurité, sélecteur de
+      cible dans l'UI et `--target haproxy` en CLI).
 
 ### Nouveaux modules envisagés
 
@@ -791,17 +842,24 @@ ont déjà été traités ainsi (voir ci-dessus). Reste dans cet esprit :
 > À éviter (doublons d'autres projets) : docker-compose = DockerForge ;
 > réseau/firewall/VLAN = NetForge.
 
-Autres extensions possibles, par module (aucune commencée) :
+- [x] ~~**Kustomize** (module K8s)~~ — fait (troisième format à côté des
+      manifests bruts et du chart Helm : `base/` + `overlays/<env>/`, presets
+      `dev`/`staging`/`prod` avec patches de replicas, `namePrefix` et
+      `commonLabels` par overlay, overlays personnalisables en CLI et via
+      l'API Python).
 
-- [ ] **Kustomize** (module K8s) — troisième format à côté des manifests
-      bruts et du chart Helm (overlays base/patches). Le plus solide des
-      candidats ci-dessous : complète directement ce que fait déjà le module,
-      sans redite avec un autre projet.
-- [ ] **HAProxy** (module Nginx) — même principe que les variantes Caddy/
-      Traefik déjà faites, autre load balancer courant.
-- [ ] **Dashboards Grafana** en JSON de panels réels (module Monitoring) —
-      aujourd'hui il ne génère que les datasources, pas les dashboards
-      eux-mêmes.
+Autres extensions possibles, par module :
+
+- [x] ~~**HAProxy** (module Nginx)~~ — fait (même principe que les
+      variantes Caddy/Traefik : fragment `haproxy.cfg` avec `frontend`/
+      `backend`, `balance roundrobin|leastconn|source`, redirection HTTPS,
+      compression, en-têtes de sécurité, sélecteur de cible dans l'UI et
+      `--target haproxy` en CLI).
+- [x] ~~**Dashboards Grafana** en JSON de panels réels (module Monitoring)~~ —
+      fait (mode `dashboards` : `dashboard.json` prêt à importer, catalogue
+      de 6 panels node_exporter — CPU/mémoire/disque/réseau/charge/uptime —
+      types timeseries/gauge/stat, disposition en grille, sélecteur de
+      datasource, preset `dashboard-node`).
 - [ ] **Ignition** (module cloud-init) — équivalent premier-boot pour
       CoreOS/Fedora CoreOS, en parallèle du `#cloud-config` déjà fait.
 - [ ] **Docker Bake** (`docker-bake.hcl`, module Dockerfile) — format de

@@ -12,10 +12,13 @@ import sys
 from modules.k8s.core import (
     generate_manifests_combined,
     generate_helm_chart,
+    generate_kustomize,
     write_manifests,
     write_helm_chart,
+    write_kustomize,
     valider_config,
     SERVICE_TYPES,
+    DEFAULT_KUSTOMIZE_OVERLAYS,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge
@@ -58,6 +61,14 @@ def build_parser():
                         help="Active le TLS sur l'Ingress (secret <name>-tls).")
     parser.add_argument("--helm", action="store_true",
                         help="Genere un squelette de chart Helm au lieu de manifests bruts.")
+    parser.add_argument("--kustomize", action="store_true",
+                        help="Genere une structure Kustomize (base/ + overlays/) au lieu de manifests bruts.")
+    parser.add_argument("--overlays", nargs="+", default=None, metavar="NOM",
+                        help=(
+                            "Overlays Kustomize a generer (defaut : dev staging prod). "
+                            f"Presets connus avec replicas dedies : {', '.join(DEFAULT_KUSTOMIZE_OVERLAYS)}. "
+                            "Tout autre nom produit un overlay sans patch (herite de la base)."
+                        ))
     parser.add_argument("--output", default=None,
                         help="Dossier de sortie (defaut : output/k8s/ ou output/<name>-chart/).")
     parser.add_argument("--dry-run", action="store_true",
@@ -111,7 +122,13 @@ def main(argv=None):
         print(f"Attention : {a}")
 
     if args.dry_run:
-        if args.helm:
+        if args.kustomize:
+            files = generate_kustomize(config, overlays=args.overlays)
+            print(f"\n--- Apercu (dry-run) : Kustomize '{config['name']}' ---")
+            for rel_path in sorted(files):
+                print(f"\n### {rel_path} " + "#" * max(0, 60 - len(rel_path)))
+                print(files[rel_path])
+        elif args.helm:
             files = generate_helm_chart(config)
             print(f"\n--- Apercu (dry-run) : chart Helm '{config['name']}' ---")
             for rel_path in sorted(files):
@@ -123,7 +140,14 @@ def main(argv=None):
         print("--- Fin de l'apercu : rien n'a ete ecrit sur disque ---")
         return
 
-    if args.helm:
+    if args.kustomize:
+        output_dir = args.output or os.path.join(OUTPUT_DIR, f"{config['name']}-kustomize")
+        written = write_kustomize(config, output_dir, overlays=args.overlays)
+        print(f"\nStructure Kustomize generee : {output_dir}")
+        for path in written:
+            print(f"  - {path}")
+        print(f"\nPour deployer un overlay : kubectl apply -k {output_dir}/overlays/<env>")
+    elif args.helm:
         output_dir = args.output or os.path.join(OUTPUT_DIR, f"{config['name']}-chart")
         written = write_helm_chart(config, output_dir)
         print(f"\nChart Helm genere : {output_dir}")
