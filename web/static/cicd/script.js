@@ -232,15 +232,10 @@ function renderManualStackPicker() {
   SUPPORTED_LANGUAGES.forEach((lang) => {
     const item = document.createElement("label");
     item.className = "stack-item";
-    item.style.cursor = "pointer";
-
-    const left = document.createElement("span");
-    left.textContent = lang;
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.value = lang;
-    checkbox.style.accentColor = "#C97C4B";
     checkbox.addEventListener("change", () => {
       if (checkbox.checked) {
         state.manualLanguages.add(lang);
@@ -249,8 +244,11 @@ function renderManualStackPicker() {
       }
     });
 
-    item.appendChild(left);
+    const left = document.createElement("span");
+    left.textContent = lang;
+
     item.appendChild(checkbox);
+    item.appendChild(left);
     el.stackList.appendChild(item);
   });
 }
