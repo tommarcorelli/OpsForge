@@ -61,6 +61,7 @@
 }</textarea>
       </div>
       <p class="hint" id="cfn-hint" hidden>CloudFormation est spécifique à AWS : pas de bloc provider, ni de backend distant (géré à l'échelle du stack CloudFormation, pas du template).</p>
+      <p class="hint" id="pulumi-hint" hidden>Pulumi (programme Python) : la configuration du provider (région, projet…) se règle via <code>pulumi config set</code>, pas dans le code — un rappel est ajouté en commentaire dans le fichier généré. Pas de backend distant ni de "variables" à la Terraform (le state est géré par Pulumi lui-même).</p>
 
       <div class="field">
         <div class="field-head">
@@ -76,7 +77,7 @@
           <label for="backend">Backend distant — state (JSON)</label>
           <textarea id="backend" rows="3" spellcheck="false" placeholder='{ "type": "s3", "config": { "bucket": "mon-tfstate", "key": "prod/terraform.tfstate", "region": "eu-west-1" } }'></textarea>
         </div>
-        <div class="field">
+        <div class="field" id="variables-field">
           <label for="variables" id="variables-label">Variables (JSON)</label>
           <textarea id="variables" rows="3" spellcheck="false" placeholder='{ "region": { "type": "=string", "default": "eu-west-1" } }'></textarea>
         </div>

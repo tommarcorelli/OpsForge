@@ -3,14 +3,21 @@ modules/terraform/routes.py
 ---------------------------
 Blueprint Flask du module Terraform (monté sous /terraform).
 
-Depuis l'ajout du format CloudFormation, ce blueprint sert deux moteurs de
-génération distincts derrière un même builder de ressources cliente :
+Ce blueprint sert trois moteurs de génération distincts derrière un même
+builder de ressources cliente :
 - "provider" parmi SUPPORTED_PROVIDERS (aws, google, azurerm, docker, local)
   -> core.py, sortie HCL (main.tf).
-- "provider" == "cloudformation" -> cloudformation_core.py, sortie YAML.
-Les presets CloudFormation sont exposés avec un préfixe "cfn-" pour ne pas
-entrer en collision avec les presets Terraform de même nom (ex: "ec2-web"
-existe des deux côtés, avec un schéma de config différent).
+- "provider" == "cloudformation" -> cloudformation_core.py, sortie YAML
+  (catalogue AWS-only à part, schéma resources[].properties).
+- "provider" == "pulumi-<cloud>" (pulumi-aws/google/azurerm/docker, pas de
+  "local" — pas d'équivalent Pulumi officiel) -> pulumi_core.py, sortie
+  Python (__main__.py). Réutilise directement le catalogue Terraform du
+  cloud correspondant (mêmes types/args), contrairement à CloudFormation.
+
+Les presets CloudFormation sont préfixés "cfn-", les presets Pulumi
+"pulumi:" (deux ponctuations différentes du tiret des valeurs de
+provider "pulumi-aws" etc., pour ne pas les confondre) — aucun des trois
+espaces de noms n'entre en collision avec les presets Terraform bruts.
 """
 
 import io
@@ -34,15 +41,27 @@ from modules.terraform.cloudformation_core import (
     RESOURCE_CATALOG as RESOURCE_CATALOG_CFN,
     PRESETS as PRESETS_CFN,
 )
+from modules.terraform.pulumi_core import (
+    generate_pulumi,
+    valider_config as valider_config_pulumi,
+    obtenir_preset as obtenir_preset_pulumi,
+    PULUMI_PROVIDERS,
+    PRESETS as PRESETS_PULUMI,
+    OUTPUT_FILENAME as PULUMI_FILENAME,
+)
 
 bp = Blueprint("terraform", __name__, url_prefix="/terraform")
 
 CFN_PRESET_PREFIX = "cfn-"
+PULUMI_PROVIDER_PREFIX = "pulumi-"
+PULUMI_PRESET_PREFIX = "pulumi:"
 
 
 def _combined_catalog():
     catalog = dict(RESOURCE_CATALOG)
     catalog["cloudformation"] = RESOURCE_CATALOG_CFN
+    for cloud in PULUMI_PROVIDERS:
+        catalog[f"{PULUMI_PROVIDER_PREFIX}{cloud}"] = RESOURCE_CATALOG.get(cloud, [])
     return catalog
 
 
@@ -50,14 +69,17 @@ def _combined_presets_labels():
     labels = {k: v["label"] for k, v in PRESETS.items()}
     for k, v in PRESETS_CFN.items():
         labels[f"{CFN_PRESET_PREFIX}{k}"] = f"CloudFormation — {v['label']}"
+    for k, v in PRESETS_PULUMI.items():
+        labels[f"{PULUMI_PRESET_PREFIX}{k}"] = f"Pulumi — {v['label']}"
     return labels
 
 
 @bp.route("/")
 def index():
+    pulumi_providers = [f"{PULUMI_PROVIDER_PREFIX}{cloud}" for cloud in PULUMI_PROVIDERS]
     return render_template(
         "terraform.html",
-        providers=list(SUPPORTED_PROVIDERS) + ["cloudformation"],
+        providers=list(SUPPORTED_PROVIDERS) + ["cloudformation"] + pulumi_providers,
         catalog=_combined_catalog(),
         presets=_combined_presets_labels(),
     )
@@ -88,6 +110,14 @@ def api_preset(nom):
             res["args"] = res.pop("properties", {})
         return jsonify(cfg)
 
+    if nom.startswith(PULUMI_PRESET_PREFIX):
+        try:
+            cfg = obtenir_preset_pulumi(nom[len(PULUMI_PRESET_PREFIX):])
+        except KeyError:
+            return jsonify({"error": f"Preset inconnu : {nom}"}), 404
+        cfg["provider"] = f"{PULUMI_PROVIDER_PREFIX}{cfg['provider']}"
+        return jsonify(cfg)
+
     try:
         return jsonify(obtenir_preset(nom))
     except KeyError:
@@ -110,11 +140,26 @@ def _cfn_config_from_request(data):
     return config
 
 
+def _pulumi_config_from_request(data, cloud):
+    """Le schema Pulumi reutilise directement resources[].args (meme
+    vocabulaire que Terraform HCL) : pas de traduction de cles necessaire,
+    juste reinjecter le vrai nom de cloud (sans le prefixe 'pulumi-')."""
+    config = {
+        "provider": cloud,
+        "provider_config": data.get("provider_config") or {},
+        "resources": data.get("resources") or [],
+    }
+    if data.get("outputs"):
+        config["outputs"] = data["outputs"]
+    return config
+
+
 @bp.post("/api/generate")
 def api_generate():
     data = request.get_json(force=True) or {}
+    provider = data.get("provider")
 
-    if data.get("provider") == "cloudformation":
+    if provider == "cloudformation":
         cfg = _cfn_config_from_request(data)
         erreurs, avertissements = valider_config_cfn(cfg)
         if erreurs:
@@ -126,6 +171,22 @@ def api_generate():
         return jsonify({
             "terraform": contenu,
             "filename": "template.yaml",
+            "avertissements": avertissements,
+        })
+
+    if provider and provider.startswith(PULUMI_PROVIDER_PREFIX):
+        cloud = provider[len(PULUMI_PROVIDER_PREFIX):]
+        cfg = _pulumi_config_from_request(data, cloud)
+        erreurs, avertissements = valider_config_pulumi(cfg)
+        if erreurs:
+            return jsonify({"error": " ; ".join(erreurs), "avertissements": avertissements}), 400
+        try:
+            contenu = generate_pulumi(cfg)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        return jsonify({
+            "terraform": contenu,
+            "filename": PULUMI_FILENAME,
             "avertissements": avertissements,
         })
 
@@ -150,11 +211,13 @@ def api_generate():
 def api_download():
     """Regenere puis renvoie le projet genere en telechargement :
     - CloudFormation : un unique fichier template.yaml.
+    - Pulumi : un unique fichier __main__.py.
     - Terraform : un .zip (main.tf, et variables.tf / outputs.tf s'ils sont
       non vides)."""
     data = request.get_json(force=True) or {}
+    provider = data.get("provider")
 
-    if data.get("provider") == "cloudformation":
+    if provider == "cloudformation":
         cfg = _cfn_config_from_request(data)
         erreurs, _ = valider_config_cfn(cfg)
         if erreurs:
@@ -169,6 +232,24 @@ def api_download():
             mimetype="text/yaml",
             as_attachment=True,
             download_name="template.yaml",
+        )
+
+    if provider and provider.startswith(PULUMI_PROVIDER_PREFIX):
+        cloud = provider[len(PULUMI_PROVIDER_PREFIX):]
+        cfg = _pulumi_config_from_request(data, cloud)
+        erreurs, _ = valider_config_pulumi(cfg)
+        if erreurs:
+            return jsonify({"error": " ; ".join(erreurs)}), 400
+        try:
+            contenu = generate_pulumi(cfg)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        buffer = io.BytesIO(contenu.encode("utf-8"))
+        return send_file(
+            buffer,
+            mimetype="text/x-python",
+            as_attachment=True,
+            download_name=PULUMI_FILENAME,
         )
 
     config = data

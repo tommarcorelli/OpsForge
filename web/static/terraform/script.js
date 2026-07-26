@@ -92,21 +92,32 @@ function addResource() {
 }
 
 // ----------------------------------------------------------------------------
-// CloudFormation est un moteur de sortie a part (YAML, AWS uniquement) :
-// pas de bloc provider ni de backend distant, "Variables" devient
-// "Parametres", un seul fichier template.yaml (pas de .zip).
+// CloudFormation et Pulumi sont des moteurs de sortie a part (un seul
+// fichier, pas de .zip) :
+// - CloudFormation (YAML, AWS uniquement) : pas de bloc provider ni de
+//   backend distant, "Variables" devient "Parametres".
+// - Pulumi (programme Python, aws/google/azurerm/docker) : garde le bloc
+//   provider (emis en commentaire `pulumi config set`), mais pas de
+//   backend ni de "variables" a la Terraform (non lues par pulumi_core.py).
 // ----------------------------------------------------------------------------
 function updateProviderModeUI() {
-  const isCfn = $("provider").value === "cloudformation";
+  const provider = $("provider").value;
+  const isCfn = provider === "cloudformation";
+  const isPulumi = provider.startsWith("pulumi-");
+  const isSingleFile = isCfn || isPulumi;
 
   $("provider-config-field").hidden = isCfn;
-  $("backend-field").hidden = isCfn;
+  $("backend-field").hidden = isSingleFile;
+  $("variables-field").hidden = isPulumi;
   $("cfn-hint").hidden = !isCfn;
+  $("pulumi-hint").hidden = !isPulumi;
   $("variables-label").textContent = isCfn ? "Paramètres (JSON)" : "Variables (JSON)";
-  $("generate-btn-label").textContent = isCfn ? "Générer template.yaml" : "Générer main.tf";
-  $("download-btn-label").textContent = isCfn ? "Télécharger template.yaml" : "Télécharger .zip";
-  $("zip-hint").hidden = isCfn;
-  $("result-filename").textContent = isCfn ? "template.yaml" : "main.tf";
+
+  const filename = isCfn ? "template.yaml" : isPulumi ? "__main__.py" : "main.tf";
+  $("generate-btn-label").textContent = `Générer ${filename}`;
+  $("download-btn-label").textContent = isSingleFile ? `Télécharger ${filename}` : "Télécharger .zip";
+  $("zip-hint").hidden = isSingleFile;
+  $("result-filename").textContent = filename;
 }
 
 function parseJSONField(id, label, arrayMode) {
@@ -208,7 +219,14 @@ async function telechargerZip() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = $("provider").value === "cloudformation" ? "template.yaml" : "terraform-project.zip";
+  const provider = $("provider").value;
+  if (provider === "cloudformation") {
+    a.download = "template.yaml";
+  } else if (provider.startsWith("pulumi-")) {
+    a.download = "__main__.py";
+  } else {
+    a.download = "terraform-project.zip";
+  }
   document.body.appendChild(a);
   a.click();
   a.remove();

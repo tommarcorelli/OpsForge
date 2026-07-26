@@ -27,7 +27,7 @@ serveur externe.
 | **CI/CD** | Pipelines **GitHub Actions** (`.github/workflows/ci.yml`), **GitLab CI** (`.gitlab-ci.yml`), **CircleCI** (`.circleci/config.yml`), **Jenkins** (`Jenkinsfile`) et **Drone** (`.drone.yml`) | `/cicd` | `python main.py cicd …` |
 | **Ansible** | Playbooks de **provisioning + déploiement** serveur (paquets, Docker, Nginx, firewall, fail2ban, bases de données, vault chiffré, multi-serveurs) | `/ansible` | `python main.py ansible …` |
 | **Vagrant** | **Vagrantfile multi-VM** (providers, réseau, provisioning, presets, lint) — portage de VagrantForge | `/vagrant` | `python main.py vagrant …` |
-| **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs — ou export **CloudFormation** (`template.yaml`) | `/terraform` | `python main.py terraform …` |
+| **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs — ou export **CloudFormation** (`template.yaml`) ou **Pulumi** (`__main__.py`, aws/google/azurerm/docker) | `/terraform` | `python main.py terraform …` |
 | **Dockerfile** | **`Dockerfile`** multi-stage (build + runtime allégé) + `.dockerignore`, 8 langages, bonnes pratiques (utilisateur non-root), option **`docker-bake.hcl`** (build multi-tags/multi-plateformes via `docker buildx bake`) | `/dockerfile` | `python main.py dockerfile …` |
 | **Kubernetes / Helm / Kustomize** | **Manifests** (Deployment + Service + Ingress, probes, resources) prêts pour `kubectl apply`, **chart Helm** complet, ou structure **Kustomize** (`base/` + `overlays/dev,staging,prod`) — export `.zip` | `/k8s` | `python main.py k8s …` |
 | **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option — et variantes **Caddy** (Caddyfile) / **Traefik** (config dynamique YAML) / **HAProxy** (fragment `haproxy.cfg`) | `/nginx` | `python main.py nginx …` |
@@ -205,6 +205,10 @@ python main.py terraform --preset rds-postgres --split -o output/rds/
 # Export CloudFormation (AWS uniquement) au lieu du HCL Terraform
 python main.py terraform --format cloudformation --preset ec2-web -o -
 python main.py terraform --format cloudformation --list-presets
+
+# Export Pulumi (programme Python, aws/google/azurerm/docker)
+python main.py terraform --format pulumi --preset ec2-web -o __main__.py
+python main.py terraform --format pulumi --providers
 ```
 
 ### Module Ansible
@@ -285,6 +289,7 @@ opsforge/
 │   └── terraform/        → module Terraform (builder, presets, backend, validation)
 │       ├── core.py                  rendu HCL aligné + catalogue de ressources + presets
 │       ├── cloudformation_core.py   export alternatif AWS CloudFormation (template.yaml)
+│       ├── pulumi_core.py           export alternatif Pulumi Python (__main__.py)
 │       ├── routes.py                Blueprint Flask (préfixe /terraform) + API
 │       └── cli.py                   génération depuis un JSON de config ou un preset (--format)
 │
@@ -545,6 +550,30 @@ Terraform, mais en syntaxe courte CloudFormation : `"=!Ref MonBucket"` →
 `!Ref MonBucket`, `"=!GetAtt Web.PublicIp"` → `!GetAtt Web.PublicIp`. Les
 policy documents IAM se rendent nativement en YAML imbriqué (pas besoin d'un
 équivalent à `jsonencode()`).
+
+### Export Pulumi
+
+Troisième moteur de sortie : un programme **Pulumi (Python)** (`__main__.py`)
+— sélecteur de format `pulumi-aws` / `pulumi-google` / `pulumi-azurerm` /
+`pulumi-docker` dans l'UI (pas de `pulumi-local`, Pulumi n'a pas
+d'équivalent officiel au provider Terraform `hashicorp/local`) ou
+`--format pulumi` en CLI. Contrairement à CloudFormation, Pulumi **réutilise
+directement le catalogue de ressources Terraform** (`RESOURCE_CATALOG` de
+`core.py`) plutôt que d'en avoir un à part : les SDK `pulumi_aws` /
+`pulumi_gcp` / `pulumi_azure` sont dérivés des mêmes schémas de provider
+Terraform, donc les noms d'arguments (déjà en snake_case) sont identiques.
+Une table `RESOURCE_TYPE_MAP` fait juste correspondre chaque type Terraform
+(`aws_instance`...) à sa classe Pulumi (`aws.ec2.Instance`) ; un type non
+mappé est un **rejet explicite**, pas une génération générique (impossible
+de produire un appel Python sans connaître la classe). 5 presets propres à
+Pulumi (préfixés `pulumi:` côté web), avec des références déjà exprimées en
+Python plutôt qu'en HCL. Même échappatoire `=`, mais en **Python brut**
+cette fois : `"=aws_instance_web.public_ip"` → `aws_instance_web.public_ip`,
+où le nom de variable est dérivé de façon déterministe (`type_name`
+assaini) pour éviter toute collision si deux ressources de types différents
+partagent le même `name`. La config du provider (région, projet…) n'est
+**pas** injectée dans le code (pas idiomatique côté Pulumi) : un commentaire
+rappelle la commande `pulumi config set` à lancer à la place.
 
 ## Module Dockerfile — détails
 
@@ -913,6 +942,12 @@ Les 12 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorit
       Nginx/Caddy/Traefik : fragment `haproxy.cfg`, `frontend`/`backend`,
       redirection HTTPS, compression, en-têtes de sécurité, sélecteur de
       cible dans l'UI et `--target haproxy` en CLI).
+- [x] ~~Pulumi pour le module Terraform~~ — fait (troisième format à côté
+      de HCL/CloudFormation : programme Python `__main__.py`, réutilise le
+      catalogue de ressources Terraform pour aws/google/azurerm/docker —
+      pas `local`, pas d'équivalent Pulumi officiel — 5 presets préfixés
+      `pulumi:`, sélecteur `pulumi-<cloud>` dans l'UI et `--format pulumi`
+      en CLI).
 
 ### Nouveaux modules envisagés
 
@@ -928,14 +963,12 @@ Candidats, du plus prioritaire au moins :
 Tous les modules candidats de cette liste sont désormais implémentés. Les
 prochaines pistes d'extension (nouveaux providers CI, nouvelles cibles IaC)
 sont plutôt des ajouts *dans* les modules existants que de nouveaux modules
-à part entière — CircleCI/Jenkins/Drone (CI/CD) et CloudFormation (Terraform)
-ont déjà été traités ainsi (voir ci-dessus). Reste dans cet esprit :
+à part entière — CircleCI/Jenkins/Drone (CI/CD), CloudFormation et Pulumi
+(Terraform), Kustomize (K8s), HAProxy (Nginx) ont déjà été traités ainsi.
+Plus aucune piste connue non traitée à ce jour : la seule direction future
+serait d'autres systèmes CI (type TeamCity/Bitbucket Pipelines) en tant que
+providers du module CI/CD — rien de demandé pour l'instant.
 
-> À intégrer aux modules existants plutôt que comme nouveaux modules : Pulumi
-> = cible supplémentaire à côté de Terraform/CloudFormation ; d'autres
-> systèmes CI (CircleCI/Jenkins/Drone déjà faits) type TeamCity/Bitbucket
-> Pipelines = providers du module CI/CD.
->
 > À éviter (doublons d'autres projets) : docker-compose = DockerForge ;
 > réseau/firewall/VLAN = NetForge.
 
