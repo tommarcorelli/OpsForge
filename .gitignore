@@ -1,8 +1,13 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.ruff_cache/
 # Artefacts generes (on garde output/.gitkeep)
 output/*
 !output/.gitkeep
 .venv/
 venv/
+# Artefacts de build PyInstaller (voir opsforge.spec) : regeneres par
+# `pyinstaller opsforge.spec`, jamais a committer (gros binaires).
+build/
+dist/

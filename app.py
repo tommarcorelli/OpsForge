@@ -19,6 +19,7 @@ Puis ouvre http://127.0.0.1:5050
 """
 
 import os
+import sys
 
 from flask import Flask, render_template, send_from_directory
 
@@ -34,7 +35,19 @@ from modules.monitoring.routes import bp as monitoring_bp
 from modules.cloudinit.routes import bp as cloudinit_bp
 from modules.packer.routes import bp as packer_bp
 
-app = Flask(__name__, template_folder="web/templates", static_folder="web/static")
+# Chemin de base des templates/static : en dev c'est le dossier de ce fichier,
+# mais une fois empaquete par PyInstaller (voir desktop.py / opsforge.spec),
+# les fichiers de donnees sont extraits sous sys._MEIPASS et non plus a cote
+# du script. Sans ca, Flask ne retrouve pas web/templates et web/static dans
+# l'executable (root_path se resout via l'introspection du module, qui ne
+# fonctionne pas de la meme facon dans un bundle gele).
+BASE_DIR = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "web", "templates"),
+    static_folder=os.path.join(BASE_DIR, "web", "static"),
+)
 
 app.register_blueprint(cicd_bp)
 app.register_blueprint(ansible_bp)

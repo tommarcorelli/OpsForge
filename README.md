@@ -90,6 +90,26 @@ d'adresse ; mobile : « Ajouter à l'écran d'accueil »).
 
 ---
 
+## Application desktop (.exe)
+
+Pour lancer OpsForge sans terminal ni navigateur (fenêtre native, double-clic) :
+
+```bash
+pip install -r requirements-desktop.txt   # pywebview + pyinstaller
+python desktop.py                          # test en dev
+pyinstaller opsforge.spec                  # build -> dist/OpsForge.exe
+```
+
+`desktop.py` démarre Flask en arrière-plan (thread, sur le premier port libre à
+partir de 5050 — n'entre pas en conflit si `python app.py` tourne déjà) et
+ouvre une fenêtre native **pywebview** (WebView2 sous Windows) dessus. L'`.exe`
+généré est **autonome** : aucune installation de Python requise sur la machine
+cible. `ansible-core` est volontairement exclu du bundle (voir `opsforge.spec`)
+— le chiffrement Vault reste indisponible dans l'exe, comme sous Windows natif
+en usage normal (voir note ci-dessus).
+
+---
+
 ## Ligne de commande
 
 Le CLI est unifié avec deux sous-commandes. Aide détaillée par module :
