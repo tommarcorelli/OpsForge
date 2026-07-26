@@ -106,6 +106,32 @@
         </label>
       </div>
 
+      <div class="field-group">
+        <label class="toggle" style="width:100%;">
+          <input type="checkbox" id="bake-checkbox" />
+          <span>Générer aussi un <code>docker-bake.hcl</code> (build multi-tags / multi-plateformes via <code>docker buildx bake</code>)</span>
+        </label>
+      </div>
+
+      <div id="bake-options" hidden style="display:flex; flex-direction:column; gap:10px; margin-top:4px;">
+        <div class="field-group">
+          <label class="field-label" for="bake-image-name">Nom de l'image</label>
+          <input type="text" id="bake-image-name" class="text-input" value="app" />
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="bake-tags">Tags (séparés par des virgules)</label>
+          <input type="text" id="bake-tags" class="text-input" placeholder="latest, v1.0" />
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="bake-platforms">Plateformes (séparées par des virgules)</label>
+          <input type="text" id="bake-platforms" class="text-input" placeholder="linux/amd64, linux/arm64" />
+        </div>
+        <label class="toggle" style="width:100%;">
+          <input type="checkbox" id="bake-push-checkbox" />
+          <span>Pousser l'image après build (<code>output = ["type=registry"]</code>)</span>
+        </label>
+      </div>
+
       <div style="display: flex; gap: 8px; margin-top: 8px;">
         <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top: 0;">
           GÉNÉRER →
@@ -149,6 +175,14 @@
           <pre id="dockerignore-text" style="font-size: 12.5px;"></pre>
         </div>
         <button type="button" id="copy-dockerignore-btn" class="btn btn-ghost" style="margin-top: 8px;">Copier le .dockerignore</button>
+      </div>
+
+      <div class="badge-box" id="bake-box" hidden>
+        <label class="field-label" style="margin-bottom: 8px;">docker-bake.hcl</label>
+        <div class="result-box" id="bake-result-box" style="min-height: auto; max-height: 260px; padding: 14px 16px;">
+          <pre id="bake-text" style="font-size: 12.5px;"></pre>
+        </div>
+        <button type="button" id="copy-bake-btn" class="btn btn-ghost" style="margin-top: 8px;">Copier le docker-bake.hcl</button>
       </div>
 
     </section>

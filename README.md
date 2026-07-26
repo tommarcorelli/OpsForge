@@ -28,7 +28,7 @@ serveur externe.
 | **Ansible** | Playbooks de **provisioning + déploiement** serveur (paquets, Docker, Nginx, firewall, fail2ban, bases de données, vault chiffré, multi-serveurs) | `/ansible` | `python main.py ansible …` |
 | **Vagrant** | **Vagrantfile multi-VM** (providers, réseau, provisioning, presets, lint) — portage de VagrantForge | `/vagrant` | `python main.py vagrant …` |
 | **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs — ou export **CloudFormation** (`template.yaml`) | `/terraform` | `python main.py terraform …` |
-| **Dockerfile** | **`Dockerfile`** multi-stage (build + runtime allégé) + `.dockerignore`, 8 langages, bonnes pratiques (utilisateur non-root) | `/dockerfile` | `python main.py dockerfile …` |
+| **Dockerfile** | **`Dockerfile`** multi-stage (build + runtime allégé) + `.dockerignore`, 8 langages, bonnes pratiques (utilisateur non-root), option **`docker-bake.hcl`** (build multi-tags/multi-plateformes via `docker buildx bake`) | `/dockerfile` | `python main.py dockerfile …` |
 | **Kubernetes / Helm / Kustomize** | **Manifests** (Deployment + Service + Ingress, probes, resources) prêts pour `kubectl apply`, **chart Helm** complet, ou structure **Kustomize** (`base/` + `overlays/dev,staging,prod`) — export `.zip` | `/k8s` | `python main.py k8s …` |
 | **Nginx** | Bloc **`server{}`** Nginx : site statique (SPA), reverse proxy (WebSocket) ou load balancer (`upstream{}`), HTTPS Let's Encrypt en option — et variantes **Caddy** (Caddyfile) / **Traefik** (config dynamique YAML) / **HAProxy** (fragment `haproxy.cfg`) | `/nginx` | `python main.py nginx …` |
 | **systemd** | Unité **`.service`** durcie (utilisateur dédié, redémarrage auto, sandboxing) ou paire **`.service` + `.timer`** planifiée (`OnCalendar`, remplace cron) | `/systemd` | `python main.py systemd …` |
@@ -862,9 +862,12 @@ Autres extensions possibles, par module :
       datasource, preset `dashboard-node`).
 - [ ] **Ignition** (module cloud-init) — équivalent premier-boot pour
       CoreOS/Fedora CoreOS, en parallèle du `#cloud-config` déjà fait.
-- [ ] **Docker Bake** (`docker-bake.hcl`, module Dockerfile) — format de
-      build multi-cible/multi-plateforme alternatif à un `docker build`
-      simple.
+- [x] ~~**Docker Bake** (`docker-bake.hcl`, module Dockerfile)~~ — fait
+      (fichier `docker-bake.hcl` généré à côté du Dockerfile : `group
+      "default"` + `target`, tags/nom d'image personnalisables, build
+      multi-plateforme (`linux/amd64`/`linux/arm64` par défaut), variable
+      `VERSION`, option `--push` pour pousser directement vers un registry ;
+      case à cocher dans l'UI et `--bake` en CLI).
 - [ ] **Scaffolding Molecule** (module Ansible) — structure de tests pour
       les rôles générés (`molecule.yml`, scénarios). Idée plus niche que
       les autres.

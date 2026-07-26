@@ -5,8 +5,10 @@ import pytest
 from modules.dockerfile.core import (
     generate_dockerfile,
     generate_dockerignore,
+    generate_docker_bake,
     write_dockerfile,
     write_dockerignore,
+    write_docker_bake,
     SUPPORTED_LANGUAGES,
     DEFAULT_PORTS,
     DEFAULT_ENTRYPOINTS,
@@ -189,3 +191,53 @@ def test_write_dockerignore_cree_le_fichier(tmp_path):
     assert output.is_file()
     content = output.read_text(encoding="utf-8")
     assert "node_modules" in content
+
+
+# --------------------------------------------------------------------------
+# docker-bake.hcl
+# --------------------------------------------------------------------------
+
+def test_bake_contient_target_et_group_par_defaut():
+    content = generate_docker_bake(_stack("python", version="3.12"))
+    assert 'group "default"' in content
+    assert 'target "app"' in content
+    assert 'tags       = ["app:latest"]' in content
+    assert '"linux/amd64"' in content and '"linux/arm64"' in content
+    assert 'VERSION = "${VERSION}"' in content
+    assert 'default = "3.12"' in content
+
+
+def test_bake_tags_et_image_personnalises():
+    content = generate_docker_bake(
+        _stack("node"), image_name="monapp", tags=["latest", "v1.0"]
+    )
+    assert 'tags       = ["monapp:latest", "monapp:v1.0"]' in content
+
+
+def test_bake_platforms_personnalisees():
+    content = generate_docker_bake(_stack("go"), platforms=["linux/amd64"])
+    assert 'platforms  = ["linux/amd64"]' in content
+    assert "arm64" not in content
+
+
+def test_bake_push_ajoute_output_registry():
+    content = generate_docker_bake(_stack("rust"), push=True)
+    assert 'output = ["type=registry"]' in content
+
+
+def test_bake_sans_push_omet_output():
+    content = generate_docker_bake(_stack("rust"), push=False)
+    assert "output" not in content
+
+
+def test_bake_langage_non_supporte():
+    with pytest.raises(ValueError):
+        generate_docker_bake(_stack("cobol"))
+
+
+def test_write_docker_bake_cree_le_fichier(tmp_path):
+    output = tmp_path / "sub" / "docker-bake.hcl"
+    write_docker_bake(_stack("python"), str(output), image_name="testapp")
+    assert output.is_file()
+    content = output.read_text(encoding="utf-8")
+    assert 'target "testapp"' in content

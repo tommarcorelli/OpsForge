@@ -13,8 +13,10 @@ from modules.cicd.detector import detect_stack
 from modules.dockerfile.core import (
     generate_dockerfile,
     generate_dockerignore,
+    generate_docker_bake,
     write_dockerfile,
     write_dockerignore,
+    write_docker_bake,
     SUPPORTED_LANGUAGES,
 )
 
@@ -84,6 +86,34 @@ def build_parser():
         help="Ne genere pas de .dockerignore a cote du Dockerfile.",
     )
     parser.add_argument(
+        "--bake",
+        action="store_true",
+        help="Genere aussi un docker-bake.hcl (build multi-tags/multi-plateformes "
+             "via `docker buildx bake`) a cote du Dockerfile.",
+    )
+    parser.add_argument(
+        "--image-name",
+        default="app",
+        help="Nom de l'image utilise dans le docker-bake.hcl (defaut : app).",
+    )
+    parser.add_argument(
+        "--tags",
+        default=None,
+        help="Tags separes par des virgules pour le docker-bake.hcl (defaut : latest).",
+    )
+    parser.add_argument(
+        "--platforms",
+        default=None,
+        help="Plateformes separees par des virgules pour le build multi-arch "
+             "(defaut : linux/amd64,linux/arm64).",
+    )
+    parser.add_argument(
+        "--push",
+        action="store_true",
+        help="Ajoute `output = [\"type=registry\"]` au docker-bake.hcl pour pousser "
+             "l'image directement apres build.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Affiche le Dockerfile genere dans le terminal sans rien ecrire sur disque.",
@@ -146,6 +176,18 @@ def main(argv=None):
         if not args.no_dockerignore:
             print(f"--- Apercu (dry-run) : {output_path}.dockerignore ---\n")
             print(generate_dockerignore(stack["language"]))
+        if args.bake:
+            tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else None
+            platforms = (
+                [p.strip() for p in args.platforms.split(",") if p.strip()]
+                if args.platforms else None
+            )
+            bake_path = os.path.join(os.path.dirname(output_path) or ".", "docker-bake.hcl")
+            print(f"--- Apercu (dry-run) : {bake_path} ---\n")
+            print(generate_docker_bake(
+                stack, image_name=args.image_name, tags=tags, platforms=platforms,
+                push=args.push,
+            ))
         print("--- Fin de l'apercu : rien n'a ete ecrit sur disque ---")
         return
 
@@ -166,4 +208,19 @@ def main(argv=None):
         write_dockerignore(stack["language"], dockerignore_path)
         print(f".dockerignore genere : {dockerignore_path}")
 
+    if args.bake:
+        tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else None
+        platforms = (
+            [p.strip() for p in args.platforms.split(",") if p.strip()]
+            if args.platforms else None
+        )
+        bake_path = os.path.join(os.path.dirname(output_path) or ".", "docker-bake.hcl")
+        write_docker_bake(
+            stack, bake_path, image_name=args.image_name, tags=tags, platforms=platforms,
+            push=args.push,
+        )
+        print(f"docker-bake.hcl genere : {bake_path}")
+
     print(f"\nPour construire l'image : docker build -t mon-app {os.path.dirname(output_path) or '.'}")
+    if args.bake:
+        print(f"Ou via Bake : docker buildx bake -f {bake_path}")
