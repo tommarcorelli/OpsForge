@@ -1,10 +1,11 @@
-"""Tests du role 'backups' (sauvegardes automatiques) et du moteur MongoDB."""
+"""Tests du role 'backups' (sauvegardes automatiques) et des moteurs de base de donnees."""
 
 import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+import pytest
 import yaml
 
 from modules.ansible.core import (
@@ -122,3 +123,81 @@ def test_mongodb_role_named_with_engine_suffix():
     config = _base_config(provisioning=["update_system", "database"], database_engine="mongodb", deployment=[])
     files = generate_role_based_project(config)
     assert "roles/database_mongodb/tasks/main.yml" in files
+
+
+def test_postgresql_genere_un_yaml_valide():
+    config = _base_config(
+        provisioning=["update_system", "database"],
+        deployment=[],
+        database_engine="postgresql",
+        db_name="app",
+        db_user="app_user",
+    )
+    playbook = generate_playbook(config)
+    data = yaml.safe_load(playbook)
+    names = [t["name"] for t in data[0]["tasks"]]
+    assert any("database" in n.lower() for n in names)
+    assert "postgresql" in playbook
+    assert "createdb" in playbook
+    assert "psql" in playbook
+
+
+def test_mysql_genere_un_yaml_valide():
+    config = _base_config(
+        provisioning=["update_system", "database"],
+        deployment=[],
+        database_engine="mysql",
+        db_name="app",
+        db_user="app_user",
+    )
+    playbook = generate_playbook(config)
+    data = yaml.safe_load(playbook)
+    names = [t["name"] for t in data[0]["tasks"]]
+    assert any("database" in n.lower() for n in names)
+    assert "mariadb" in playbook.lower()
+    assert "CREATE DATABASE IF NOT EXISTS" in playbook
+    assert "CREATE USER IF NOT EXISTS" in playbook
+
+
+def test_redis_genere_un_yaml_valide():
+    config = _base_config(
+        provisioning=["update_system", "database"],
+        deployment=[],
+        database_engine="redis",
+    )
+    playbook = generate_playbook(config)
+    data = yaml.safe_load(playbook)
+    names = [t["name"] for t in data[0]["tasks"]]
+    assert any("database" in n.lower() for n in names)
+    assert "redis-server" in playbook
+    assert "redis" in playbook.lower()
+
+
+def test_postgresql_role_named_with_engine_suffix():
+    config = _base_config(provisioning=["update_system", "database"], database_engine="postgresql", deployment=[])
+    files = generate_role_based_project(config)
+    assert "roles/database_postgresql/tasks/main.yml" in files
+
+
+def test_mysql_role_named_with_engine_suffix():
+    config = _base_config(provisioning=["update_system", "database"], database_engine="mysql", deployment=[])
+    files = generate_role_based_project(config)
+    assert "roles/database_mysql/tasks/main.yml" in files
+
+
+@pytest.mark.parametrize("engine,expected_snippet", [
+    ("postgresql", "pg_dump -U"),
+    ("mysql", "mysqldump -u"),
+    ("redis", "redis-cli SAVE"),
+    ("mongodb", "mongodump --db"),
+])
+def test_backup_script_case_matches_engine(engine, expected_snippet):
+    """Chaque moteur doit avoir sa commande de dump dediee dans le
+    case/esac du script opsforge-backup.sh (voir templates/provisioning/backups.yml)."""
+    config = _base_config(
+        provisioning=["update_system", "database", "backups"],
+        deployment=[],
+        database_engine=engine,
+    )
+    playbook = generate_playbook(config)
+    assert expected_snippet in playbook

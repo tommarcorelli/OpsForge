@@ -31,6 +31,16 @@ from modules.cicd.drone_core import (
     generate_drone_yaml,
     generate_badge_markdown as generate_drone_badge_markdown,
 )
+from modules.cicd.bitbucket_core import (
+    write_bitbucket_pipelines,
+    generate_bitbucket_pipelines,
+    generate_badge_markdown as generate_bitbucket_badge_markdown,
+)
+from modules.cicd.teamcity_core import (
+    write_teamcity_kotlin_dsl,
+    generate_teamcity_kotlin_dsl,
+    generate_badge_markdown as generate_teamcity_badge_markdown,
+)
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "output")
@@ -93,6 +103,18 @@ PROVIDERS = {
         "default_filename": ".drone.yml",
         "real_path_hint": ".drone.yml (a la racine du depot)",
     },
+    "bitbucket": {
+        "generate": lambda s, j, d, b, c: generate_bitbucket_pipelines(s, jobs=j, deploy=d, branches=b, schedule_cron=c),
+        "write": lambda s, p, j, d, b, c: write_bitbucket_pipelines(s, p, jobs=j, deploy=d, branches=b, schedule_cron=c),
+        "default_filename": "bitbucket-pipelines.yml",
+        "real_path_hint": "bitbucket-pipelines.yml (a la racine du depot)",
+    },
+    "teamcity": {
+        "generate": lambda s, j, d, b, c: generate_teamcity_kotlin_dsl(s, jobs=j, deploy=d, branches=b, schedule_cron=c),
+        "write": lambda s, p, j, d, b, c: write_teamcity_kotlin_dsl(s, p, jobs=j, deploy=d, branches=b, schedule_cron=c),
+        "default_filename": "settings.kts",
+        "real_path_hint": ".teamcity/settings.kts (a la racine du depot)",
+    },
 }
 
 
@@ -100,7 +122,7 @@ def build_parser():
     parser = argparse.ArgumentParser(
         prog="opsforge cicd",
         description="Genere un pipeline CI/CD (GitHub Actions, GitLab CI, CircleCI, "
-                     "Jenkins ou Drone) a partir d'un dossier de projet.",
+                     "Jenkins, Drone, Bitbucket Pipelines ou TeamCity) a partir d'un dossier de projet.",
     )
     parser.add_argument(
         "project_path",
@@ -121,7 +143,8 @@ def build_parser():
         help="Chemin de sortie du fichier genere. Par defaut : output/<fichier> "
              "(dans ce projet). Emplacement reel attendu dans ton depot selon la "
              "plateforme : github -> .github/workflows/ci.yml, gitlab -> .gitlab-ci.yml, "
-             "circleci -> .circleci/config.yml, jenkins -> Jenkinsfile, drone -> .drone.yml.",
+             "circleci -> .circleci/config.yml, jenkins -> Jenkinsfile, drone -> .drone.yml, "
+             "bitbucket -> bitbucket-pipelines.yml, teamcity -> .teamcity/settings.kts.",
     )
     parser.add_argument(
         "--branches",
@@ -133,7 +156,8 @@ def build_parser():
         "--provider",
         choices=list(PROVIDERS.keys()),
         default="github",
-        help="Plateforme cible : github, gitlab, circleci, jenkins ou drone. Defaut : github",
+        help="Plateforme cible : github, gitlab, circleci, jenkins, drone, bitbucket ou "
+             "teamcity. Defaut : github",
     )
 
     # ---- Options de deploiement ----
@@ -143,9 +167,9 @@ def build_parser():
         default=[],
         help="Cible(s) de deploiement. GitHub : github_pages, docker_hub, ssh, vercel, aws_s3. "
              "GitLab : gitlab_pages, docker_hub, ssh, vercel, aws_s3. "
-             "CircleCI/Jenkins/Drone : docker_hub, ssh, vercel, aws_s3 (pas de 'pages' natif). "
-             "Necessitent de configurer les secrets/variables correspondants "
-             "(voir le README pour le detail par cible).",
+             "CircleCI/Jenkins/Drone/Bitbucket/TeamCity : docker_hub, ssh, vercel, aws_s3 "
+             "(pas de 'pages' natif). Necessitent de configurer les secrets/variables "
+             "correspondants (voir le README pour le detail par cible).",
     )
     parser.add_argument(
         "--pages-dir",
@@ -208,7 +232,9 @@ def build_parser():
         help="Si fourni (ex: 'monuser/monrepo'), affiche en plus un "
              "snippet Markdown de badge de statut a coller dans ton README. "
              "Pour Jenkins, format special : 'url_jenkins,nom_du_job' "
-             "(ex: 'https://ci.exemple.com,mon-projet').",
+             "(ex: 'https://ci.exemple.com,mon-projet'). "
+             "Pour Bitbucket : 'workspace/depot'. "
+             "Pour TeamCity : 'url_teamcity,id_buildtype' (ex: 'https://ci.exemple.com,MonProjet_Test').",
     )
     parser.add_argument(
         "--dry-run",
@@ -235,6 +261,18 @@ def _print_badge(provider, badge_repo, branch):
             print("Format invalide pour --badge-repo avec Jenkins : attendu 'url_jenkins,nom_du_job'.")
             return
         print(generate_jenkins_badge_markdown(jenkins_url.strip(), job_name.strip(), branch=branch))
+    elif provider == "bitbucket":
+        workspace, _, repo_slug = badge_repo.partition("/")
+        if not repo_slug.strip():
+            print("Format invalide pour --badge-repo avec Bitbucket : attendu 'workspace/depot'.")
+            return
+        print(generate_bitbucket_badge_markdown(workspace.strip(), repo_slug.strip(), branch=branch))
+    elif provider == "teamcity":
+        teamcity_url, _, build_type_id = badge_repo.partition(",")
+        if not build_type_id.strip():
+            print("Format invalide pour --badge-repo avec TeamCity : attendu 'url_teamcity,id_buildtype'.")
+            return
+        print(generate_teamcity_badge_markdown(teamcity_url.strip(), build_type_id.strip()))
     else:
         print(generate_badge_markdown(badge_repo, branch=branch))
 

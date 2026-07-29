@@ -79,6 +79,12 @@ AUTH_METHOD_CATALOG = {
     "kubernetes": {"label": "Kubernetes (auth via ServiceAccount)"},
     "ldap": {"label": "LDAP"},
     "github": {"label": "GitHub (org + equipes)"},
+    "oidc": {"label": "OIDC (SSO via un fournisseur d'identite externe)"},
+    "jwt": {"label": "JWT (tokens signes, sans redirection navigateur)"},
+    "aws": {"label": "AWS (auth via role IAM ou instance EC2)"},
+    "gcp": {"label": "GCP (auth via compte de service ou instance GCE)"},
+    "azure": {"label": "Azure (auth via Managed Identity)"},
+    "cert": {"label": "TLS Certificates (auth par certificat client mTLS)"},
 }
 
 SECRETS_ENGINE_CATALOG = {
@@ -89,6 +95,11 @@ SECRETS_ENGINE_CATALOG = {
     "transit": {"label": "Transit (chiffrement as-a-service)", "opts": ""},
     "aws": {"label": "AWS (identifiants IAM dynamiques)", "opts": ""},
     "ssh": {"label": "SSH (certificats/cles a la volee)", "opts": ""},
+    "gcp": {"label": "GCP (identifiants de service dynamiques)", "opts": ""},
+    "azure": {"label": "Azure (identifiants Service Principal dynamiques)", "opts": ""},
+    "consul": {"label": "Consul (tokens Consul dynamiques)", "opts": ""},
+    "nomad": {"label": "Nomad (tokens Nomad dynamiques)", "opts": ""},
+    "totp": {"label": "TOTP (generation/validation de codes a usage unique)", "opts": ""},
 }
 
 
@@ -506,6 +517,66 @@ PRESETS = {
         ],
         "auth_methods": [
             {"type": "kubernetes", "path": "kubernetes", "config": {}},
+        ],
+    },
+    "sso-oidc-login": {
+        "server": {
+            "storage": "file",
+            "storage_args": {"path": "/opt/vault/data"},
+            "listener_address": "0.0.0.0:8200",
+            "listener_tls_disable": False,
+            "cert_file": "/opt/vault/tls/vault.crt",
+            "key_file": "/opt/vault/tls/vault.key",
+            "seal": "shamir",
+            "ui": True,
+        },
+        "policies": [
+            {
+                "name": "sso-default",
+                "rules": [
+                    {"path": "secret/data/team/*", "capabilities": ["read", "list"]},
+                ],
+            },
+        ],
+        "secrets_engines": [
+            {"type": "kv-v2", "path": "secret", "config": {}},
+        ],
+        "auth_methods": [
+            {
+                "type": "oidc",
+                "path": "oidc",
+                "config": {
+                    "oidc_discovery_url": "https://votre-idp.example.com",
+                    "oidc_client_id": "vault",
+                    "default_role": "default",
+                },
+            },
+        ],
+    },
+    "multi-cloud-dynamic-creds": {
+        "server": {
+            "storage": "raft",
+            "storage_args": {"path": "/opt/vault/data", "node_id": "vault-node-1"},
+            "listener_address": "0.0.0.0:8200",
+            "listener_tls_disable": True,
+            "seal": "shamir",
+            "ui": True,
+        },
+        "policies": [
+            {
+                "name": "cloud-readonly",
+                "rules": [
+                    {"path": "gcp/roleset/readonly/token", "capabilities": ["read"]},
+                    {"path": "azure/creds/readonly", "capabilities": ["read"]},
+                ],
+            },
+        ],
+        "secrets_engines": [
+            {"type": "gcp", "path": "gcp", "config": {}},
+            {"type": "azure", "path": "azure", "config": {}},
+        ],
+        "auth_methods": [
+            {"type": "jwt", "path": "jwt", "config": {"bound_issuer": "https://votre-ci.example.com"}},
         ],
     },
 }

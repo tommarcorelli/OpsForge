@@ -24,7 +24,7 @@ serveur externe.
 
 | Module | Ce qu'il génère | Accès web | Sous-commande CLI |
 |---|---|---|---|
-| **CI/CD** | Pipelines **GitHub Actions** (`.github/workflows/ci.yml`), **GitLab CI** (`.gitlab-ci.yml`), **CircleCI** (`.circleci/config.yml`), **Jenkins** (`Jenkinsfile`) et **Drone** (`.drone.yml`) | `/cicd` | `python main.py cicd …` |
+| **CI/CD** | Pipelines **GitHub Actions** (`.github/workflows/ci.yml`), **GitLab CI** (`.gitlab-ci.yml`), **CircleCI** (`.circleci/config.yml`), **Jenkins** (`Jenkinsfile`), **Drone** (`.drone.yml`), **Bitbucket Pipelines** (`bitbucket-pipelines.yml`) et **TeamCity** (`.teamcity/settings.kts`) | `/cicd` | `python main.py cicd …` |
 | **Ansible** | Playbooks de **provisioning + déploiement** serveur (paquets, Docker, Nginx, firewall, fail2ban, bases de données, vault chiffré, multi-serveurs) | `/ansible` | `python main.py ansible …` |
 | **Vagrant** | **Vagrantfile multi-VM** (providers, réseau, provisioning, presets, lint) — portage de VagrantForge | `/vagrant` | `python main.py vagrant …` |
 | **Terraform** | **`main.tf`** validé et aligné : builder de ressources, presets, validation par provider, variables/outputs — ou export **CloudFormation** (`template.yaml`) ou **Pulumi** (`__main__.py`, aws/google/azurerm/docker) | `/terraform` | `python main.py terraform …` |
@@ -35,7 +35,7 @@ serveur externe.
 | **Monitoring** | **`prometheus.yml`** (scrape multi-jobs + Alertmanager), **règles d'alerte** Prometheus (CPU/mém/disque/instance), **datasources Grafana** ou **`dashboard.json`** (panels réels prêts à importer) | `/monitoring` | `python main.py monitoring …` |
 | **cloud-init** | **`#cloud-config`** (user-data) de premier boot : utilisateurs, clés SSH, paquets, `write_files`, `runcmd`, durcissement SSH — ou export **Ignition** (`config.ign`, Fedora CoreOS/Flatcar/RHCOS) | `/cloudinit` | `python main.py cloudinit …` |
 | **Packer** | **`build.pkr.hcl`** (HCL2) : builder **virtualbox-iso / qemu / amazon-ebs / docker**, provisioners shell/file, post-processors (`vagrant`, `docker-tag`, `compress`) | `/packer` | `python main.py packer …` |
-| **Vault** | **`config.hcl`** (storage file/raft/consul, seal shamir/awskms/transit, listener), **`policies/*.hcl`** (ACL), **`bootstrap.sh`** (activation auth methods et secrets engines : userpass/approle/kubernetes, kv-v2/pki/database/transit…) | `/vault` | `python main.py vault …` |
+| **Vault** | **`config.hcl`** (storage file/raft/consul, seal shamir/awskms/transit, listener), **`policies/*.hcl`** (ACL), **`bootstrap.sh`** (activation auth methods et secrets engines : userpass/approle/kubernetes/ldap/github/oidc/jwt/aws/gcp/azure/cert, kv-v2/pki/database/transit/aws/ssh/gcp/azure/consul/nomad/totp…) | `/vault` | `python main.py vault …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -149,10 +149,12 @@ python main.py cicd . --provider gitlab --deploy docker_hub ssh \
 python main.py cicd . --matrix-versions 3.10 3.11 3.12 \
   --schedule-cron "0 3 * * *" --badge-repo monuser/monrepo
 
-# CircleCI, Jenkins ou Drone (memes options --deploy/--matrix-versions/--schedule-cron)
+# CircleCI, Jenkins, Drone, Bitbucket ou TeamCity (memes options --deploy/--matrix-versions/--schedule-cron)
 python main.py cicd . --provider circleci --deploy aws_s3 --s3-bucket mon-bucket
 python main.py cicd . --provider jenkins --dry-run
 python main.py cicd . --provider drone --dry-run
+python main.py cicd . --provider bitbucket --dry-run
+python main.py cicd . --provider teamcity --dry-run
 
 # Apercu sans rien ecrire sur disque
 python main.py cicd . --dry-run
@@ -382,7 +384,7 @@ Chaque module est un **blueprint Flask** monté sous son préfixe (`/cicd`,
 ## Module CI/CD — détails
 
 Langages supportés : **Python, Node.js, Go, Rust, Java, PHP, Ruby, .NET** (jobs lint / test
-/ build, avec détection du package manager et de la version). **5 plateformes** :
+/ build, avec détection du package manager et de la version). **7 plateformes** :
 
 - **GitHub Actions** (`.github/workflows/ci.yml`) — déploiement GitHub Pages,
   Docker Hub, SSH, Vercel, AWS S3 ; secrets via Settings → Secrets and
@@ -400,17 +402,28 @@ Langages supportés : **Python, Node.js, Go, Rust, Java, PHP, Ruby, .NET** (jobs
 - **Drone** (`.drone.yml`) — steps séquentiels par défaut (pas de DAG), plugins
   officiels pour le déploiement (`plugins/docker`, `plugins/s3-sync`), secrets
   via `drone secret add`.
+- **Bitbucket Pipelines** (`bitbucket-pipelines.yml`) — steps séquentiels par
+  défaut comme Drone ; les steps de déploiement sont placés sous
+  `pipelines.branches.<branche>` (pas d'équivalent direct à un filtre par step),
+  variables via Repository Settings → Pipelines → Repository variables
+  (cochées « Secured » pour les secrets).
+- **TeamCity** (`.teamcity/settings.kts`, Kotlin DSL) — un `BuildType` Kotlin
+  par étape (lint/test/build/deploy), dépendances explicites via
+  `dependencies { snapshot(...) }`, exécution dans le conteneur voulu via le
+  Docker Wrapper natif du step script (`dockerImage`/`dockerPull`), paramètres
+  (type « Password » pour les secrets) via Administration → Parameters,
+  référencés en `%nom.parametre%`.
 
-Fonctions avancées (communes aux 5 plateformes) : matrix builds (tester
-plusieurs versions en parallèle), déclenchement cron (natif sur
-GitHub/CircleCI/Jenkins ; note d'instructions manuelle sur GitLab/Drone qui ne
-supportent pas de planification directement en YAML), badges de statut
-Markdown, dépendances entre jobs (`needs:`/`requires:`/stages selon la
-plateforme).
+Fonctions avancées (communes aux 7 plateformes) : matrix builds (tester
+plusieurs versions en parallèle, GitHub/GitLab/CircleCI/Jenkins), déclenchement
+cron (natif sur GitHub/CircleCI/Jenkins/TeamCity ; note d'instructions manuelle
+sur GitLab/Drone/Bitbucket qui ne supportent pas de planification directement
+dans le fichier de pipeline), badges de statut Markdown, dépendances entre
+jobs (`needs:`/`requires:`/stages/`snapshot()` selon la plateforme).
 
 Les jobs correspondent à des jobs séparés (`test-python`, `lint-node`…). Le YAML
-généré est validé avec `pyyaml` avant d'être renvoyé (sauf Jenkins, qui génère
-du Groovy).
+généré est validé avec `pyyaml` avant d'être renvoyé (sauf Jenkins et TeamCity,
+qui génèrent respectivement du Groovy et du Kotlin).
 
 > Note : la clé `on:` des workflows GitHub Actions est générée entre guillemets
 > (`"on":`) — YAML 1.1 interprète le mot nu `on` comme un booléen, ce qui
@@ -845,9 +858,10 @@ vraiment :
   `deny`).
 - **`bootstrap.sh`** : script shell idempotent qui charge les policies
   (`vault policy write`), active les méthodes d'authentification
-  (`vault auth enable` — userpass, approle, kubernetes, ldap, github) et
-  les moteurs de secrets (`vault secrets enable` — kv-v2/kv-v1, database,
-  pki, transit, aws, ssh), puis pousse leur configuration (`vault write
+  (`vault auth enable` — userpass, approle, kubernetes, ldap, github, oidc,
+  jwt, aws, gcp, azure, cert) et les moteurs de secrets (`vault secrets
+  enable` — kv-v2/kv-v1, database, pki, transit, aws, ssh, gcp, azure,
+  consul, nomad, totp), puis pousse leur configuration (`vault write
   <path>/config ...`) si fournie. Généré uniquement si au moins une
   policy, méthode d'auth ou moteur de secrets est déclaré — ce sont des
   opérations d'API/CLI à l'exécution (après initialisation + descellement),
@@ -858,7 +872,9 @@ désactivé, KV v2 + userpass — pour tester en local), `ha-raft-cluster`
 (storage `raft`, TLS activé, policy admin), `app-secrets-kv` (KV v2 +
 AppRole, policy applicative read/write), `pki-internal-ca` (moteur `pki`,
 policy d'émission de certificats), `database-dynamic-creds` (moteur
-`database`, auth Kubernetes, seal AWS KMS auto-unseal).
+`database`, auth Kubernetes, seal AWS KMS auto-unseal), `sso-oidc-login`
+(auth OIDC via un fournisseur d'identité externe, KV v2), `multi-cloud-dynamic-creds`
+(moteurs GCP + Azure, auth JWT — identifiants dynamiques multi-cloud).
 
 Usage typique : `vault server -config=config.hcl`, puis une fois
 `vault operator init` et `vault operator unseal` effectués,
@@ -871,7 +887,7 @@ Usage typique : `vault server -config=config.hcl`, puis une fois
 ```bash
 pip install -r requirements-dev.txt --break-system-packages
 pytest tests/            # tous les modules
-pytest tests/cicd/       # module CI/CD uniquement (GitHub/GitLab/CircleCI/Jenkins/Drone)
+pytest tests/cicd/       # module CI/CD uniquement (GitHub/GitLab/CircleCI/Jenkins/Drone/Bitbucket/TeamCity)
 pytest tests/ansible/    # module Ansible uniquement
 pytest tests/ansible/test_molecule.py   # scaffolding Molecule uniquement
 pytest tests/vagrant/    # module Vagrant uniquement
@@ -929,6 +945,16 @@ Les 12 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorit
       (`.circleci/config.yml`, `Jenkinsfile`, `.drone.yml`, mêmes cibles de
       déploiement docker_hub/ssh/vercel/aws_s3 que GitHub/GitLab, secrets/
       credentials/variables dédiés par plateforme, badges de statut).
+- [x] ~~Providers Bitbucket Pipelines, TeamCity pour le module CI/CD~~ — fait
+      (`bitbucket-pipelines.yml`, `.teamcity/settings.kts` Kotlin DSL, mêmes
+      cibles de déploiement docker_hub/ssh/vercel/aws_s3, snapshot
+      dependencies TeamCity, cron converti en champs Quartz-like, badges de
+      statut).
+- [x] ~~Nouveaux auth methods/secrets engines pour le module Vault~~ — fait
+      (auth : oidc/jwt/aws/gcp/azure/cert en plus de userpass/approle/
+      kubernetes/ldap/github ; secrets engines : gcp/azure/consul/nomad/totp
+      en plus de kv-v2/kv-v1/database/pki/transit/aws/ssh ; 2 nouveaux
+      presets `sso-oidc-login` et `multi-cloud-dynamic-creds`).
 - [x] ~~Cible CloudFormation pour le module Terraform~~ — fait
       (`template.yaml` AWS : catalogue de 13 types de ressources CFN,
       4 presets, intrinsic functions `!Ref`/`!GetAtt`, sélecteur de format
@@ -963,11 +989,13 @@ Candidats, du plus prioritaire au moins :
 Tous les modules candidats de cette liste sont désormais implémentés. Les
 prochaines pistes d'extension (nouveaux providers CI, nouvelles cibles IaC)
 sont plutôt des ajouts *dans* les modules existants que de nouveaux modules
-à part entière — CircleCI/Jenkins/Drone (CI/CD), CloudFormation et Pulumi
-(Terraform), Kustomize (K8s), HAProxy (Nginx) ont déjà été traités ainsi.
-Plus aucune piste connue non traitée à ce jour : la seule direction future
-serait d'autres systèmes CI (type TeamCity/Bitbucket Pipelines) en tant que
-providers du module CI/CD — rien de demandé pour l'instant.
+à part entière — CircleCI/Jenkins/Drone/Bitbucket/TeamCity (CI/CD),
+CloudFormation et Pulumi (Terraform), Kustomize (K8s), HAProxy (Nginx) ont
+déjà été traités ainsi. Plus aucune piste connue non traitée à ce jour : les
+prochaines directions restent des ajouts de providers/cibles supplémentaires
+(ex : TeamCity/Bitbucket Pipelines pour le CI/CD, déjà faits ; d'autres
+pourraient suivre selon les besoins) — rien de spécifique demandé pour
+l'instant au-delà de ce qui est décrit plus bas.
 
 > À éviter (doublons d'autres projets) : docker-compose = DockerForge ;
 > réseau/firewall/VLAN = NetForge.
@@ -1023,11 +1051,12 @@ et il est désormais traité :
       file/raft/consul, seal shamir/awskms/transit, listener TCP+TLS ;
       `policies/<nom>.hcl` : ACL avec capabilities validées ; `bootstrap.sh` :
       activation idempotente des auth methods — userpass/approle/kubernetes/
-      ldap/github — et des secrets engines — kv-v2/kv-v1/database/pki/
-      transit/aws/ssh — via `vault auth enable`/`vault secrets enable`/
+      ldap/github/oidc/jwt/aws/gcp/azure/cert — et des secrets engines —
+      kv-v2/kv-v1/database/pki/transit/aws/ssh/gcp/azure/consul/nomad/totp —
+      via `vault auth enable`/`vault secrets enable`/
       `vault policy write`. Distinct de l'Ansible Vault existant, qui ne
       fait que chiffrer des variables : ici c'est la configuration du
-      serveur Vault lui-même. 5 presets, sélecteurs storage/seal dans l'UI
+      serveur Vault lui-même. 7 presets, sélecteurs storage/seal dans l'UI
       et `--preset`/`--list-*` en CLI).
 
 Tous les modules candidats identifiés dans cette roadmap sont désormais

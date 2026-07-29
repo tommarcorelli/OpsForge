@@ -64,6 +64,8 @@
         <button type="button" class="provider-btn" data-provider="circleci">CircleCI</button>
         <button type="button" class="provider-btn" data-provider="jenkins">Jenkins</button>
         <button type="button" class="provider-btn" data-provider="drone">Drone</button>
+        <button type="button" class="provider-btn" data-provider="bitbucket">Bitbucket</button>
+        <button type="button" class="provider-btn" data-provider="teamcity">TeamCity</button>
       </div>
 
       <div class="field-group">
@@ -394,6 +396,60 @@
         ]},
         { id: "badge", label: "Badge README", icon: "fa-solid fa-shield-halved", color: "#16a34a", steps: [
           { title: "Copier le badge généré", cmd: "Voir le bouton \"Copier le badge\" une fois le pipeline généré", note: "Colle-le en haut de ton README.md pour afficher le statut du dernier run." },
+        ]},
+      ],
+    },
+    bitbucket: {
+      tool: "Bitbucket Pipelines",
+      icon: "fa-brands fa-bitbucket",
+      intro: "Le fichier généré est une pipeline <b>Bitbucket Pipelines</b> (<code>bitbucket-pipelines.yml</code>). Il suffit de l'activer une fois dans les réglages du dépôt.",
+      os: [
+        { id: "placer", label: "Placer le fichier", icon: "fa-solid fa-folder-tree", color: "#0052CC", steps: [
+          { title: "Déposer le fichier à la racine", cmd: "mv bitbucket-pipelines.yml ./bitbucket-pipelines.yml" },
+          { title: "Commit et push", cmd: "git add bitbucket-pipelines.yml\ngit commit -m \"ci: ajoute le pipeline\"\ngit push" },
+          { title: "Activer Pipelines", cmd: "Repository settings → Pipelines → Settings → Enable Pipelines", note: "Étape unique, à faire une seule fois par dépôt." },
+        ]},
+        { id: "secrets", label: "Variables à configurer", icon: "fa-solid fa-key", color: "#B45309", steps: [
+          { title: "Où les ajouter", cmd: "Repository settings → Pipelines → Repository variables", note: "Coche \"Secured\" pour les secrets. Uniquement si un step de déploiement est activé." },
+          { title: "Docker Hub", cmd: "DOCKERHUB_USERNAME\nDOCKERHUB_PASSWORD" },
+          { title: "SSH", cmd: "SSH_HOST\nSSH_USER\nSSH_PRIVATE_KEY" },
+          { title: "AWS S3", cmd: "Pas de clé AWS en dur : utilise plutôt un OIDC/IAM role si possible, sinon des variables sécurisées." },
+          { title: "Vercel", cmd: "VERCEL_TOKEN" },
+        ]},
+        { id: "declenchement", label: "Déclenchement", icon: "fa-solid fa-bolt", color: "#2563EB", steps: [
+          { title: "Suivre l'exécution", cmd: "Onglet \"Pipelines\" du dépôt Bitbucket", note: "Le pipeline se lance automatiquement au push, une fois activé." },
+          { title: "Planifier un run (cron)", cmd: "Repository settings → Pipelines → Schedules → New schedule", note: "Bitbucket ne permet pas de définir un déclenchement planifié directement dans le YAML : une note avec l'expression cron choisie a été ajoutée en tête du fichier généré." },
+        ]},
+        { id: "badge", label: "Badge README", icon: "fa-solid fa-shield-halved", color: "#16a34a", steps: [
+          { title: "Copier le badge généré", cmd: "Renseigne workspace/dépôt dans le champ ci-dessus", note: "Format attendu : workspace/depot" },
+        ]},
+      ],
+    },
+    teamcity: {
+      tool: "TeamCity",
+      icon: "fa-solid fa-code-branch",
+      intro: "Le fichier généré est une configuration <b>TeamCity Kotlin DSL</b> (<code>.teamcity/settings.kts</code>). TeamCity le compile et le synchronise automatiquement au chargement du projet (VCS-synchronized settings).",
+      os: [
+        { id: "placer", label: "Placer le fichier", icon: "fa-solid fa-folder-tree", color: "#000000", steps: [
+          { title: "Créer le dossier .teamcity", cmd: "mkdir -p .teamcity" },
+          { title: "Y déposer le fichier généré", cmd: "mv settings.kts .teamcity/settings.kts" },
+          { title: "Commit et push", cmd: "git add .teamcity/settings.kts\ngit commit -m \"ci: ajoute le pipeline\"\ngit push" },
+          { title: "Activer les settings versionnés", cmd: "Administration → projet → Versioned Settings → Enable, format Kotlin", note: "Étape unique, à faire une seule fois par projet." },
+        ]},
+        { id: "secrets", label: "Paramètres à configurer", icon: "fa-solid fa-key", color: "#B45309", steps: [
+          { title: "Où les ajouter", cmd: "Administration → projet → Parameters → Add new parameter", note: "Type \"Password\" pour les secrets (masqués dans les logs). Référencés en %nom.du.parametre% dans le fichier généré." },
+          { title: "Docker Hub", cmd: "dockerhub.username\ndockerhub.password" },
+          { title: "SSH", cmd: "ssh.host\nssh.user\nssh.private.key" },
+          { title: "Vercel", cmd: "vercel.token" },
+          { title: "AWS S3", cmd: "AWS_ACCESS_KEY_ID\nAWS_SECRET_ACCESS_KEY", note: "Via les variables d'environnement standard de l'agent, ou un profil Cloud Connector AWS." },
+        ]},
+        { id: "declenchement", label: "Déclenchement", icon: "fa-solid fa-bolt", color: "#2563EB", steps: [
+          { title: "Suivre l'exécution", cmd: "Projects → ton projet → BuildTypes générés", note: "Chaque étape (lint/test/build/deploy) apparaît comme une configuration de build distincte, déclenchée au push via le trigger VCS." },
+          { title: "Run planifié (cron)", cmd: "Déjà inclus si un cron a été renseigné", note: "Le bloc triggers { schedule { schedulingPolicy = cron {...} } } est ajouté directement dans le fichier généré." },
+        ]},
+        { id: "badge", label: "Badge README", icon: "fa-solid fa-shield-halved", color: "#16a34a", steps: [
+          { title: "Activer l'accès invité", cmd: "Administration → Server Administration → Guest Login", note: "Nécessaire pour que l'URL du badge soit accessible sans authentification." },
+          { title: "Copier le badge généré", cmd: "Renseigne l'URL TeamCity + l'ID du BuildType dans le champ ci-dessus", note: "Format attendu : url_teamcity,id_buildtype" },
         ]},
       ],
     },

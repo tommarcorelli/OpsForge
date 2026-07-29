@@ -253,6 +253,28 @@ def test_bootstrap_active_auth_methods():
     assert "vault auth enable -path=approle approle" in script
 
 
+def test_bootstrap_active_auth_method_oidc():
+    cfg = _valid_config(auth_methods=[{
+        "type": "oidc", "path": "oidc",
+        "config": {"oidc_discovery_url": "https://idp.example.com"},
+    }])
+    script = generate_bootstrap_script(cfg)
+    assert "vault auth enable -path=oidc oidc" in script
+    assert 'vault write auth/oidc/config oidc_discovery_url="https://idp.example.com"' in script
+
+
+def test_bootstrap_active_auth_method_jwt():
+    cfg = _valid_config(auth_methods=[{"type": "jwt", "path": "jwt", "config": {}}])
+    script = generate_bootstrap_script(cfg)
+    assert "vault auth enable -path=jwt jwt" in script
+
+
+def test_bootstrap_active_auth_method_cert():
+    cfg = _valid_config(auth_methods=[{"type": "cert", "path": "cert", "config": {}}])
+    script = generate_bootstrap_script(cfg)
+    assert "vault auth enable -path=cert cert" in script
+
+
 def test_bootstrap_active_secrets_engines_kv_v2():
     cfg = _valid_config(secrets_engines=[{"type": "kv-v2", "path": "secret", "config": {}}])
     script = generate_bootstrap_script(cfg)
@@ -263,6 +285,24 @@ def test_bootstrap_active_secrets_engines_pki():
     cfg = _valid_config(secrets_engines=[{"type": "pki", "path": "pki", "config": {}}])
     script = generate_bootstrap_script(cfg)
     assert "vault secrets enable -path=pki pki" in script
+
+
+def test_bootstrap_active_secrets_engine_gcp():
+    cfg = _valid_config(secrets_engines=[{"type": "gcp", "path": "gcp", "config": {}}])
+    script = generate_bootstrap_script(cfg)
+    assert "vault secrets enable -path=gcp gcp" in script
+
+
+def test_bootstrap_active_secrets_engine_azure():
+    cfg = _valid_config(secrets_engines=[{"type": "azure", "path": "azure", "config": {}}])
+    script = generate_bootstrap_script(cfg)
+    assert "vault secrets enable -path=azure azure" in script
+
+
+def test_bootstrap_active_secrets_engine_totp():
+    cfg = _valid_config(secrets_engines=[{"type": "totp", "path": "totp", "config": {}}])
+    script = generate_bootstrap_script(cfg)
+    assert "vault secrets enable -path=totp totp" in script
 
 
 def test_bootstrap_ecrit_config_moteur():
@@ -335,10 +375,22 @@ def test_list_auth_methods_non_vide():
     assert "approle" in methods
 
 
+def test_list_auth_methods_inclut_les_nouvelles_methodes():
+    methods = list_auth_methods()
+    for m in ("oidc", "jwt", "aws", "gcp", "azure", "cert"):
+        assert m in methods
+
+
 def test_list_secrets_engines_non_vide():
     engines = list_secrets_engines()
     assert "kv-v2" in engines
     assert "pki" in engines
+
+
+def test_list_secrets_engines_inclut_les_nouveaux_moteurs():
+    engines = list_secrets_engines()
+    for e in ("gcp", "azure", "consul", "nomad", "totp"):
+        assert e in engines
 
 
 # --------------------------------------------------------------------------

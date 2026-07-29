@@ -29,6 +29,14 @@ from modules.cicd.drone_core import (
     generate_drone_yaml,
     generate_badge_markdown as generate_drone_badge_markdown,
 )
+from modules.cicd.bitbucket_core import (
+    generate_bitbucket_pipelines,
+    generate_badge_markdown as generate_bitbucket_badge_markdown,
+)
+from modules.cicd.teamcity_core import (
+    generate_teamcity_kotlin_dsl,
+    generate_badge_markdown as generate_teamcity_badge_markdown,
+)
 
 bp = Blueprint("cicd", __name__, url_prefix="/cicd")
 
@@ -76,6 +84,18 @@ PROVIDERS = {
             stacks, jobs=jobs, deploy=deploy, branches=branches, schedule_cron=schedule_cron
         ),
         "filename": ".drone.yml",
+    },
+    "bitbucket": {
+        "generate": lambda stacks, jobs, deploy, branches, schedule_cron: generate_bitbucket_pipelines(
+            stacks, jobs=jobs, deploy=deploy, branches=branches, schedule_cron=schedule_cron
+        ),
+        "filename": "bitbucket-pipelines.yml",
+    },
+    "teamcity": {
+        "generate": lambda stacks, jobs, deploy, branches, schedule_cron: generate_teamcity_kotlin_dsl(
+            stacks, jobs=jobs, deploy=deploy, branches=branches, schedule_cron=schedule_cron
+        ),
+        "filename": "settings.kts",
     },
 }
 
@@ -186,6 +206,20 @@ def api_generate():
             if job_name.strip():
                 result["badge"] = generate_jenkins_badge_markdown(
                     jenkins_url.strip(), job_name.strip(), branch=branches[0]
+                )
+        elif provider == "bitbucket":
+            # Format attendu : "workspace/depot"
+            workspace, _, repo_slug = badge_repo.partition("/")
+            if repo_slug.strip():
+                result["badge"] = generate_bitbucket_badge_markdown(
+                    workspace.strip(), repo_slug.strip(), branch=branches[0]
+                )
+        elif provider == "teamcity":
+            # Format attendu : "url_teamcity,id_buildtype"
+            teamcity_url, _, build_type_id = badge_repo.partition(",")
+            if build_type_id.strip():
+                result["badge"] = generate_teamcity_badge_markdown(
+                    teamcity_url.strip(), build_type_id.strip()
                 )
         else:
             result["badge"] = generate_github_badge_markdown(

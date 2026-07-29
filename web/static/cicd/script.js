@@ -54,9 +54,10 @@ const el = {
 };
 
 // ----------------------------------------------------------------------------
-// Selecteur de provider (GitHub Actions / GitLab CI / CircleCI / Jenkins / Drone)
+// Selecteur de provider (GitHub Actions / GitLab CI / CircleCI / Jenkins /
+// Drone / Bitbucket Pipelines / TeamCity)
 // ----------------------------------------------------------------------------
-const PROVIDERS_WITHOUT_NATIVE_PAGES = new Set(["circleci", "jenkins", "drone"]);
+const PROVIDERS_WITHOUT_NATIVE_PAGES = new Set(["circleci", "jenkins", "drone", "bitbucket", "teamcity"]);
 
 const SECRETS_LABEL_BY_PROVIDER = {
   github: "secrets GitHub",
@@ -64,15 +65,21 @@ const SECRETS_LABEL_BY_PROVIDER = {
   circleci: "variables d'environnement CircleCI",
   jenkins: "credentials Jenkins",
   drone: "secrets Drone",
+  bitbucket: "variables de dépôt Bitbucket",
+  teamcity: "paramètres TeamCity",
 };
 
 const BADGE_HINT_BY_PROVIDER = {
   jenkins: "Format spécial pour Jenkins : url_jenkins,nom_du_job (ex : https://ci.exemple.com,mon-projet).",
+  bitbucket: "Format spécial pour Bitbucket : workspace/depot (ex : monequipe/mon-projet).",
+  teamcity: "Format spécial pour TeamCity : url_teamcity,id_buildtype (ex : https://ci.exemple.com,MonProjet_Test).",
   default: "Génère un snippet Markdown à coller dans ton README, en plus du pipeline.",
 };
 
 const BADGE_PLACEHOLDER_BY_PROVIDER = {
   jenkins: "https://ci.exemple.com,mon-projet",
+  bitbucket: "monequipe/mon-projet",
+  teamcity: "https://ci.exemple.com,MonProjet_Test",
   default: "monuser/monrepo",
 };
 
