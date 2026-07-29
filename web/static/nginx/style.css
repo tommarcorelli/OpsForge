@@ -160,3 +160,4 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 [data-theme="dark"] .text-input,[data-theme="dark"] .input-row input,[data-theme="dark"] input[type=text]{color:var(--ink);}
 [data-theme="dark"] .preset-chip.active{background:rgba(0,150,57,.18);}
 [data-theme="dark"] .backend-remove:hover{background:rgba(209,84,63,.15);}
+[data-theme="dark"] select option{background:#1e2030;color:var(--ink);}

@@ -112,3 +112,4 @@ textarea{font-family:var(--mono);font-size:13px;line-height:1.5;resize:vertical;
 [data-theme="dark"] .theme-toggle{background:var(--glass-strong);color:var(--ink);}
 [data-theme="dark"] .theme-toggle:hover{background:rgba(255,255,255,.10);}
 [data-theme="dark"] select,[data-theme="dark"] textarea{color:var(--ink);}
+[data-theme="dark"] select option{background:#1e2030;color:var(--ink);}

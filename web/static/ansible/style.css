@@ -173,3 +173,4 @@ select.text-input{cursor:pointer;}
 [data-theme="dark"] .theme-toggle{background:var(--glass-strong);color:var(--ink);}
 [data-theme="dark"] .theme-toggle:hover{background:rgba(255,255,255,.10);}
 [data-theme="dark"] .text-input{color:var(--ink);}
+[data-theme="dark"] select option{background:#1e2030;color:var(--ink);}

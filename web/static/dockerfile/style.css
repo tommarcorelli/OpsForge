@@ -157,3 +157,4 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .yaml-comment{color:#7c85a0;font-style:italic;}
 .yaml-key{color:#7dc4ff;font-weight:700;}
 [data-theme="dark"] .yaml-comment{color:#8a93ad;}
+[data-theme="dark"] select option{background:#1e2030;color:var(--ink);}
