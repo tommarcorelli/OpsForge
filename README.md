@@ -36,6 +36,7 @@ serveur externe.
 | **cloud-init** | **`#cloud-config`** (user-data) de premier boot : utilisateurs, clés SSH, paquets, `write_files`, `runcmd`, durcissement SSH — ou export **Ignition** (`config.ign`, Fedora CoreOS/Flatcar/RHCOS) | `/cloudinit` | `python main.py cloudinit …` |
 | **Packer** | **`build.pkr.hcl`** (HCL2) : builder **virtualbox-iso / qemu / amazon-ebs / docker**, provisioners shell/file, post-processors (`vagrant`, `docker-tag`, `compress`) | `/packer` | `python main.py packer …` |
 | **Vault** | **`config.hcl`** (storage file/raft/consul, seal shamir/awskms/transit, listener), **`policies/*.hcl`** (ACL), **`bootstrap.sh`** (activation auth methods et secrets engines : userpass/approle/kubernetes/ldap/github/oidc/jwt/aws/gcp/azure/cert, kv-v2/pki/database/transit/aws/ssh/gcp/azure/consul/nomad/totp…) | `/vault` | `python main.py vault …` |
+| **GitOps** | **ArgoCD** (`argocd-application.yaml`) ou **FluxCD** (`flux-gitrepository.yaml` + `flux-kustomization.yaml`/`flux-helmrelease.yaml`) — sources raw/Kustomize/Helm, sync auto ou manuelle | `/gitops` | `python main.py gitops …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -333,19 +334,24 @@ opsforge/
 │   │   ├── routes.py          Blueprint Flask (préfixe /packer) + API
 │   │   └── cli.py             logique CLI du module
 │   │
-│   └── vault/            → module HashiCorp Vault (config.hcl / policies / bootstrap.sh)
-│       ├── core.py            rendu HCL (storage/seal/listener) + policies ACL + script bootstrap + presets
-│       ├── routes.py          Blueprint Flask (préfixe /vault) + API
+│   ├── vault/            → module HashiCorp Vault (config.hcl / policies / bootstrap.sh)
+│   │   ├── core.py            rendu HCL (storage/seal/listener) + policies ACL + script bootstrap + presets
+│   │   ├── routes.py          Blueprint Flask (préfixe /vault) + API
+│   │   └── cli.py             logique CLI du module
+│   │
+│   └── gitops/           → module GitOps (ArgoCD Application / FluxCD)
+│       ├── core.py            rendu YAML (ArgoCD Application, Flux GitRepository+Kustomization/HelmRelease) + presets
+│       ├── routes.py          Blueprint Flask (préfixe /gitops) + API
 │       └── cli.py             logique CLI du module
 │
 ├── web/
 │   ├── templates/         → hub.html, cicd.html, ansible.html, vagrant.html,
 │   │                        terraform.html, dockerfile.html, k8s.html, nginx.html,
 │   │                        systemd.html, monitoring.html, cloudinit.html, packer.html,
-│   │                        vault.html
+│   │                        vault.html, gitops.html
 │   │                        (terraform.html sert aussi le format CloudFormation)
 │   └── static/
-│       ├── theme.js           bascule clair/sombre partagée par les 13 pages
+│       ├── theme.js           bascule clair/sombre partagée par les 14 pages
 │       ├── cicd/{style.css, script.js}
 │       ├── ansible/{style.css, script.js}
 │       ├── dockerfile/{style.css, script.js}
@@ -356,10 +362,11 @@ opsforge/
 │       ├── cloudinit/{style.css, script.js}
 │       ├── packer/{style.css, script.js}
 │       ├── vault/{style.css, script.js}
+│       ├── gitops/{style.css, script.js}
 │       ├── manifest.json, service-worker.js, favicon.ico, opsforge-logo.svg, icons/
 │
 ├── tests/
-│   ├── cicd/              → detector, core, gitlab, circleci, jenkins, drone, features avancées
+│   ├── cicd/              → detector, core, gitlab, circleci, jenkins, drone, bitbucket, teamcity, features avancées
 │   ├── ansible/           → génération playbooks/rôles/inventaire/vault
 │   ├── vagrant/           → génération Vagrantfile / presets / lint
 │   ├── terraform/         → génération main.tf / cloudformation_core / presets / validation
@@ -370,7 +377,8 @@ opsforge/
 │   ├── monitoring/        → génération prometheus.yml/alertes/datasources, YAML valide
 │   ├── cloudinit/         → génération #cloud-config, users/SSH/write_files, presets
 │   ├── packer/            → génération build.pkr.hcl, builders/presets, validation
-│   └── vault/             → génération config.hcl/policies/bootstrap.sh, seal/storage, presets
+│   ├── vault/             → génération config.hcl/policies/bootstrap.sh, seal/storage, presets
+│   └── gitops/            → génération ArgoCD Application / Flux GitRepository+Kustomization/HelmRelease, presets
 │
 └── output/               → fichiers générés par défaut (CLI)
 ```
@@ -882,6 +890,45 @@ Usage typique : `vault server -config=config.hcl`, puis une fois
 
 ---
 
+## Module GitOps — détails
+
+Génère les manifests de déploiement continu (CD) pour Kubernetes, à partir
+d'un dépôt Git surveillé. **Deux outils** :
+
+- **ArgoCD** (`argocd-application.yaml`) : un manifest `Application`
+  (CRD `argoproj.io/v1alpha1`) — `source` (repoURL/path/targetRevision),
+  `destination` (cluster + namespace), `syncPolicy` (sync automatique avec
+  `selfHeal`/`prune`, `syncOptions` dont `CreateNamespace=true`, retry avec
+  backoff exponentiel).
+- **FluxCD** (`flux-gitrepository.yaml` + `flux-kustomization.yaml` ou
+  `flux-helmrelease.yaml`) : une `GitRepository` (source du dépôt) couplée
+  soit à une `Kustomization` (manifests bruts ou overlay Kustomize), soit
+  à une `HelmRelease` dont le chart est référencé via `sourceRef` de type
+  `GitRepository` — évite de gérer un second type de source
+  (`HelmRepository`) et garde une configuration symétrique avec ArgoCD :
+  un seul `repo_url`/`path`/`revision` couvre les deux outils, quel que
+  soit le type de source.
+
+Trois types de source (`source_type`), gérés de façon identique pour les
+deux outils : `raw` (manifests bruts), `kustomize` (overlay avec
+`kustomization.yaml`), `helm` (chart hébergé dans le même dépôt Git).
+
+> Note : contrairement à ArgoCD, la `Kustomization` FluxCD n'a pas
+> d'option `createNamespace` native — le fichier généré inclut un
+> commentaire rappelant d'ajouter un manifest `Namespace` au dépôt ou de
+> créer le namespace manuellement avant la première synchronisation.
+
+Presets prêts à l'emploi : `argocd-raw-manifests`, `argocd-kustomize`,
+`argocd-helm-chart`, `flux-raw-manifests`, `flux-helm-chart`.
+
+Usage typique : une fois ArgoCD ou Flux installé sur le cluster,
+`kubectl apply -f argocd-application.yaml` (ArgoCD), ou
+`kubectl apply -f flux-gitrepository.yaml -f flux-kustomization.yaml`
+(Flux) — ou commiter ces fichiers dans le dépôt surveillé par
+`flux bootstrap` si les sources sont elles-mêmes gérées via Git.
+
+---
+
 ## Tests
 
 ```bash
@@ -900,6 +947,7 @@ pytest tests/monitoring/ # module Monitoring uniquement
 pytest tests/cloudinit/  # module cloud-init uniquement
 pytest tests/packer/     # module Packer uniquement
 pytest tests/vault/      # module Vault uniquement
+pytest tests/gitops/     # module GitOps uniquement
 ```
 
 > Sous Windows, 6 tests de chiffrement Vault sont **skippés proprement**
@@ -912,8 +960,9 @@ pytest tests/vault/      # module Vault uniquement
 
 ## Roadmap — reste à faire
 
-Les 12 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+Les 13 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
 
+- [x] ~~Module GitOps~~ — fait (ArgoCD Application / FluxCD, voir plus bas).
 - [x] ~~Module Vault~~ — fait (`config.hcl`, policies ACL, `bootstrap.sh` — voir plus bas).
 
 - [x] ~~Mode sombre unifié~~ — fait (bascule clair/sombre + persistance sur toutes les pages).
@@ -955,6 +1004,14 @@ Les 12 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorit
       kubernetes/ldap/github ; secrets engines : gcp/azure/consul/nomad/totp
       en plus de kv-v2/kv-v1/database/pki/transit/aws/ssh ; 2 nouveaux
       presets `sso-oidc-login` et `multi-cloud-dynamic-creds`).
+- [x] ~~**Module GitOps** (ArgoCD / FluxCD)~~ — fait (`argocd-application.yaml` :
+      CRD `Application`, syncPolicy automated/selfHeal/prune, retry avec
+      backoff ; `flux-gitrepository.yaml` + `flux-kustomization.yaml` ou
+      `flux-helmrelease.yaml` : chart Helm référencé via `sourceRef` de
+      type `GitRepository` pour rester symétrique avec ArgoCD sans gérer un
+      second type de source. 3 types de source raw/kustomize/helm communs
+      aux deux outils, 5 presets, sélecteur d'outil dans l'UI et
+      `--preset`/`--list-*` en CLI).
 - [x] ~~Cible CloudFormation pour le module Terraform~~ — fait
       (`template.yaml` AWS : catalogue de 13 types de ressources CFN,
       4 presets, intrinsic functions `!Ref`/`!GetAtt`, sélecteur de format
@@ -1060,8 +1117,9 @@ et il est désormais traité :
       et `--preset`/`--list-*` en CLI).
 
 Tous les modules candidats identifiés dans cette roadmap sont désormais
-implémentés — les 12 modules d'OpsForge couvrent l'ensemble des cibles
-envisagées au départ. Les prochaines pistes restent des ajouts *dans* les
+implémentés — les 13 modules d'OpsForge couvrent l'ensemble des cibles
+envisagées au départ (le module GitOps, ArgoCD/FluxCD, ayant rejoint la
+liste). Les prochaines pistes restent des ajouts *dans* les
 modules existants (nouveaux providers CI, nouvelles cibles IaC, nouveaux
 auth methods/secrets engines Vault) plutôt que de nouveaux modules à part
 entière.

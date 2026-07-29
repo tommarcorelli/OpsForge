@@ -16,6 +16,7 @@ Sous-commandes :
     python main.py cloudinit  ...   -> generateur de fichier cloud-init (#cloud-config)
     python main.py packer     ...   -> generateur de template Packer (build.pkr.hcl)
     python main.py vault      ...   -> generateur de config HashiCorp Vault (config.hcl/policies/bootstrap)
+    python main.py gitops     ...   -> generateur de manifests GitOps (ArgoCD Application / FluxCD)
 
 Chaque sous-commande accepte ses propres options. Exemples :
     python main.py cicd . --provider gitlab --deploy docker_hub
@@ -30,6 +31,7 @@ Chaque sous-commande accepte ses propres options. Exemples :
     python main.py cloudinit --preset docker-host --hostname web-01
     python main.py packer --preset ubuntu-vagrant-box --name ubuntu-base
     python main.py vault --preset app-secrets-kv -o output/vault/
+    python main.py gitops --preset argocd-raw-manifests -o output/gitops/
 
 Utilise `python main.py <module> --help` pour voir les options d'un module.
 """
@@ -48,6 +50,7 @@ from modules.monitoring import cli as monitoring_cli
 from modules.cloudinit import cli as cloudinit_cli
 from modules.packer import cli as packer_cli
 from modules.vault import cli as vault_cli
+from modules.gitops import cli as gitops_cli
 
 MODULES = {
     "cicd": cicd_cli.main,
@@ -62,13 +65,14 @@ MODULES = {
     "cloudinit": cloudinit_cli.main,
     "packer": packer_cli.main,
     "vault": vault_cli.main,
+    "gitops": gitops_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault|gitops} [options]")
     print()
-    print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI / CircleCI / Jenkins / Drone)")
+    print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI / CircleCI / Jenkins / Drone / Bitbucket / TeamCity)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
     print("  vagrant    Genere un Vagrantfile multi-VM")
     print("  terraform  Genere un main.tf (v0, a enrichir)")
@@ -80,6 +84,7 @@ def _usage():
     print("  cloudinit  Genere un fichier cloud-init #cloud-config (premier boot d'une machine)")
     print("  packer     Genere un template Packer build.pkr.hcl (image VM/AMI/conteneur)")
     print("  vault      Genere une config HashiCorp Vault (config.hcl, policies ACL, bootstrap.sh)")
+    print("  gitops     Genere des manifests GitOps (ArgoCD Application / FluxCD GitRepository+Kustomization ou HelmRelease)")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 

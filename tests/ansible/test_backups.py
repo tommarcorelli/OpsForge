@@ -1,7 +1,7 @@
 """Tests du role 'backups' (sauvegardes automatiques) et des moteurs de base de donnees."""
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -9,10 +9,10 @@ import pytest
 import yaml
 
 from modules.ansible.core import (
-    generate_playbook,
-    generate_role_based_project,
     DATABASE_ENGINES,
     PROVISIONING_STEPS,
+    generate_playbook,
+    generate_role_based_project,
 )
 
 
