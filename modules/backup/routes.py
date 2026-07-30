@@ -1,43 +1,34 @@
 """
-modules/vault/routes.py
-------------------------
-Blueprint Flask du module HashiCorp Vault (monte sous /vault).
+modules/backup/routes.py
+--------------------------
+Blueprint Flask du module Backup/Restore (restic / Borg), monte sous /backup.
 """
 
 import io
 import zipfile
 
-from flask import Blueprint, render_template, request, jsonify, send_file
+from flask import Blueprint, jsonify, render_template, request, send_file
 
-from modules.vault.core import (
+from modules.backup.core import (
     generate_files,
-    list_presets,
     get_preset,
-    list_auth_methods,
-    list_secrets_engines,
-    list_audit_devices,
-    STORAGE_BACKENDS,
-    SEAL_TYPES,
-    AUTH_METHOD_CATALOG,
-    SECRETS_ENGINE_CATALOG,
-    AUDIT_DEVICE_CATALOG,
-    CAPABILITIES,
+    list_backends,
+    list_presets,
+    list_schedulers,
+    list_tools,
 )
 
-bp = Blueprint("vault", __name__, url_prefix="/vault")
+bp = Blueprint("backup", __name__, url_prefix="/backup")
 
 
 @bp.route("/")
 def index():
     return render_template(
-        "vault.html",
+        "backup.html",
         presets=list_presets(),
-        storage_backends=STORAGE_BACKENDS,
-        seal_types=SEAL_TYPES,
-        auth_methods=AUTH_METHOD_CATALOG,
-        secrets_engines=SECRETS_ENGINE_CATALOG,
-        audit_devices=AUDIT_DEVICE_CATALOG,
-        capabilities=CAPABILITIES,
+        tools=list_tools(),
+        backends=list_backends(),
+        schedulers=list_schedulers(),
     )
 
 
@@ -58,18 +49,16 @@ def api_preset(nom):
 @bp.route("/api/catalog")
 def api_catalog():
     return jsonify({
-        "storage_backends": {k: v for k, v in STORAGE_BACKENDS.items()},
-        "seal_types": {k: v for k, v in SEAL_TYPES.items()},
-        "auth_methods": list_auth_methods(),
-        "secrets_engines": list_secrets_engines(),
-        "audit_devices": list_audit_devices(),
-        "capabilities": list(CAPABILITIES),
+        "tools": list_tools(),
+        "backends": list_backends(),
+        "schedulers": list_schedulers(),
     })
 
 
 @bp.route("/api/generate", methods=["POST"])
 def api_generate():
-    """Genere les fichiers Vault (config.hcl, policies/*.hcl, bootstrap.sh)."""
+    """Genere backup.sh/restore.sh/backup.env.example + planification
+    (systemd ou cron)."""
     config = request.get_json(force=True) or {}
 
     try:
@@ -82,7 +71,7 @@ def api_generate():
 
 @bp.route("/api/download", methods=["POST"])
 def api_download():
-    """Regenere puis renvoie un .zip du projet Vault (config.hcl + policies/ + bootstrap.sh)."""
+    """Regenere puis renvoie un .zip des fichiers de sauvegarde."""
     config = request.get_json(force=True) or {}
 
     try:
@@ -100,5 +89,5 @@ def api_download():
         buffer,
         mimetype="application/zip",
         as_attachment=True,
-        download_name="vault-project.zip",
+        download_name="opsforge-backup.zip",
     )

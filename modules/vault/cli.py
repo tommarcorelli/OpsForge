@@ -19,6 +19,7 @@ from modules.vault.core import (
     list_seal_types,
     list_auth_methods,
     list_secrets_engines,
+    list_audit_devices,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge
@@ -31,7 +32,8 @@ def build_parser():
         description=(
             "Genere une configuration HashiCorp Vault : config.hcl (serveur, "
             "storage, seal), policies/*.hcl (ACL) et bootstrap.sh (auth "
-            "methods + secrets engines), a partir d'un fichier JSON ou d'un preset."
+            "methods + secrets engines + audit devices), a partir d'un "
+            "fichier JSON ou d'un preset."
         ),
     )
     parser.add_argument(
@@ -69,6 +71,11 @@ def build_parser():
         "--list-secrets-engines",
         action="store_true",
         help=f"Affiche les moteurs de secrets geres ({', '.join(list_secrets_engines())}) et quitte.",
+    )
+    parser.add_argument(
+        "--list-audit-devices",
+        action="store_true",
+        help=f"Affiche les peripheriques d'audit geres ({', '.join(list_audit_devices())}) et quitte.",
     )
     parser.add_argument(
         "-o", "--output-dir",
@@ -132,6 +139,12 @@ def main(argv=None):
     if args.list_secrets_engines:
         print("Moteurs de secrets geres :")
         for name in list_secrets_engines():
+            print(f"  - {name}")
+        return 0
+
+    if args.list_audit_devices:
+        print("Peripheriques d'audit geres :")
+        for name in list_audit_devices():
             print(f"  - {name}")
         return 0
 

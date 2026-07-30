@@ -5,6 +5,7 @@ import os
 import pytest
 
 from modules.vault.core import (
+    AUDIT_DEVICE_CATALOG,
     BOOTSTRAP_FILENAME,
     CONFIG_FILENAME,
     PRESETS,
@@ -16,6 +17,7 @@ from modules.vault.core import (
     generate_policy_file,
     generate_server_config,
     get_preset,
+    list_audit_devices,
     list_auth_methods,
     list_presets,
     list_seal_types,
@@ -130,6 +132,29 @@ def test_secrets_engine_type_inconnu_rejete():
     cfg = _valid_config(secrets_engines=[{"type": "redis", "path": "redis"}])
     errors = validate_config(cfg)
     assert any("secrets_engines" in e for e in errors)
+
+
+def test_audit_device_type_inconnu_rejete():
+    cfg = _valid_config(audit_devices=[{"type": "kafka"}])
+    errors = validate_config(cfg)
+    assert any("audit_devices" in e for e in errors)
+
+
+def test_audit_device_file_sans_file_path_rejete():
+    cfg = _valid_config(audit_devices=[{"type": "file", "options": {}}])
+    errors = validate_config(cfg)
+    assert any("file_path" in e for e in errors)
+
+
+def test_audit_device_socket_sans_address_rejete():
+    cfg = _valid_config(audit_devices=[{"type": "socket", "options": {}}])
+    errors = validate_config(cfg)
+    assert any("address" in e for e in errors)
+
+
+def test_audit_device_syslog_sans_options_ok():
+    cfg = _valid_config(audit_devices=[{"type": "syslog"}])
+    assert validate_config(cfg) == []
 
 
 def test_config_valide_sans_erreur():
@@ -321,6 +346,49 @@ def test_bootstrap_shebang_et_set_e():
     assert "set -euo pipefail" in script
 
 
+def test_bootstrap_present_si_audit_devices():
+    cfg = _valid_config(audit_devices=[{"type": "file", "options": {"file_path": "/var/log/vault/audit.log"}}])
+    fichiers = generate_files(cfg)
+    assert BOOTSTRAP_FILENAME in fichiers
+
+
+def test_bootstrap_active_audit_device_file():
+    cfg = _valid_config(audit_devices=[{"type": "file", "options": {"file_path": "/var/log/vault/audit.log"}}])
+    script = generate_bootstrap_script(cfg)
+    assert "vault audit enable -path=file file file_path=\"/var/log/vault/audit.log\"" in script
+
+
+def test_bootstrap_active_audit_device_syslog_avec_defauts():
+    cfg = _valid_config(audit_devices=[{"type": "syslog"}])
+    script = generate_bootstrap_script(cfg)
+    assert "vault audit enable -path=syslog syslog facility=\"AUTH\"" in script
+
+
+def test_bootstrap_active_audit_device_socket():
+    cfg = _valid_config(audit_devices=[{"type": "socket", "options": {"address": "127.0.0.1:9090"}}])
+    script = generate_bootstrap_script(cfg)
+    assert "vault audit enable -path=socket socket" in script
+    assert 'address="127.0.0.1:9090"' in script
+
+
+def test_bootstrap_audit_device_path_personnalise():
+    cfg = _valid_config(audit_devices=[
+        {"type": "file", "path": "audit-primaire", "options": {"file_path": "/var/log/vault/a.log"}},
+    ])
+    script = generate_bootstrap_script(cfg)
+    assert "vault audit enable -path=audit-primaire file" in script
+
+
+def test_bootstrap_plusieurs_audit_devices_meme_type_paths_distincts():
+    cfg = _valid_config(audit_devices=[
+        {"type": "file", "options": {"file_path": "/var/log/vault/a.log"}},
+        {"type": "file", "options": {"file_path": "/var/log/vault/b.log"}},
+    ])
+    script = generate_bootstrap_script(cfg)
+    assert "vault audit enable -path=file-1 file" in script
+    assert "vault audit enable -path=file-2 file" in script
+
+
 # --------------------------------------------------------------------------
 # generate_files / write_files
 # --------------------------------------------------------------------------
@@ -391,6 +459,12 @@ def test_list_secrets_engines_inclut_les_nouveaux_moteurs():
     engines = list_secrets_engines()
     for e in ("gcp", "azure", "consul", "nomad", "totp"):
         assert e in engines
+
+
+def test_list_audit_devices():
+    devices = list_audit_devices()
+    assert set(devices) == set(AUDIT_DEVICE_CATALOG.keys())
+    assert "file" in devices and "syslog" in devices and "socket" in devices
 
 
 # --------------------------------------------------------------------------

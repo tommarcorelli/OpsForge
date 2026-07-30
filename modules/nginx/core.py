@@ -132,9 +132,8 @@ def validate_config(config, target="nginx"):
                 f"Disponibles : {', '.join(LB_ALGORITHMS)}."
             )
 
-    if config.get("https"):
-        if not server_name:
-            errors.append("HTTPS necessite un server_name (utilise pour le chemin des certificats).")
+    if config.get("https") and not server_name:
+        errors.append("HTTPS necessite un server_name (utilise pour le chemin des certificats).")
 
     return errors
 

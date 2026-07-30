@@ -43,10 +43,12 @@ function buildConfig() {
   const policies = parseJSONField("policies", "Policies", true);
   const authMethods = parseJSONField("auth-methods", "Méthodes d'authentification", true);
   const secretsEngines = parseJSONField("secrets-engines", "Moteurs de secrets", true);
+  const auditDevices = parseJSONField("audit-devices", "Périphériques d'audit", true);
 
   if (policies.length) config.policies = policies;
   if (authMethods.length) config.auth_methods = authMethods;
   if (secretsEngines.length) config.secrets_engines = secretsEngines;
+  if (auditDevices.length) config.audit_devices = auditDevices;
 
   return config;
 }
@@ -145,6 +147,7 @@ async function loadPreset(nom) {
   $("policies").value = cfg.policies ? JSON.stringify(cfg.policies, null, 2) : "";
   $("auth-methods").value = cfg.auth_methods ? JSON.stringify(cfg.auth_methods, null, 2) : "";
   $("secrets-engines").value = cfg.secrets_engines ? JSON.stringify(cfg.secrets_engines, null, 2) : "";
+  $("audit-devices").value = cfg.audit_devices ? JSON.stringify(cfg.audit_devices, null, 2) : "";
 }
 
 // ---- Init ----

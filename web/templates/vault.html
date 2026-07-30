@@ -131,6 +131,16 @@
         </div>
       </details>
 
+      <details class="advanced">
+        <summary>Périphériques d'audit (JSON)</summary>
+        <p class="hint">Gérés : {{ audit_devices.keys()|join(', ') }}. Recommandé en production pour tracer chaque requête API.</p>
+        <div class="field">
+          <textarea id="audit-devices" rows="4" spellcheck="false" placeholder='[
+  { "type": "file", "path": "file", "options": { "file_path": "/var/log/vault/audit.log" } }
+]'></textarea>
+        </div>
+      </details>
+
       <div class="field two">
         <button id="generate-btn" class="btn primary"><i class="fa-solid fa-lock"></i> Générer</button>
         <button id="download-zip-btn" class="btn ghost"><i class="fa-solid fa-file-zipper"></i> Télécharger .zip</button>
@@ -143,7 +153,7 @@
         <span><i class="fa-regular fa-file-code"></i> <span id="result-filename">config.hcl + policies/ + bootstrap.sh</span></span>
         <button id="copy-btn" class="btn ghost small" hidden><i class="fa-regular fa-copy"></i> Copier</button>
       </div>
-      <p class="hint">Le .zip contient <code>config.hcl</code>, un fichier <code>policies/&lt;nom&gt;.hcl</code> par policy, et <code>bootstrap.sh</code> (activation des auth methods / secrets engines) si tu en as déclaré.</p>
+      <p class="hint">Le .zip contient <code>config.hcl</code>, un fichier <code>policies/&lt;nom&gt;.hcl</code> par policy, et <code>bootstrap.sh</code> (activation des auth methods / secrets engines / audit devices) si tu en as déclaré.</p>
       <pre id="output" class="output">Le résultat s'affichera ici.</pre>
     </section>
   </main>

@@ -102,6 +102,24 @@ SECRETS_ENGINE_CATALOG = {
     "totp": {"label": "TOTP (generation/validation de codes a usage unique)", "opts": ""},
 }
 
+AUDIT_DEVICE_CATALOG = {
+    "file": {
+        "label": "Fichier (journal local sur disque)",
+        "required": ["file_path"],
+        "defaults": {"file_path": "/var/log/vault/audit.log"},
+    },
+    "syslog": {
+        "label": "Syslog (facility locale via syslogd)",
+        "required": [],
+        "defaults": {"facility": "AUTH"},
+    },
+    "socket": {
+        "label": "Socket (envoi TCP/UDP vers un collecteur externe)",
+        "required": ["address"],
+        "defaults": {"socket_type": "tcp"},
+    },
+}
+
 
 def _clean(value):
     return value.strip() if isinstance(value, str) else value
@@ -202,6 +220,19 @@ def validate_config(config):
             )
         if not _clean(engine.get("path")):
             errors.append(f"secrets_engines[{i}].path est requis (point de montage).")
+
+    for i, audit in enumerate(config.get("audit_devices") or []):
+        dtype = _clean(audit.get("type"))
+        if dtype not in AUDIT_DEVICE_CATALOG:
+            errors.append(
+                f"audit_devices[{i}] : type inconnu '{dtype}'. "
+                f"Disponibles : {', '.join(AUDIT_DEVICE_CATALOG)}."
+            )
+            continue
+        options = audit.get("options") or {}
+        for req in AUDIT_DEVICE_CATALOG[dtype]["required"]:
+            if req not in options:
+                errors.append(f"audit_devices[{i}].options.{req} est requis pour le type '{dtype}'.")
 
     return errors
 
@@ -337,6 +368,20 @@ def generate_bootstrap_script(config):
                 lignes.append(f'vault write {path}/config {key}={_shell_value(value)}')
         lignes.append("")
 
+    audit_devices = config.get("audit_devices") or []
+    if audit_devices:
+        lignes.append("# --- Peripheriques d'audit ---")
+        for i, audit in enumerate(audit_devices):
+            atype = _clean(audit["type"])
+            options = dict(AUDIT_DEVICE_CATALOG[atype].get("defaults", {}))
+            options.update(audit.get("options") or {})
+            default_path = f"{atype}-{i + 1}" if len(audit_devices) > 1 else atype
+            path = _clean(audit.get("path")) or default_path
+            opts_str = " ".join(f'{k}={_shell_value(v)}' for k, v in options.items())
+            opt_suffix = f" {opts_str}" if opts_str else ""
+            lignes.append(f'vault audit enable -path={path} {atype}{opt_suffix} || true')
+        lignes.append("")
+
     lignes.append('echo "Bootstrap Vault termine."')
     return "\n".join(lignes) + "\n"
 
@@ -360,7 +405,12 @@ def generate_files(config):
 
     fichiers = {CONFIG_FILENAME: generate_server_config(config)}
     fichiers.update(generate_policies(config))
-    if (config.get("auth_methods") or config.get("secrets_engines") or config.get("policies")):
+    if (
+        config.get("auth_methods")
+        or config.get("secrets_engines")
+        or config.get("policies")
+        or config.get("audit_devices")
+    ):
         fichiers[BOOTSTRAP_FILENAME] = generate_bootstrap_script(config)
     return fichiers
 
@@ -393,6 +443,10 @@ def list_auth_methods():
 
 def list_secrets_engines():
     return list(SECRETS_ENGINE_CATALOG.keys())
+
+
+def list_audit_devices():
+    return list(AUDIT_DEVICE_CATALOG.keys())
 
 
 # --------------------------------------------------------------------------
@@ -444,6 +498,9 @@ PRESETS = {
                     {"path": "*", "capabilities": ["create", "read", "update", "delete", "list", "sudo"]},
                 ],
             },
+        ],
+        "audit_devices": [
+            {"type": "file", "path": "file", "options": {"file_path": "/var/log/vault/audit.log"}},
         ],
     },
     "app-secrets-kv": {

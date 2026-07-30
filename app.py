@@ -36,6 +36,7 @@ from modules.cloudinit.routes import bp as cloudinit_bp
 from modules.packer.routes import bp as packer_bp
 from modules.vault.routes import bp as vault_bp
 from modules.gitops.routes import bp as gitops_bp
+from modules.backup.routes import bp as backup_bp
 
 # Chemin de base des templates/static : en dev c'est le dossier de ce fichier,
 # mais une fois empaquete par PyInstaller (voir desktop.py / opsforge.spec),
@@ -64,6 +65,7 @@ app.register_blueprint(cloudinit_bp)
 app.register_blueprint(packer_bp)
 app.register_blueprint(vault_bp)
 app.register_blueprint(gitops_bp)
+app.register_blueprint(backup_bp)
 
 
 @app.route("/")
@@ -86,7 +88,7 @@ def service_worker():
 
 if __name__ == "__main__":
     # Port configurable via variable d'environnement : PORT=8080 python app.py
-    port = int(os.environ.get("PORT", 5050))
+    port = int(os.environ.get("PORT", "5050"))
     # Debug desactive par defaut : le debugger Werkzeug expose une console
     # Python interactive (RCE potentielle). Active uniquement en dev explicite :
     # FLASK_DEBUG=1 python app.py

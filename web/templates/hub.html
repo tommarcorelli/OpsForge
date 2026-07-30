@@ -96,6 +96,7 @@
     .card.packer .go{color:#02A8EF;}
     .card.vault .go{color:#D4AF37;}
     .card.gitops .go{color:#0EA5E9;}
+    .card.backup .go{color:#16A34A;}
     .b-k8s{background:linear-gradient(135deg,#326CE5,#54a2f0);box-shadow:0 8px 18px -4px rgba(50,108,229,.6);}
     .b-nginx{background:linear-gradient(135deg,#009639,#4CC750);box-shadow:0 8px 18px -4px rgba(0,150,57,.6);}
     .b-systemd{background:linear-gradient(135deg,#0F9D8C,#2DD4BF);box-shadow:0 8px 18px -4px rgba(15,157,140,.6);}
@@ -104,6 +105,7 @@
     .b-packer{background:linear-gradient(135deg,#02A8EF,#38BDF8);box-shadow:0 8px 18px -4px rgba(2,168,239,.6);}
     .b-vault{background:linear-gradient(135deg,#27272A,#52525B);box-shadow:0 8px 18px -4px rgba(212,175,55,.5);}
     .b-gitops{background:linear-gradient(135deg,#0EA5E9,#7C3AED);box-shadow:0 8px 18px -4px rgba(14,165,233,.6);}
+    .b-backup{background:linear-gradient(135deg,#16A34A,#334155);box-shadow:0 8px 18px -4px rgba(22,163,74,.55);}
 
     footer{margin-top:42px;color:rgba(255,255,255,.85);font-size:13px;text-align:center;text-shadow:0 1px 10px rgba(15,23,42,.2);}
 
@@ -247,6 +249,14 @@
       <h2>GitOps</h2>
       <p>Génère un manifest <strong>ArgoCD Application</strong>, ou des manifests <strong>FluxCD</strong> (<code>GitRepository</code> + <code>Kustomization</code>/<code>HelmRelease</code>) : dépôt Git, chemin, politique de synchronisation.</p>
       <div class="tags"><span class="tag">ArgoCD</span><span class="tag">FluxCD</span><span class="tag">Raw / Kustomize / Helm</span><span class="tag">Presets</span></div>
+      <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
+    <a class="card backup" href="{{ url_for('backup.index') }}">
+      <span class="badge b-backup"><i class="fa-solid fa-box-archive"></i></span>
+      <h2>Backup</h2>
+      <p>Génère un script de sauvegarde idempotent (<strong>restic</strong> ou <strong>Borg</strong>), son script de restauration, sa planification (<code>systemd timer</code>/<code>cron</code>) et un fichier d'environnement modèle — secrets jamais en dur.</p>
+      <div class="tags"><span class="tag">restic</span><span class="tag">Borg</span><span class="tag">local / SFTP / S3</span><span class="tag">Presets</span></div>
       <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
     </a>
   </main>

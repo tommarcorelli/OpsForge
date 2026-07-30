@@ -37,6 +37,7 @@ serveur externe.
 | **Packer** | **`build.pkr.hcl`** (HCL2) : builder **virtualbox-iso / qemu / amazon-ebs / docker**, provisioners shell/file, post-processors (`vagrant`, `docker-tag`, `compress`) | `/packer` | `python main.py packer …` |
 | **Vault** | **`config.hcl`** (storage file/raft/consul, seal shamir/awskms/transit, listener), **`policies/*.hcl`** (ACL), **`bootstrap.sh`** (activation auth methods et secrets engines : userpass/approle/kubernetes/ldap/github/oidc/jwt/aws/gcp/azure/cert, kv-v2/pki/database/transit/aws/ssh/gcp/azure/consul/nomad/totp…) | `/vault` | `python main.py vault …` |
 | **GitOps** | **ArgoCD** (`argocd-application.yaml`) ou **FluxCD** (`flux-gitrepository.yaml` + `flux-kustomization.yaml`/`flux-helmrelease.yaml`) — sources raw/Kustomize/Helm, sync auto ou manuelle | `/gitops` | `python main.py gitops …` |
+| **Backup** | **`backup.sh`**/**`restore.sh`** idempotents (**restic** ou **Borg**, backend local/SFTP/S3), planification **`*.service`+`*.timer`** ou **cron**, **`backup.env.example`** (secrets jamais en dur) | `/backup` | `python main.py backup …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -344,14 +345,19 @@ opsforge/
 │       ├── routes.py          Blueprint Flask (préfixe /gitops) + API
 │       └── cli.py             logique CLI du module
 │
+│   └── backup/           → module Backup/Restore (restic / Borg)
+│       ├── core.py            rendu backup.sh/restore.sh idempotents + systemd/cron + env template + presets
+│       ├── routes.py          Blueprint Flask (préfixe /backup) + API
+│       └── cli.py             logique CLI du module
+│
 ├── web/
 │   ├── templates/         → hub.html, cicd.html, ansible.html, vagrant.html,
 │   │                        terraform.html, dockerfile.html, k8s.html, nginx.html,
 │   │                        systemd.html, monitoring.html, cloudinit.html, packer.html,
-│   │                        vault.html, gitops.html
+│   │                        vault.html, gitops.html, backup.html
 │   │                        (terraform.html sert aussi le format CloudFormation)
 │   └── static/
-│       ├── theme.js           bascule clair/sombre partagée par les 14 pages
+│       ├── theme.js           bascule clair/sombre partagée par les 15 pages
 │       ├── cicd/{style.css, script.js}
 │       ├── ansible/{style.css, script.js}
 │       ├── dockerfile/{style.css, script.js}
@@ -363,6 +369,7 @@ opsforge/
 │       ├── packer/{style.css, script.js}
 │       ├── vault/{style.css, script.js}
 │       ├── gitops/{style.css, script.js}
+│       ├── backup/{style.css, script.js}
 │       ├── manifest.json, service-worker.js, favicon.ico, opsforge-logo.svg, icons/
 │
 ├── tests/
@@ -378,7 +385,8 @@ opsforge/
 │   ├── cloudinit/         → génération #cloud-config, users/SSH/write_files, presets
 │   ├── packer/            → génération build.pkr.hcl, builders/presets, validation
 │   ├── vault/             → génération config.hcl/policies/bootstrap.sh, seal/storage, presets
-│   └── gitops/            → génération ArgoCD Application / Flux GitRepository+Kustomization/HelmRelease, presets
+│   ├── gitops/            → génération ArgoCD Application / Flux GitRepository+Kustomization/HelmRelease, presets
+│   └── backup/            → génération backup.sh/restore.sh (bash -n), systemd/cron, presets
 │
 └── output/               → fichiers générés par défaut (CLI)
 ```
@@ -929,6 +937,43 @@ Usage typique : une fois ArgoCD ou Flux installé sur le cluster,
 
 ---
 
+## Module Backup — détails
+
+Génère un jeu de fichiers de sauvegarde/restauration prêts à déployer, pour
+deux outils :
+
+- **restic** : backends **local**, **SFTP**, **S3**. Repository initialisé
+  de façon idempotente (`restic snapshots || restic init`), sauvegarde avec
+  tags et exclusions, retention via `restic forget --keep-daily/-weekly/
+  -monthly/-yearly --prune`.
+- **Borg** (borgbackup) : backends **local**, **SFTP** (pas de S3 natif,
+  volontairement non proposé pour rester honnête sur les capacités réelles
+  de l'outil — il faudrait un montage rclone externe à OpsForge). Repository
+  initialisé en `--encryption=repokey`, archives nommées
+  `<app>-{now:%Y-%m-%d_%H%M%S}`, retention via `borg prune`.
+
+Fichiers générés : **`backup.sh`** et **`restore.sh`** (exécutables,
+idempotents, `set -euo pipefail`), **`backup.env.example`** (modèle —
+la vraie passphrase et les identifiants ne sont **jamais** écrits en dur,
+uniquement des références à des variables d'environnement chargées depuis
+`backup.env`, à ne jamais committer), et selon la planification choisie :
+**`<app>-backup.service`** + **`<app>-backup.timer`** (systemd, avec
+`RandomizedDelaySec` et `Persistent=true`) ou **`crontab-entry.txt`** (ligne
+prête à coller via `crontab -e`). Notification webhook optionnelle en cas
+d'échec (`trap ... ERR`, compatible healthchecks.io/ntfy.sh/tout endpoint
+acceptant un POST).
+
+Presets prêts à l'emploi : `restic-local-systemd`, `restic-sftp-cron`,
+`restic-s3-systemd` (avec notification webhook), `borg-local-systemd`,
+`borg-sftp-cron`.
+
+Usage typique : générer les fichiers, copier `backup.env.example` en
+`backup.env` à côté de `backup.sh` et renseigner les vraies valeurs, puis
+`systemctl enable --now <app>-backup.timer` (systemd) ou coller la ligne de
+`crontab-entry.txt` via `crontab -e`.
+
+---
+
 ## Tests
 
 ```bash
@@ -948,6 +993,7 @@ pytest tests/cloudinit/  # module cloud-init uniquement
 pytest tests/packer/     # module Packer uniquement
 pytest tests/vault/      # module Vault uniquement
 pytest tests/gitops/     # module GitOps uniquement
+pytest tests/backup/     # module Backup uniquement
 ```
 
 > Sous Windows, 6 tests de chiffrement Vault sont **skippés proprement**
@@ -960,8 +1006,9 @@ pytest tests/gitops/     # module GitOps uniquement
 
 ## Roadmap — reste à faire
 
-Les 13 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+Les 14 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
 
+- [x] ~~Module Backup~~ — fait (restic / Borg, voir plus bas).
 - [x] ~~Module GitOps~~ — fait (ArgoCD Application / FluxCD, voir plus bas).
 - [x] ~~Module Vault~~ — fait (`config.hcl`, policies ACL, `bootstrap.sh` — voir plus bas).
 
@@ -1012,6 +1059,13 @@ Les 13 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorit
       second type de source. 3 types de source raw/kustomize/helm communs
       aux deux outils, 5 presets, sélecteur d'outil dans l'UI et
       `--preset`/`--list-*` en CLI).
+- [x] ~~**Module Backup** (restic / Borg)~~ — fait (`backup.sh`/`restore.sh`
+      idempotents, backends local/SFTP/S3 (restic) ou local/SFTP (Borg —
+      pas de S3 natif, honnêtement non simulé), retention
+      `--keep-daily/-weekly/-monthly/-yearly`, planification systemd
+      timer ou cron, `backup.env.example` sans aucun secret en dur,
+      notification webhook optionnelle sur échec. 5 presets, sélecteur
+      d'outil dans l'UI et `--preset`/`--list-*` en CLI).
 - [x] ~~Cible CloudFormation pour le module Terraform~~ — fait
       (`template.yaml` AWS : catalogue de 13 types de ressources CFN,
       4 presets, intrinsic functions `!Ref`/`!GetAtt`, sélecteur de format
@@ -1117,9 +1171,9 @@ et il est désormais traité :
       et `--preset`/`--list-*` en CLI).
 
 Tous les modules candidats identifiés dans cette roadmap sont désormais
-implémentés — les 13 modules d'OpsForge couvrent l'ensemble des cibles
-envisagées au départ (le module GitOps, ArgoCD/FluxCD, ayant rejoint la
-liste). Les prochaines pistes restent des ajouts *dans* les
+implémentés — les 14 modules d'OpsForge couvrent l'ensemble des cibles
+envisagées au départ (GitOps et Backup, les deux derniers arrivés, ont
+rejoint la liste). Les prochaines pistes restent des ajouts *dans* les
 modules existants (nouveaux providers CI, nouvelles cibles IaC, nouveaux
 auth methods/secrets engines Vault) plutôt que de nouveaux modules à part
 entière.
