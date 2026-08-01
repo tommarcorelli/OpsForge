@@ -30,6 +30,7 @@ from modules.cloudinit.routes import bp as cloudinit_bp
 from modules.dockerfile.routes import bp as dockerfile_bp
 from modules.firewall.routes import bp as firewall_bp
 from modules.gitops.routes import bp as gitops_bp
+from modules.logging.routes import bp as logging_bp
 from modules.k8s.routes import bp as k8s_bp
 from modules.monitoring.routes import bp as monitoring_bp
 from modules.nginx.routes import bp as nginx_bp
@@ -68,6 +69,7 @@ app.register_blueprint(vault_bp)
 app.register_blueprint(gitops_bp)
 app.register_blueprint(backup_bp)
 app.register_blueprint(firewall_bp)
+app.register_blueprint(logging_bp)
 
 
 @app.route("/")

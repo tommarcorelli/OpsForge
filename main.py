@@ -47,6 +47,7 @@ from modules.cloudinit import cli as cloudinit_cli
 from modules.dockerfile import cli as dockerfile_cli
 from modules.firewall import cli as firewall_cli
 from modules.gitops import cli as gitops_cli
+from modules.logging import cli as logging_cli
 from modules.k8s import cli as k8s_cli
 from modules.monitoring import cli as monitoring_cli
 from modules.nginx import cli as nginx_cli
@@ -72,11 +73,12 @@ MODULES = {
     "gitops": gitops_cli.main,
     "backup": backup_cli.main,
     "firewall": firewall_cli.main,
+    "logging": logging_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault|gitops|backup|firewall} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault|gitops|backup|firewall|logging} [options]")
     print()
     print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI / CircleCI / Jenkins / Drone / Bitbucket / TeamCity)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
@@ -93,6 +95,7 @@ def _usage():
     print("  gitops     Genere des manifests GitOps (ArgoCD Application / FluxCD GitRepository+Kustomization ou HelmRelease)")
     print("  backup     Genere un script de sauvegarde/restauration idempotent (restic / Borg) + planification")
     print("  firewall   Genere des regles pare-feu (ufw / nftables) + config fail2ban (jail.local)")
+    print("  logging    Genere une config de collecte de logs (Fluent Bit / Vector) vers Loki/Elasticsearch")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 

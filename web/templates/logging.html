@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Générateur de collecte de logs</title>
+
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#B45309" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='logging/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· logging</span></span>
+    </a>
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-circle-info"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — GÉNÉRATEUR DE LOGGING</p>
+    <h1>Tes logs, quelque part<br />où tu peux les lire</h1>
+    <p class="subtitle">Config <code>Fluent Bit</code> ou <code>Vector</code> pour collecter des logs (fichiers, Docker, syslog) et les envoyer vers <code>Loki</code>, <code>Elasticsearch</code>, ou juste stdout pour tester.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="field-group">
+        <label class="field-label" data-step="1">Presets</label>
+        <div class="preset-list" id="preset-list"></div>
+        <p class="field-hint">Choisis un point de départ, puis ajuste les sources/destination ci-dessous si besoin.</p>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" data-step="2">Backend</label>
+        <div class="provider-switch" id="backend-switch">
+          <button type="button" class="provider-btn active" data-backend="fluent-bit">Fluent Bit</button>
+          <button type="button" class="provider-btn" data-backend="vector">Vector</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="3">Sources</label>
+        <div class="source-head">
+          <span>Type</span><span>Chemin / Port</span><span>Tag</span><span></span>
+        </div>
+        <div class="sources-list" id="sources-list"></div>
+        <button type="button" id="add-source-btn" class="btn btn-ghost">+ Ajouter une source</button>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" data-step="4">Destination</label>
+        <div class="dest-grid">
+          <div class="field-group" style="margin-bottom:0;">
+            <label class="field-label" style="font-size:11px;">Type</label>
+            <select id="dest-type" class="text-input">
+              <option value="loki">Loki</option>
+              <option value="elasticsearch">Elasticsearch</option>
+              <option value="stdout">stdout (debug)</option>
+              <option value="file">Fichier local</option>
+            </select>
+          </div>
+          <div class="field-group" id="dest-host-group" style="margin-bottom:0;">
+            <label class="field-label" style="font-size:11px;">Host</label>
+            <input type="text" id="dest-host" class="text-input" placeholder="localhost" />
+          </div>
+          <div class="field-group" id="dest-port-group" style="margin-bottom:0;">
+            <label class="field-label" style="font-size:11px;">Port</label>
+            <input type="text" id="dest-port" class="text-input" placeholder="3100" />
+          </div>
+          <div class="field-group" id="dest-index-group" style="margin-bottom:0;" hidden>
+            <label class="field-label" style="font-size:11px;">Index</label>
+            <input type="text" id="dest-index" class="text-input" placeholder="logs" />
+          </div>
+          <div class="field-group" id="dest-path-group" style="margin-bottom:0;grid-column:1/-1;" hidden>
+            <label class="field-label" style="font-size:11px;">Chemin fichier</label>
+            <input type="text" id="dest-path" class="text-input" placeholder="/var/log/opsforge-out.log" />
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top: 0;">GÉNÉRER →</button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink: 0;">↺</button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="sources"><span class="node-num">01</span><span class="node-label">SOURCES</span></div>
+        <div class="connector flowing"></div>
+        <div class="node active" data-stage="destination"><span class="node-num">02</span><span class="node-label">DESTINATION</span></div>
+        <div class="connector flowing"></div>
+        <div class="node" data-stage="apply"><span class="node-num">03</span><span class="node-label">GÉNÉRÉ</span></div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Fichier généré</p>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le fichier généré apparaîtra ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    window.OPSFORGE_LOGGING = {
+      backends: {{ backends | tojson }},
+      presets: {{ presets | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='logging/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "logging",
+    icon: "fa-solid fa-file-lines",
+    intro: "La config générée se dépose sur la machine qui doit expédier ses logs. Fluent Bit et Vector s'installent une seule fois, la config peut être remplacée à volonté ensuite.",
+    os: [
+      { id: "fluentbit", label: "Fluent Bit (toutes distros)", icon: "fa-solid fa-file-lines", color: "#B45309", steps: [
+        { title: "Installer Fluent Bit", cmd: "curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | sh" },
+        { title: "Copier la config générée", cmd: "sudo cp fluent-bit.conf /etc/fluent-bit/fluent-bit.conf" },
+        { title: "Lancer / redémarrer le service", cmd: "sudo systemctl restart fluent-bit" },
+      ]},
+      { id: "vector", label: "Vector (toutes distros)", icon: "fa-solid fa-diagram-project", color: "#78350F", steps: [
+        { title: "Installer Vector", cmd: "curl --proto '=https' --tlsv1.2 -sSf https://sh.vector.dev | bash" },
+        { title: "Copier la config générée", cmd: "sudo cp vector.toml /etc/vector/vector.toml" },
+        { title: "Lancer / redémarrer le service", cmd: "sudo systemctl restart vector" },
+      ]},
+      { id: "docker", label: "Test rapide (Docker)", icon: "fa-brands fa-docker", color: "#2496ED", steps: [
+        { title: "Fluent Bit en conteneur, config montée en volume", cmd: "docker run -v $(pwd)/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf fluent/fluent-bit" },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>

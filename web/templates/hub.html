@@ -98,6 +98,7 @@
     .card.gitops .go{color:#0EA5E9;}
     .card.backup .go{color:#16A34A;}
     .card.firewall .go{color:#DC2626;}
+    .card.logging .go{color:#B45309;}
     .b-k8s{background:linear-gradient(135deg,#326CE5,#54a2f0);box-shadow:0 8px 18px -4px rgba(50,108,229,.6);}
     .b-nginx{background:linear-gradient(135deg,#009639,#4CC750);box-shadow:0 8px 18px -4px rgba(0,150,57,.6);}
     .b-systemd{background:linear-gradient(135deg,#0F9D8C,#2DD4BF);box-shadow:0 8px 18px -4px rgba(15,157,140,.6);}
@@ -108,6 +109,7 @@
     .b-gitops{background:linear-gradient(135deg,#0EA5E9,#7C3AED);box-shadow:0 8px 18px -4px rgba(14,165,233,.6);}
     .b-backup{background:linear-gradient(135deg,#16A34A,#334155);box-shadow:0 8px 18px -4px rgba(22,163,74,.55);}
     .b-firewall{background:linear-gradient(135deg,#DC2626,#F87171);box-shadow:0 8px 18px -4px rgba(220,38,38,.6);}
+    .b-logging{background:linear-gradient(135deg,#B45309,#FBBF24);box-shadow:0 8px 18px -4px rgba(180,83,9,.6);}
 
     footer{margin-top:42px;color:rgba(255,255,255,.85);font-size:13px;text-align:center;text-shadow:0 1px 10px rgba(15,23,42,.2);}
 
@@ -267,6 +269,14 @@
       <h2>Firewall</h2>
       <p>Génère des règles pare-feu (<strong>ufw</strong> ou <strong>nftables</strong>) à partir de presets (serveur web public, base de données privée, bastion SSH) ou de règles sur mesure, plus une config <code>fail2ban</code> en option.</p>
       <div class="tags"><span class="tag">ufw</span><span class="tag">nftables</span><span class="tag">fail2ban</span><span class="tag">Presets</span></div>
+      <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
+    <a class="card logging" href="{{ url_for('logging_forge.index') }}">
+      <span class="badge b-logging"><i class="fa-solid fa-file-lines"></i></span>
+      <h2>Logging</h2>
+      <p>Génère une config de collecte de logs (<strong>Fluent Bit</strong> ou <strong>Vector</strong>) à partir de presets (Docker, nginx, syslog, JSON applicatif) vers <code>Loki</code>, <code>Elasticsearch</code> ou stdout.</p>
+      <div class="tags"><span class="tag">Fluent Bit</span><span class="tag">Vector</span><span class="tag">Loki</span><span class="tag">Elasticsearch</span></div>
       <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
     </a>
   </main>
