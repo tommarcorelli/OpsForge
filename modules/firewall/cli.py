@@ -8,7 +8,6 @@ Appele via `python main.py firewall ...`.
 import argparse
 import json
 import os
-import sys
 
 from modules.firewall.core import (
     SUPPORTED_BACKENDS,
@@ -76,6 +75,7 @@ def build_parser():
 
 
 def _load_config(args):
+    """Retourne la config chargee, ou None (en ayant deja affiche l'erreur) en cas d'echec."""
     if args.config_file:
         with open(args.config_file, "r", encoding="utf-8") as f:
             config = json.load(f)
@@ -84,13 +84,13 @@ def _load_config(args):
             config = get_preset(args.preset)
         except ValueError as e:
             print(f"Erreur : {e}")
-            sys.exit(1)
+            return None
     else:
         print(
             "Erreur : fournis un fichier de config JSON ou --preset "
             f"({', '.join(list_presets())})."
         )
-        sys.exit(1)
+        return None
 
     if args.backend:
         config["backend"] = args.backend
@@ -112,6 +112,8 @@ def main(argv=None):
         return 0
 
     config = _load_config(args)
+    if config is None:
+        return 1
 
     if args.dry_run:
         try:

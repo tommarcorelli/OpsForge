@@ -29,6 +29,7 @@ Usage basique :
 """
 
 import copy
+import ipaddress
 import os
 import re
 
@@ -71,10 +72,30 @@ PRESETS = {
     },
 }
 
-# Preset de jails fail2ban par defaut (extensible si on ajoute un jour
-# des jails specifiques nginx/vsftpd/etc.)
+# Preset de jails fail2ban par defaut (sshd seul, toujours actif).
 DEFAULT_FAIL2BAN_JAILS = {
     "sshd": {"enabled": True, "maxretry": 5, "bantime": "1h", "findtime": "10m"},
+}
+
+# Catalogue complet des jails disponibles (au-dela de sshd) : chacune
+# correspond a un filtre fail2ban standard, deja fourni par le paquet
+# fail2ban sur la plupart des distributions (pas besoin de filtre custom).
+FAIL2BAN_CATALOG = {
+    "sshd": {"enabled": True, "maxretry": 5, "bantime": "1h", "findtime": "10m"},
+    "nginx-http-auth": {"enabled": False, "maxretry": 5, "bantime": "1h", "findtime": "10m"},
+    "nginx-limit-req": {"enabled": False, "maxretry": 10, "bantime": "30m", "findtime": "10m"},
+    "nginx-botsearch": {"enabled": False, "maxretry": 3, "bantime": "1h", "findtime": "10m"},
+    "postfix": {"enabled": False, "maxretry": 5, "bantime": "1h", "findtime": "10m"},
+    "vsftpd": {"enabled": False, "maxretry": 5, "bantime": "1h", "findtime": "10m"},
+}
+
+# Jails suggerees (desactivees par defaut, l'utilisateur les active si le
+# service correspondant tourne reellement sur la machine) par preset.
+PRESET_SUGGESTED_JAILS = {
+    "web-public": ["nginx-http-auth", "nginx-limit-req", "nginx-botsearch"],
+    "db-private": [],
+    "ssh-bastion": [],
+    "custom": [],
 }
 
 _PORT_RE = re.compile(r"^\d{1,5}$")
@@ -84,25 +105,59 @@ def _clean(value):
     return (value or "").strip() if isinstance(value, str) else value
 
 
+def _is_valid_address(value):
+    """True si value est une IP ou un CIDR IPv4/IPv6 valide."""
+    try:
+        ipaddress.ip_network(value, strict=False)
+        return True
+    except ValueError:
+        return False
+
+
+def _address_family(value):
+    """Retourne 'ip6' ou 'ip' selon que value est une adresse/CIDR IPv6 ou IPv4."""
+    try:
+        return "ip6" if ipaddress.ip_network(value, strict=False).version == 6 else "ip"
+    except ValueError:
+        # Ne devrait pas arriver si validate_config est passe avant, mais on
+        # reste permissif plutot que de planter la generation.
+        return "ip"
+
+
 def list_presets():
     """Liste les noms de presets disponibles (dans un ordre stable)."""
     return list(PRESETS.keys())
+
+
+def list_fail2ban_jails():
+    """Liste les jails fail2ban disponibles dans le catalogue (ordre stable)."""
+    return list(FAIL2BAN_CATALOG.keys())
 
 
 def get_preset(name):
     """
     Retourne une config de depart prete a generer pour le preset donne
     (copie profonde : modifiable sans affecter PRESETS).
+
+    Inclut les jails fail2ban suggerees pour ce preset (sshd toujours actif,
+    le reste desactive par defaut : a l'utilisateur de les activer si le
+    service correspondant tourne reellement sur la machine).
     """
     if name not in PRESETS:
         raise ValueError(
             f"Preset inconnu : '{name}'. Disponibles : {', '.join(PRESETS)}."
         )
     preset_def = PRESETS[name]
+
+    jails = {"sshd": copy.deepcopy(FAIL2BAN_CATALOG["sshd"])}
+    for jail_name in PRESET_SUGGESTED_JAILS.get(name, []):
+        jails[jail_name] = copy.deepcopy(FAIL2BAN_CATALOG[jail_name])
+
     return {
         "preset": name,
         "backend": "ufw",
         "fail2ban": name != "custom",
+        "fail2ban_jails": jails,
         "rules": copy.deepcopy(preset_def["rules"]),
         "default_deny_incoming": preset_def["default_deny_incoming"],
     }
@@ -140,6 +195,19 @@ def validate_config(config):
             errors.append(f"Regle #{i + 1} : proto invalide ({rule.get('proto')!r}), attendu tcp/udp.")
         if rule.get("action") not in ("allow", "deny", "limit"):
             errors.append(f"Regle #{i + 1} : action invalide ({rule.get('action')!r}).")
+        source = rule.get("source", "any")
+        if source and source != "any" and not _is_valid_address(source):
+            errors.append(f"Regle #{i + 1} : source invalide ({source!r}), attendu une IP/CIDR IPv4 ou IPv6.")
+
+    if config.get("fail2ban"):
+        jails = config.get("fail2ban_jails")
+        if jails:
+            for jail_name in jails:
+                if jail_name not in FAIL2BAN_CATALOG:
+                    errors.append(
+                        f"Jail fail2ban inconnue : '{jail_name}'. "
+                        f"Disponibles : {', '.join(FAIL2BAN_CATALOG)}."
+                    )
 
     return errors
 
@@ -165,6 +233,12 @@ def generate_ufw_script(config):
         "# Genere par OpsForge (module firewall) — a executer avec sudo.",
         "# Idempotent : peut etre relance sans dupliquer les regles.",
         "set -euo pipefail",
+        "",
+        "# S'assure qu'IPv6 est active (necessaire pour que les regles avec",
+        "# une source IPv6 soient bien appliquees) — idempotent.",
+        "if [ -f /etc/default/ufw ]; then",
+        "    sed -i 's/^IPV6=.*/IPV6=yes/' /etc/default/ufw",
+        "fi",
         "",
         "ufw --force reset",
         "ufw default deny incoming" if default_deny else "ufw default allow incoming",
@@ -204,6 +278,7 @@ def generate_nftables_conf(config):
     lines = [
         "#!/usr/sbin/nft -f",
         "# Genere par OpsForge (module firewall).",
+        "# Table 'inet' : filtre a la fois IPv4 et IPv6 dans les memes regles.",
         "flush ruleset",
         "",
         "table inet filter {",
@@ -213,7 +288,16 @@ def generate_nftables_conf(config):
         "        ct state established,related accept",
         "        ct state invalid drop",
         "        iif lo accept",
+        "",
+        "        # Indispensable en IPv6 (decouverte de voisins, MTU, etc.) :",
+        "        # sans ca, policy drop casse silencieusement IPv6 entier.",
+        "        icmpv6 type { destination-unreachable, packet-too-big, time-exceeded,",
+        "            parameter-problem, nd-router-solicit, nd-router-advert,",
+        "            nd-neighbor-solicit, nd-neighbor-advert } accept",
     ]
+
+    if rules:
+        lines.append("")
 
     for rule in rules:
         port, proto = rule["port"], rule["proto"]
@@ -222,7 +306,11 @@ def generate_nftables_conf(config):
         action = rule["action"]
 
         verdict = "accept" if action in ("allow", "limit") else "drop"
-        src_clause = f"ip saddr {source} " if source and source != "any" else ""
+        if source and source != "any":
+            family = _address_family(source)
+            src_clause = f"{family} saddr {source} "
+        else:
+            src_clause = ""
         limit_clause = "limit rate 10/minute " if action == "limit" else ""
         comment_clause = f' comment "{comment}"' if comment else ""
 

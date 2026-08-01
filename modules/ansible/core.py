@@ -424,6 +424,138 @@ def _selected_steps(config):
     return provisioning, deployment
 
 
+def _firewall_step_content(config):
+    """
+    Contenu de l'etape "firewall" (UFW / firewalld), avec la liste de ports
+    calculee dynamiquement : SSH et le port de health-check sont toujours
+    ouverts, mais 80/443 ne le sont que si nginx ou https est reellement
+    provisionne. Avant cette fonction, 80/443 etaient ouverts inconditionnellement
+    meme sans rien qui ecoute dessus — inutilement permissif.
+    """
+    provisioning = config.get("provisioning", [])
+    ports = ["22"]
+    if "nginx" in provisioning or "https" in provisioning:
+        ports += ["80", "443"]
+    ports.append("{{ health_check_port }}")
+    ports_yaml = ", ".join(f'"{p}"' for p in ports)
+
+    return (
+        "    - name: Installer UFW (Debian/Ubuntu)\n"
+        "      apt:\n"
+        "        name: ufw\n"
+        "        state: present\n"
+        "      become: true\n"
+        "      when: ansible_os_family == \"Debian\"\n"
+        "\n"
+        "    - name: Autoriser les ports necessaires (UFW)\n"
+        "      command: \"ufw allow {{ item }}\"\n"
+        f"      loop: [{ports_yaml}]\n"
+        "      become: true\n"
+        "      when: ansible_os_family == \"Debian\"\n"
+        "      changed_when: true\n"
+        "\n"
+        "    - name: Activer UFW (Debian/Ubuntu)\n"
+        "      command: ufw --force enable\n"
+        "      become: true\n"
+        "      when: ansible_os_family == \"Debian\"\n"
+        "      changed_when: true\n"
+        "\n"
+        "    - name: Installer firewalld (RHEL/CentOS)\n"
+        "      dnf:\n"
+        "        name: firewalld\n"
+        "        state: present\n"
+        "      become: true\n"
+        "      when: ansible_os_family == \"RedHat\"\n"
+        "\n"
+        "    - name: Demarrer et activer firewalld\n"
+        "      systemd:\n"
+        "        name: firewalld\n"
+        "        state: started\n"
+        "        enabled: yes\n"
+        "      become: true\n"
+        "      when: ansible_os_family == \"RedHat\"\n"
+        "\n"
+        "    - name: Autoriser les ports necessaires (firewalld)\n"
+        "      command: \"firewall-cmd --permanent --add-port={{ item }}/tcp\"\n"
+        f"      loop: [{ports_yaml}]\n"
+        "      become: true\n"
+        "      when: ansible_os_family == \"RedHat\"\n"
+        "      changed_when: true\n"
+        "\n"
+        "    - name: Recharger firewalld\n"
+        "      command: firewall-cmd --reload\n"
+        "      become: true\n"
+        "      when: ansible_os_family == \"RedHat\"\n"
+        "      changed_when: true\n"
+    )
+
+
+def _fail2ban_step_content(config):
+    """
+    Contenu de l'etape "fail2ban" : jails calculees dynamiquement selon les
+    autres etapes activees, en reutilisant le catalogue du module firewall
+    (modules.firewall.core.FAIL2BAN_CATALOG) pour eviter de dupliquer les
+    memes noms/valeurs de jails a deux endroits du projet.
+
+    sshd est toujours actif. Si "nginx" est aussi provisionne, les jails
+    nginx-http-auth / nginx-limit-req / nginx-botsearch sont ajoutees et
+    activees automatiquement (contrairement au module firewall autonome ou
+    elles sont suggerees mais desactivees par defaut : ici, on sait avec
+    certitude que nginx est installe par ce meme playbook).
+    """
+    from modules.firewall.core import FAIL2BAN_CATALOG
+
+    provisioning = config.get("provisioning", [])
+    jails = {"sshd": dict(FAIL2BAN_CATALOG["sshd"])}
+    if "nginx" in provisioning:
+        for name in ("nginx-http-auth", "nginx-limit-req", "nginx-botsearch"):
+            jail = dict(FAIL2BAN_CATALOG[name])
+            jail["enabled"] = True
+            jails[name] = jail
+
+    jail_lines = []
+    for name, opts in jails.items():
+        jail_lines.append(f"          [{name}]")
+        jail_lines.append(f"          enabled = {'true' if opts['enabled'] else 'false'}")
+        if name == "sshd":
+            jail_lines.append("          port = ssh")
+        jail_lines.append(f"          maxretry = {opts['maxretry']}")
+        jail_lines.append(f"          bantime = {opts['bantime']}")
+        jail_lines.append(f"          findtime = {opts['findtime']}")
+        jail_lines.append("")
+    jail_block = "\n".join(jail_lines).rstrip("\n") + "\n"
+
+    return (
+        "    - name: Installer Fail2ban (Debian/Ubuntu)\n"
+        "      apt:\n"
+        "        name: fail2ban\n"
+        "        state: present\n"
+        "      become: true\n"
+        "      when: ansible_os_family == \"Debian\"\n"
+        "\n"
+        "    - name: Installer Fail2ban (RHEL/CentOS)\n"
+        "      dnf:\n"
+        "        name: fail2ban\n"
+        "        state: present\n"
+        "      become: true\n"
+        "      when: ansible_os_family == \"RedHat\"\n"
+        "\n"
+        "    - name: Configurer Fail2ban (jails generees selon les etapes activees)\n"
+        "      copy:\n"
+        "        dest: /etc/fail2ban/jail.local\n"
+        "        content: |\n"
+        f"{jail_block}"
+        "      become: true\n"
+        "\n"
+        "    - name: Demarrer et activer Fail2ban\n"
+        "      systemd:\n"
+        "        name: fail2ban\n"
+        "        state: started\n"
+        "        enabled: yes\n"
+        "      become: true\n"
+    )
+
+
 def _step_template_content(kind, step, config):
     """
     Charge le contenu brut du template Ansible correspondant a une etape.
@@ -454,6 +586,12 @@ def _step_template_content(kind, step, config):
         if not engine:
             return None
         return _load_template(f"provisioning/database/{engine}.yml")
+
+    if kind == "provisioning" and step == "firewall" and not windows:
+        return _firewall_step_content(config)
+
+    if kind == "provisioning" and step == "fail2ban" and not windows:
+        return _fail2ban_step_content(config)
 
     if kind == "deployment" and step == "install_deps":
         language = config.get("deployment_language")

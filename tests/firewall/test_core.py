@@ -4,6 +4,7 @@ from modules.firewall.core import (
     generate_nftables_conf,
     generate_ufw_script,
     get_preset,
+    list_fail2ban_jails,
     list_presets,
     validate_config,
 )
@@ -81,3 +82,85 @@ def test_get_preset_returns_deep_copy():
     p1["rules"].append({"port": 9999, "proto": "tcp", "action": "allow"})
     p2 = get_preset("web-public")
     assert len(p2["rules"]) == 3  # inchange, pas affecte par la mutation de p1
+
+
+def test_get_preset_includes_suggested_fail2ban_jails():
+    p = get_preset("web-public")
+    assert "sshd" in p["fail2ban_jails"]
+    assert p["fail2ban_jails"]["sshd"]["enabled"] is True
+    assert "nginx-http-auth" in p["fail2ban_jails"]
+    assert p["fail2ban_jails"]["nginx-http-auth"]["enabled"] is False  # opt-in
+
+
+def test_get_preset_db_private_has_no_suggested_jails_beyond_sshd():
+    p = get_preset("db-private")
+    assert list(p["fail2ban_jails"].keys()) == ["sshd"]
+
+
+def test_validate_config_accepts_ipv6_source():
+    config = {
+        "preset": "custom",
+        "backend": "nftables",
+        "rules": [{"port": 443, "proto": "tcp", "source": "2001:db8::/32", "action": "allow"}],
+    }
+    assert validate_config(config) == []
+
+
+def test_validate_config_rejects_invalid_source():
+    config = {
+        "preset": "custom",
+        "backend": "ufw",
+        "rules": [{"port": 80, "proto": "tcp", "source": "pas-une-ip", "action": "allow"}],
+    }
+    errors = validate_config(config)
+    assert any("source invalide" in e for e in errors)
+
+
+def test_validate_config_rejects_unknown_fail2ban_jail():
+    config = {
+        "preset": "web-public",
+        "backend": "ufw",
+        "fail2ban": True,
+        "fail2ban_jails": {"jail-qui-nexiste-pas": {"enabled": True}},
+    }
+    errors = validate_config(config)
+    assert any("Jail fail2ban inconnue" in e for e in errors)
+
+
+def test_generate_nftables_conf_uses_ip6_saddr_for_ipv6_source():
+    conf = generate_nftables_conf({
+        "preset": "custom",
+        "rules": [{"port": 443, "proto": "tcp", "source": "2001:db8::/32", "action": "allow"}],
+    })
+    assert "ip6 saddr 2001:db8::/32" in conf
+
+
+def test_generate_nftables_conf_uses_ip_saddr_for_ipv4_source():
+    conf = generate_nftables_conf({
+        "preset": "custom",
+        "rules": [{"port": 443, "proto": "tcp", "source": "10.0.0.0/8", "action": "allow"}],
+    })
+    assert "ip saddr 10.0.0.0/8" in conf
+
+
+def test_generate_nftables_conf_always_includes_icmpv6_essentials():
+    # Sans ces regles, policy drop casse IPv6 meme sans regle IPv6 explicite.
+    conf = generate_nftables_conf({"preset": "web-public"})
+    assert "icmpv6 type" in conf
+    assert "nd-neighbor-solicit" in conf
+
+
+def test_generate_ufw_script_enables_ipv6():
+    script = generate_ufw_script({"preset": "web-public"})
+    assert "IPV6=yes" in script
+
+
+def test_generate_fail2ban_jail_with_extra_jails():
+    jail = generate_fail2ban_jail({
+        "fail2ban_jails": {
+            "sshd": {"enabled": True, "maxretry": 5, "bantime": "1h", "findtime": "10m"},
+            "nginx-http-auth": {"enabled": True, "maxretry": 5, "bantime": "1h", "findtime": "10m"},
+        }
+    })
+    assert "[nginx-http-auth]" in jail
+    assert "[sshd]" in jail
