@@ -108,6 +108,7 @@
     .card.ssh .go{color:#4D7C0F;}
     .card.authproxy .go{color:#BE185D;}
     .card.sops .go{color:#B45309;}
+    .card.dns .go{color:#0E7490;}
     .b-k8s{background:linear-gradient(135deg,#326CE5,#54a2f0);box-shadow:0 8px 18px -4px rgba(50,108,229,.6);}
     .b-nginx{background:linear-gradient(135deg,#009639,#4CC750);box-shadow:0 8px 18px -4px rgba(0,150,57,.6);}
     .b-systemd{background:linear-gradient(135deg,#0F9D8C,#2DD4BF);box-shadow:0 8px 18px -4px rgba(15,157,140,.6);}
@@ -123,6 +124,7 @@
     .b-ssh{background:linear-gradient(135deg,#4D7C0F,#A3E635);box-shadow:0 8px 18px -4px rgba(77,124,15,.6);}
     .b-authproxy{background:linear-gradient(135deg,#BE185D,#F472B6);box-shadow:0 8px 18px -4px rgba(190,24,93,.6);}
     .b-sops{background:linear-gradient(135deg,#B45309,#FBBF24);box-shadow:0 8px 18px -4px rgba(180,83,9,.6);}
+    .b-dns{background:linear-gradient(135deg,#0E7490,#22D3EE);box-shadow:0 8px 18px -4px rgba(14,116,144,.6);}
 
     footer{margin-top:42px;color:rgba(255,255,255,.85);font-size:13px;text-align:center;text-shadow:0 1px 10px rgba(15,23,42,.2);}
 
@@ -327,6 +329,14 @@
       <h2>SOPS</h2>
       <p>Génère un <code>.sops.yaml</code> pour chiffrer les secrets versionnés dans un dépôt Git avec <strong>SOPS + age</strong> : une règle par chemin, un ou plusieurs destinataires, valeurs chiffrées mais clés lisibles (diff Git compréhensible).</p>
       <div class="tags"><span class="tag">SOPS</span><span class="tag">age</span><span class="tag">Secrets Git</span><span class="tag">Presets</span></div>
+      <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
+    <a class="card dns" href="{{ url_for('dns_forge.index') }}">
+      <span class="badge b-dns"><i class="fa-solid fa-globe"></i></span>
+      <h2>DNS</h2>
+      <p>Génère des enregistrements DNS (A, AAAA, CNAME, MX, TXT, SRV, CAA…) en fichier de zone <strong>BIND</strong> universel ou en lot de changements <strong>Route53</strong> — mêmes enregistrements, deux formats de sortie.</p>
+      <div class="tags"><span class="tag">Zone BIND</span><span class="tag">Route53</span><span class="tag">SPF/DKIM/DMARC</span><span class="tag">Presets</span></div>
       <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
     </a>
   </main>

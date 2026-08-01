@@ -41,6 +41,7 @@ serveur externe.
 | **SSH** | **`~/.ssh/config`** côté client (alias, clés dédiées, rebond **ProxyJump**, tunnels) ou fragment **`sshd_config.d/`** de durcissement côté serveur (+ **`authorized_keys`** restreint par clé : `from=`, `command=`, `restrict`) | `/ssh` | `python main.py ssh …` |
 | **Auth** | Authentification en frontal d'une appli déjà servie par un reverse proxy : **`oauth2-proxy.cfg`** (délégué à GitHub/Google/OIDC) + snippet Nginx, ou **`configuration.yml`** **Authelia** (comptes locaux, MFA, règles d'accès par domaine) + `users_database.yml` | `/authproxy` | `python main.py authproxy …` |
 | **SOPS** | **`.sops.yaml`** pour chiffrer les secrets versionnés dans un dépôt Git avec **SOPS + age** : une règle par chemin, un ou plusieurs destinataires, `encrypted_regex` pour ne chiffrer que certaines clés (ex : secrets Kubernetes) + fragment `.gitattributes` pour un diff Git lisible | `/sops` | `python main.py sops …` |
+| **DNS** | Enregistrements DNS (A, AAAA, CNAME, MX, TXT, NS, SRV, CAA) en fichier de **zone BIND** (RFC 1035, universel) ou en **lot de changements Route53** — mêmes enregistrements, deux formats de sortie | `/dns` | `python main.py dns …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -212,6 +213,19 @@ python main.py sops --preset k8s-secrets -o output/sops/
 
 # Apercu sans rien ecrire sur disque
 python main.py sops --preset solo-dev --dry-run
+```
+
+### Module DNS
+
+```bash
+# Domaine avec email : MX, SPF, DKIM, DMARC
+python main.py dns --preset domaine-mail -o output/dns/
+
+# Meme domaine, en lot de changements Route53
+python main.py dns --preset domaine-mail --engine route53 -o output/dns/
+
+# Apercu sans rien ecrire sur disque
+python main.py dns --preset site-statique --dry-run
 ```
 
 ### Module Kubernetes / Helm / Kustomize
@@ -1164,6 +1178,41 @@ Presets : `solo-dev` (une clé), `team-shared` (plusieurs destinataires),
 
 ---
 
+## Module DNS — détails
+
+Le seul domaine qui ne touchait aucun des autres modules : `vault` gère les
+secrets, `ssh` l'accès, `nginx` le trafic HTTP, `firewall` le filtrage —
+rien ne produisait un enregistrement A/CNAME/MX.
+
+Deux formats de sortie pour un **même contenu** — contrairement au module SSH
+où le rôle change la forme de la config, ici `engine` ne change que la
+sérialisation :
+
+- **Zone BIND** (RFC 1035) : fichier de zone maître universel, lu par BIND,
+  PowerDNS, Knot, et accepté en import direct par la plupart des registrars.
+  Numéro de série SOA généré au format standard `YYYYMMDDnn`, daté du jour de
+  génération (rappel en commentaire : si la zone est régénérée et republiée
+  plusieurs fois le même jour, l'incrémenter à la main — les secondaires ne
+  resynchronisent que si le serial a strictement augmenté).
+- **Route53** : lot de changements JSON prêt pour
+  `aws route53 change-resource-record-sets`. Gère les particularités de
+  l'API (MX combine priorité et cible dans une seule valeur, TXT exige des
+  guillemets échappés **dans** la chaîne, sans quoi la valeur serait
+  tronquée au premier espace côté AWS).
+
+Catalogue : `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `NS`, `SRV`, `CAA`. Deux règles
+DNS classiques sont vérifiées à la validation plutôt que découvertes au
+déploiement : un nom portant un `CNAME` ne peut porter **aucun** autre
+enregistrement, et la racine du domaine (`@`) ne peut jamais avoir de
+`CNAME` (incompatible avec le `SOA`/`NS` qu'elle doit porter).
+
+Presets : `site-statique` (apex + www), `domaine-mail` (MX, SPF, DKIM,
+DMARC — clé DKIM en placeholder explicite, elle ne peut pas être générée),
+`sous-domaines-services` (plusieurs sous-domaines vers un seul serveur,
+pensé homelab), `verification-domaine` (TXT de preuve de propriété).
+
+---
+
 ## Tests
 
 ```bash
@@ -1187,6 +1236,7 @@ pytest tests/backup/     # module Backup uniquement
 pytest tests/ssh/        # module SSH uniquement (client ~/.ssh/config + durcissement sshd)
 pytest tests/authproxy/  # module Auth uniquement (oauth2-proxy / Authelia)
 pytest tests/sops/       # module SOPS uniquement (secrets Git chiffres SOPS + age)
+pytest tests/dns/        # module DNS uniquement (zone BIND / lot Route53)
 pytest tests/cicd/test_deps_core.py tests/cicd/test_deps_routes.py   # Dependabot / Renovate
 ```
 
@@ -1200,7 +1250,7 @@ pytest tests/cicd/test_deps_core.py tests/cicd/test_deps_routes.py   # Dependabo
 
 ## Roadmap — reste à faire
 
-Les 20 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+Les 21 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
 
 - [x] ~~Module Backup~~ — fait (restic / Borg, voir plus bas).
 - [x] ~~Module GitOps~~ — fait (ArgoCD Application / FluxCD, voir plus bas).
@@ -1300,8 +1350,9 @@ déjà été traités ainsi. Plusieurs pistes sont venues s'ajouter depuis, et
 illustrent bien la règle de partage entre nouveau module et extension : **SSH**
 avait assez de matière (deux rôles, sept presets, trois formats de fichier)
 pour devenir un **module à part entière**, tout comme **Auth** (deux moteurs
-oauth2-proxy/Authelia, six presets, quatre formats de fichier) et **SOPS**
-(règles multiples, cinq presets, deux formats de fichier) — alors que
+oauth2-proxy/Authelia, six presets, quatre formats de fichier), **SOPS**
+(règles multiples, cinq presets, deux formats de fichier) et **DNS** (huit
+types d'enregistrement, quatre presets, deux formats de sortie) — alors que
 **Dependabot/Renovate** — un seul petit fichier de config, déduit des stacks
 déjà détectées — est resté une **extension du module CI/CD**. Les prochaines
 directions restent des ajouts de providers/cibles supplémentaires (ex :
@@ -1410,6 +1461,14 @@ et ils sont désormais traités :
       (manifests ArgoCD/FluxCD sans réponse sur les secrets versionnés) ;
       ne génère ni ne manipule de clé privée, comme pour SSH. 5 presets,
       cartes de règles dans l'UI et `--preset` en CLI).
+- [x] ~~**DNS**~~ — fait (enregistrements `A`/`AAAA`/`CNAME`/`MX`/`TXT`/
+      `NS`/`SRV`/`CAA`, en zone **BIND** — RFC 1035, serial SOA daté du jour
+      — ou lot **Route53** — MX/TXT au format exact attendu par l'API AWS ;
+      validation des deux règles DNS classiques qui cassent sinon au
+      déploiement : un nom avec `CNAME` ne peut porter aucun autre
+      enregistrement, et la racine du domaine ne peut jamais avoir de
+      `CNAME`. Seul domaine qui ne touchait aucun module existant. 4 presets,
+      sélecteur de format dans l'UI et `--preset`/`--engine` en CLI).
 
 Tous les modules candidats identifiés dans cette roadmap sont désormais
 implémentés. Les prochaines pistes restent des ajouts *dans* les modules

@@ -21,6 +21,7 @@ Sous-commandes :
     python main.py ssh        ...   -> generateur de config SSH (client ~/.ssh/config ou durcissement sshd)
     python main.py authproxy  ...   -> generateur d'authentification en frontal (oauth2-proxy / Authelia)
     python main.py sops       ...   -> generateur de chiffrement de secrets Git (SOPS + age)
+    python main.py dns        ...   -> generateur d'enregistrements DNS (zone BIND / lot Route53)
 
 Chaque sous-commande accepte ses propres options. Exemples :
     python main.py cicd . --provider gitlab --deploy docker_hub
@@ -40,6 +41,7 @@ Chaque sous-commande accepte ses propres options. Exemples :
     python main.py ssh --preset acces-bastion -o output/ssh/
     python main.py authproxy --preset github-org -o output/authproxy/
     python main.py sops --preset multi-env -o output/sops/
+    python main.py dns --preset domaine-mail -o output/dns/
 
 Utilise `python main.py <module> --help` pour voir les options d'un module.
 """
@@ -51,6 +53,7 @@ from modules.authproxy import cli as authproxy_cli
 from modules.backup import cli as backup_cli
 from modules.cicd import cli as cicd_cli
 from modules.cloudinit import cli as cloudinit_cli
+from modules.dns import cli as dns_cli
 from modules.dockerfile import cli as dockerfile_cli
 from modules.firewall import cli as firewall_cli
 from modules.gitops import cli as gitops_cli
@@ -88,11 +91,12 @@ MODULES = {
     "ssh": ssh_cli.main,
     "authproxy": authproxy_cli.main,
     "sops": sops_cli.main,
+    "dns": dns_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault|gitops|backup|firewall|logging|precommit|ssh|authproxy|sops} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault|gitops|backup|firewall|logging|precommit|ssh|authproxy|sops|dns} [options]")
     print()
     print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI / CircleCI / Jenkins / Drone / Bitbucket / TeamCity)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
@@ -114,6 +118,7 @@ def _usage():
     print("  ssh        Genere une config SSH (~/.ssh/config client / durcissement sshd_config.d)")
     print("  authproxy  Genere une authentification en frontal (oauth2-proxy / Authelia)")
     print("  sops       Genere une config de chiffrement de secrets Git (SOPS + age)")
+    print("  dns        Genere des enregistrements DNS (zone BIND / lot Route53)")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 

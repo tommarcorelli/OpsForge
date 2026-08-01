@@ -28,6 +28,7 @@ from modules.authproxy.routes import bp as authproxy_bp
 from modules.backup.routes import bp as backup_bp
 from modules.cicd.routes import bp as cicd_bp
 from modules.cloudinit.routes import bp as cloudinit_bp
+from modules.dns.routes import bp as dns_bp
 from modules.dockerfile.routes import bp as dockerfile_bp
 from modules.firewall.routes import bp as firewall_bp
 from modules.gitops.routes import bp as gitops_bp
@@ -78,6 +79,7 @@ app.register_blueprint(firewall_bp)
 app.register_blueprint(logging_bp)
 app.register_blueprint(precommit_bp)
 app.register_blueprint(ssh_bp)
+app.register_blueprint(dns_bp)
 
 
 @app.route("/")

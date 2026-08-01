@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Enregistrements DNS (zone BIND / Route53)</title>
+
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#0E7490" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='dns/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· DNS</span></span>
+    </a>
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-circle-info"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — ENREGISTREMENTS DNS</p>
+    <h1>Le domaine,<br />enfin nommé</h1>
+    <p class="subtitle">Aucun des autres modules ne touche au DNS : <code>vault</code> gère les secrets, <code>ssh</code> l'accès, <code>nginx</code> le trafic. Ici, un fichier de zone <code>BIND</code> universel ou un lot de changements <code>Route53</code> — mêmes enregistrements, deux formats.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="engine-switch" id="engine-switch">
+        <button type="button" class="engine-btn active" data-engine="bind">
+          Zone BIND
+          <span class="engine-sub">universel, RFC 1035</span>
+        </button>
+        <button type="button" class="engine-btn" data-engine="route53">
+          Route53
+          <span class="engine-sub">lot de changements AWS</span>
+        </button>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="1">Presets</label>
+        <div class="preset-list" id="preset-list"></div>
+        <p class="field-hint" id="preset-hint">Choisis un point de départ, puis ajuste les enregistrements ci-dessous.</p>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" data-step="2">Domaine et serveurs de noms</label>
+        <div class="grid-2">
+          <div>
+            <label class="sub-label" for="domain">Domaine</label>
+            <input type="text" id="domain" class="text-input" placeholder="exemple.com" />
+          </div>
+          <div>
+            <label class="sub-label" for="ttl">TTL par défaut (secondes)</label>
+            <input type="number" id="ttl" class="text-input" value="3600" min="60" />
+          </div>
+        </div>
+        <label class="sub-label" for="nameservers" style="margin-top:10px;">Serveurs de noms</label>
+        <input type="text" id="nameservers" class="text-input mono" placeholder="ns1.exemple.com., ns2.exemple.com." />
+        <p class="field-hint">Séparés par une virgule. Chacun se termine par un point (nom pleinement qualifié).</p>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="3">SOA (autorité de zone)</label>
+        <div class="grid-2">
+          <div>
+            <label class="sub-label" for="soa-primary-ns">Serveur de noms principal</label>
+            <input type="text" id="soa-primary-ns" class="text-input mono" placeholder="ns1.exemple.com." />
+          </div>
+          <div>
+            <label class="sub-label" for="soa-admin-email">Contact administrateur</label>
+            <input type="text" id="soa-admin-email" class="text-input mono" placeholder="admin.exemple.com." />
+          </div>
+        </div>
+        <div class="grid-3" style="margin-top:10px;">
+          <div>
+            <label class="sub-label" for="soa-refresh">Refresh</label>
+            <input type="number" id="soa-refresh" class="text-input" value="3600" />
+          </div>
+          <div>
+            <label class="sub-label" for="soa-retry">Retry</label>
+            <input type="number" id="soa-retry" class="text-input" value="900" />
+          </div>
+          <div>
+            <label class="sub-label" for="soa-expire">Expire</label>
+            <input type="number" id="soa-expire" class="text-input" value="1209600" />
+          </div>
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" data-step="4">Enregistrements</label>
+        <div class="card-list" id="record-list"></div>
+        <button type="button" id="add-record-btn" class="btn btn-ghost btn-add">+ Ajouter un enregistrement</button>
+        <p class="field-hint"><code>@</code> désigne la racine du domaine. Un CNAME ne peut pas cohabiter avec un autre enregistrement sur le même nom, ni exister à la racine.</p>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top:0;">GÉNÉRER →</button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink:0;">↺</button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="config"><span class="node-num">01</span><span class="node-label" id="node-1-label">ZONE BIND</span></div>
+        <div class="connector flowing"></div>
+        <div class="node" data-stage="apply"><span class="node-num">02</span><span class="node-label">GÉNÉRÉ</span></div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Fichier généré</p>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le fichier généré apparaîtra ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    window.OPSFORGE_DNS = {
+      engines: {{ engines | tojson }},
+      presets: {{ presets | tojson }},
+      recordTypes: {{ record_types | tojson }},
+      caaTags: {{ caa_tags | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='dns/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "dns",
+    icon: "fa-solid fa-globe",
+    intro: "Les deux formats décrivent les MÊMES enregistrements. Une zone BIND se dépose sur un serveur DNS (ou s'importe chez un registrar) ; un lot Route53 s'applique directement via l'API AWS.",
+    os: [
+      { id: "bind", label: "Zone BIND", icon: "fa-solid fa-server", color: "#0E7490", steps: [
+        { title: "Déposer le fichier de zone", cmd: "cp exemple.com.zone /etc/bind/zones/", note: "Chemin exact selon ta distribution (souvent /var/lib/bind/ ou /etc/bind/zones/)." },
+        { title: "Déclarer la zone", cmd: "Ajoute un bloc zone \"exemple.com\" { type master; file \"/etc/bind/zones/exemple.com.zone\"; }; dans named.conf.local" },
+        { title: "Vérifier la syntaxe", cmd: "named-checkzone exemple.com /etc/bind/zones/exemple.com.zone", note: "Corrige toute erreur AVANT de recharger — une zone invalide empêche le service de démarrer." },
+        { title: "Recharger", cmd: "sudo rndc reload exemple.com" },
+      ]},
+      { id: "registrar", label: "Import chez un registrar", icon: "fa-solid fa-building", color: "#155E75", steps: [
+        { title: "Vérifier le support d'import", cmd: "Certains registrars (Gandi, OVH, Cloudflare…) acceptent un import direct de fichier de zone depuis leur interface DNS.", note: "Sinon, retranscris les enregistrements un par un depuis le fichier généré." },
+      ]},
+      { id: "route53", label: "AWS Route53", icon: "fa-brands fa-aws", color: "#083344", steps: [
+        { title: "Récupérer l'ID de zone hébergée", cmd: "aws route53 list-hosted-zones-by-name --dns-name exemple.com" },
+        { title: "Appliquer le lot de changements", cmd: "aws route53 change-resource-record-sets --hosted-zone-id TON_ZONE_ID --change-batch file://exemple.com.route53.json" },
+        { title: "Suivre la propagation", cmd: "aws route53 get-change --id TON_CHANGE_ID", note: "Le statut passe de PENDING à INSYNC une fois propagé sur tous les serveurs Route53." },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>
