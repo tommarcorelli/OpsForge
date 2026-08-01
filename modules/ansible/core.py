@@ -1120,8 +1120,8 @@ def encrypt_vault_content(plaintext_yaml, vault_password):
         raise ValueError("Un mot de passe de vault est requis pour chiffrer les secrets.")
 
     try:
-        from ansible.parsing.vault import VaultLib, VaultSecret
         from ansible.constants import DEFAULT_VAULT_ID_MATCH
+        from ansible.parsing.vault import VaultLib, VaultSecret
     except ImportError as e:
         raise ImportError(
             "Le paquet 'ansible-core' est requis pour chiffrer les secrets "

@@ -10,11 +10,12 @@ import pytest
 import yaml
 
 from modules.terraform.cloudformation_core import (
-    generate_cloudformation,
-    valider_config,
-    obtenir_preset,
     PRESETS,
     RESOURCE_CATALOG,
+    generate_cloudformation,
+    obtenir_preset,
+    valider_config,
+    write_cloudformation,
 )
 
 
@@ -81,6 +82,11 @@ def test_missing_required_property_raises_valueerror():
 def test_missing_name_is_an_error():
     erreurs, _ = valider_config({"resources": [{"type": "AWS::S3::Bucket", "properties": {}}]})
     assert any("name" in e for e in erreurs)
+
+
+def test_missing_type_is_an_error():
+    erreurs, _ = valider_config({"resources": [{"name": "Bucket1", "properties": {}}]})
+    assert any("type" in e for e in erreurs)
 
 
 def test_invalid_logical_id_is_an_error():
@@ -197,3 +203,12 @@ def test_resource_catalog_entries_have_required_keys():
         assert "required" in entry
         assert "template" in entry
         assert entry["type"].startswith("AWS::")
+
+
+def test_write_cloudformation_cree_le_fichier(tmp_path):
+    config = obtenir_preset("s3-static")
+    output = tmp_path / "sub" / "template.yaml"
+    path = write_cloudformation(config, str(output))
+    assert path == str(output)
+    assert output.is_file()
+    assert "AWSTemplateFormatVersion" in output.read_text(encoding="utf-8")

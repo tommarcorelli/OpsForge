@@ -3,13 +3,13 @@
 import pytest
 
 from modules.systemd.core import (
-    generate_units,
-    generate_combined,
-    validate_config,
-    list_presets,
-    get_preset,
-    SUPPORTED_MODES,
     PRESETS,
+    SUPPORTED_MODES,
+    generate_combined,
+    generate_units,
+    get_preset,
+    list_presets,
+    validate_config,
 )
 
 
@@ -127,6 +127,27 @@ def test_service_after_par_defaut_network_target():
     assert "After=network.target" in conf
 
 
+def test_service_requires_et_wants():
+    conf = generate_units(
+        _service_cfg(requires="postgresql.service", wants="redis.service")
+    )["myapp.service"]
+    assert "Requires=postgresql.service" in conf
+    assert "Wants=redis.service" in conf
+
+
+def test_service_exec_hooks_complets():
+    conf = generate_units(_service_cfg(
+        exec_start_pre="/opt/myapp/bin/pre.sh",
+        exec_start_post="/opt/myapp/bin/post.sh",
+        exec_reload="/bin/kill -HUP $MAINPID",
+        exec_stop="/opt/myapp/bin/stop.sh",
+    ))["myapp.service"]
+    assert "ExecStartPre=/opt/myapp/bin/pre.sh" in conf
+    assert "ExecStartPost=/opt/myapp/bin/post.sh" in conf
+    assert "ExecReload=/bin/kill -HUP $MAINPID" in conf
+    assert "ExecStop=/opt/myapp/bin/stop.sh" in conf
+
+
 def test_environment_variables_quotees():
     conf = generate_units(
         _service_cfg(environment=[{"key": "PORT", "value": "8000"}])
@@ -218,6 +239,13 @@ def test_timer_contient_on_calendar_et_target():
     assert "OnCalendar=*-*-* 02:00:00" in timer
     assert "WantedBy=timers.target" in timer
     assert "Unit=backup.service" in timer
+
+
+def test_timer_on_boot_sec_et_on_unit_active_sec():
+    cfg = _timer_cfg(on_calendar="", on_boot_sec="5min", on_unit_active_sec="1h")
+    timer = generate_units(cfg)["backup.timer"]
+    assert "OnBootSec=5min" in timer
+    assert "OnUnitActiveSec=1h" in timer
 
 
 def test_timer_persistent_optionnel():

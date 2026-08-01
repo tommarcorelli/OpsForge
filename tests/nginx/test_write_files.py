@@ -1,7 +1,7 @@
 """Tests de write_config, la fonction d'ecriture disque du module nginx
 (non couverte jusqu'ici) : genere une config nginx et l'ecrit sur disque."""
 
-from modules.nginx.core import write_config, generate_config
+from modules.nginx.core import generate_config, write_config
 
 
 def _static_cfg(**overrides):

@@ -128,3 +128,21 @@ def test_stage_order_is_always_lint_test_build_deploy():
     parsed = _parse(yaml_text)
 
     assert parsed["stages"] == ["lint", "test", "build", "deploy"]
+
+
+def test_langage_non_pris_en_charge_ne_genere_aucun_job():
+    stacks = [{"language": "cobol", "version": "1.0", "package_manager": ""}]
+    with pytest.raises(ValueError, match="Aucun job genere"):
+        generate_gitlab_ci(stacks, jobs=["test"])
+
+
+def test_langage_sans_commande_installation_utilise_le_repli():
+    from modules.cicd.gitlab_core import _get_install_cmd
+    assert _get_install_cmd("cobol", "") == "echo 'Aucune commande d-installation definie pour ce langage'"
+
+
+def test_deploy_cible_inconnue_ignoree():
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    yaml_text = generate_gitlab_ci(stacks, jobs=["test"], deploy={"targets": ["cible-inconnue"]})
+    parsed = _parse(yaml_text)
+    assert "deploy" not in parsed["stages"]

@@ -39,7 +39,7 @@ Usage basique :
 import base64
 import json
 
-from modules.cloudinit.core import validate_config, _as_list, _clean
+from modules.cloudinit.core import _as_list, _clean, validate_config
 
 IGNITION_VERSION = "3.4.0"
 OUTPUT_FILENAME = "config.ign"

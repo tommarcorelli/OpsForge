@@ -12,14 +12,14 @@ import sys
 
 from modules.vault.core import (
     generate_files,
-    write_files,
-    list_presets,
     get_preset,
-    list_storage_backends,
-    list_seal_types,
-    list_auth_methods,
-    list_secrets_engines,
     list_audit_devices,
+    list_auth_methods,
+    list_presets,
+    list_seal_types,
+    list_secrets_engines,
+    list_storage_backends,
+    write_files,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge

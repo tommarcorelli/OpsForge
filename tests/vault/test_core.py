@@ -157,6 +157,25 @@ def test_audit_device_syslog_sans_options_ok():
     assert validate_config(cfg) == []
 
 
+def test_config_non_dict_rejete():
+    errors = validate_config("pas un dict")
+    assert errors == ["La configuration doit etre un objet JSON."]
+
+
+def test_policy_capabilities_vide_rejetee():
+    cfg = _valid_config(policies=[{
+        "name": "p", "rules": [{"path": "secret/*", "capabilities": []}],
+    }])
+    errors = validate_config(cfg)
+    assert any("capabilities est requis" in e for e in errors)
+
+
+def test_secrets_engine_path_manquant_rejete():
+    cfg = _valid_config(secrets_engines=[{"type": "kv-v2"}])
+    errors = validate_config(cfg)
+    assert any("secrets_engines" in e and "path est requis" in e for e in errors)
+
+
 def test_config_valide_sans_erreur():
     assert validate_config(_valid_config()) == []
 
@@ -210,6 +229,24 @@ def test_config_hcl_raft_ajoute_cluster_addr():
     content = generate_server_config(cfg)
     assert 'cluster_addr = "https://node-1:8201"' in content
     assert 'api_addr = "https://node-1:8200"' in content
+
+
+def test_config_hcl_log_level_et_disable_mlock():
+    cfg = _valid_config()
+    cfg["server"]["log_level"] = "warn"
+    cfg["server"]["disable_mlock"] = True
+    content = generate_server_config(cfg)
+    assert 'log_level = "warn"' in content
+    assert "disable_mlock = true" in content
+
+
+def test_config_hcl_seal_args_valeur_numerique():
+    cfg = _valid_config(server={
+        "storage": "file", "storage_args": {"path": "/data"},
+        "seal": "transit", "seal_args": {"address": "https://x", "key_name": "k", "mount_path": "transit", "port": 8200},
+    })
+    content = generate_server_config(cfg)
+    assert "port = 8200" in content
 
 
 def test_config_invalide_leve_erreur():
@@ -336,6 +373,15 @@ def test_bootstrap_ecrit_config_moteur():
     ])
     script = generate_bootstrap_script(cfg)
     assert 'vault write pki/config max_lease_ttl="87600h"' in script
+
+
+def test_bootstrap_config_moteur_valeurs_bool_et_liste():
+    cfg = _valid_config(secrets_engines=[
+        {"type": "database", "path": "database", "config": {"rotate": True, "allowed_roles": ["ro", "rw"]}},
+    ])
+    script = generate_bootstrap_script(cfg)
+    assert "rotate=true" in script
+    assert 'allowed_roles="ro,rw"' in script
 
 
 def test_bootstrap_shebang_et_set_e():

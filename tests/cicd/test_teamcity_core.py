@@ -137,6 +137,53 @@ def test_aws_s3_present_with_node_stack():
     assert "mybucket" in text
 
 
+def test_vercel_deploy_build_type():
+    stacks = [{"language": "node", "version": "20", "package_manager": "npm"}]
+    text = generate_teamcity_kotlin_dsl(stacks, jobs=["test"], deploy={"targets": ["vercel"]})
+
+    assert "object DeployVercel" in text
+    assert "vercel --token %vercel.token%" in text
+    assert "node:20-slim" in text
+    assert _braces_balanced(text)
+
+
+def test_deploy_cible_inconnue_ignoree():
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    text = generate_teamcity_kotlin_dsl(
+        stacks, jobs=["test"], deploy={"targets": ["cible-inconnue", "docker_hub"]}
+    )
+    assert "object DeployDockerHub" in text
+
+
+def test_langage_non_pris_en_charge_ne_genere_aucun_build_type():
+    stacks = [{"language": "cobol", "version": "1.0", "package_manager": ""}]
+    with pytest.raises(ValueError, match="Aucun BuildType genere"):
+        generate_teamcity_kotlin_dsl(stacks, jobs=["test"])
+
+
+def test_langage_sans_commande_installation_utilise_le_repli():
+    from modules.cicd.teamcity_core import _get_install_cmd
+    assert _get_install_cmd("cobol", "") == "echo 'Aucune commande d-installation definie pour ce langage'"
+
+
+def test_cible_de_deploiement_cataloguee_mais_non_geree_est_ignoree(monkeypatch):
+    """Garde-fou defensif : une cible presente dans DEPLOY_TARGETS mais sans
+    branche de generation dediee est ignoree silencieusement plutot que de
+    lever une exception (ne devrait pas arriver avec le catalogue actuel,
+    mais protege contre un futur ajout de cible incomplet)."""
+    from modules.cicd import teamcity_core
+    monkeypatch.setitem(
+        teamcity_core.DEPLOY_TARGETS, "mystere",
+        {"requires_language": None, "label": "Cible mystere"},
+    )
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    text = generate_teamcity_kotlin_dsl(
+        stacks, jobs=["test"], deploy={"targets": ["mystere", "docker_hub"]}
+    )
+    assert "object DeployDockerHub" in text
+    assert "DeployMystere" not in text
+
+
 def test_deploy_has_branch_filter():
     stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
     text = generate_teamcity_kotlin_dsl(

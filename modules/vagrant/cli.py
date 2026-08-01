@@ -26,9 +26,9 @@ for _flux in (sys.stdout, sys.stderr):
         pass
 
 from modules.vagrant.core.generateur import construire_vagrantfile
-from modules.vagrant.core.schema import valider_config, BOX_PROVIDERS
-from modules.vagrant.core.presets import PRESETS, obtenir_preset
 from modules.vagrant.core.lint import linter_vagrantfile
+from modules.vagrant.core.presets import PRESETS, obtenir_preset
+from modules.vagrant.core.schema import BOX_PROVIDERS, valider_config
 from modules.vagrant.core.verif_box import verifier_catalogue
 
 

@@ -293,7 +293,7 @@ def _build_stack_jobs(stacks, jobs):
             if job_type == "test" and len(matrix_versions) > 1:
                 matrix_key = MATRIX_KEYS.get(language, "version")
                 matrix = {matrix_key: matrix_versions}
-                version_override = "${{ matrix.%s }}" % matrix_key
+                version_override = f"${{{{ matrix.{matrix_key} }}}}"
 
             filled_steps = _fill_stack_template(raw_template, stack, version_override=version_override)
             job_name = f"{job_type}-{language}"

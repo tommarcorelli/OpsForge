@@ -4,15 +4,15 @@ modules/systemd/routes.py
 Blueprint Flask du module systemd (monte sous /systemd).
 """
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, jsonify, render_template, request
 
 from modules.systemd.core import (
-    generate_units,
-    list_presets,
-    get_preset,
-    SUPPORTED_MODES,
-    SERVICE_TYPES,
     RESTART_POLICIES,
+    SERVICE_TYPES,
+    SUPPORTED_MODES,
+    generate_units,
+    get_preset,
+    list_presets,
 )
 
 bp = Blueprint("systemd", __name__, url_prefix="/systemd")

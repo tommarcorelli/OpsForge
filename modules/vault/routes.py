@@ -7,21 +7,21 @@ Blueprint Flask du module HashiCorp Vault (monte sous /vault).
 import io
 import zipfile
 
-from flask import Blueprint, render_template, request, jsonify, send_file
+from flask import Blueprint, jsonify, render_template, request, send_file
 
 from modules.vault.core import (
-    generate_files,
-    list_presets,
-    get_preset,
-    list_auth_methods,
-    list_secrets_engines,
-    list_audit_devices,
-    STORAGE_BACKENDS,
-    SEAL_TYPES,
-    AUTH_METHOD_CATALOG,
-    SECRETS_ENGINE_CATALOG,
     AUDIT_DEVICE_CATALOG,
+    AUTH_METHOD_CATALOG,
     CAPABILITIES,
+    SEAL_TYPES,
+    SECRETS_ENGINE_CATALOG,
+    STORAGE_BACKENDS,
+    generate_files,
+    get_preset,
+    list_audit_devices,
+    list_auth_methods,
+    list_presets,
+    list_secrets_engines,
 )
 
 bp = Blueprint("vault", __name__, url_prefix="/vault")

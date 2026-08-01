@@ -1,12 +1,12 @@
 """Tests du mode Kustomize (base/ + overlays/) du module Kubernetes d'OpsForge."""
 
-import yaml
 import pytest
+import yaml
 
 from modules.k8s.core import (
+    DEFAULT_KUSTOMIZE_OVERLAYS,
     generate_kustomize,
     write_kustomize,
-    DEFAULT_KUSTOMIZE_OVERLAYS,
 )
 
 

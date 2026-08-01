@@ -10,17 +10,17 @@ import os
 import sys
 
 from modules.ansible.core import (
-    generate_inventory,
-    generate_playbook,
-    write_playbook,
-    write_vault_file,
-    write_role_based_project,
-    generate_multi_group_inventory,
-    write_multi_group_project,
-    SUPPORTED_LANGUAGES,
     DATABASE_ENGINES,
-    TARGET_OSES,
     MOLECULE_DRIVERS,
+    SUPPORTED_LANGUAGES,
+    TARGET_OSES,
+    generate_inventory,
+    generate_multi_group_inventory,
+    generate_playbook,
+    write_multi_group_project,
+    write_playbook,
+    write_role_based_project,
+    write_vault_file,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge
@@ -200,9 +200,9 @@ def main(argv=None):
 
     if args.list_windows_steps:
         from modules.ansible.core import (
-            WINDOWS_SUPPORTED_PROVISIONING,
             WINDOWS_SUPPORTED_DEPLOYMENT,
             WINDOWS_SUPPORTED_LANGUAGES,
+            WINDOWS_SUPPORTED_PROVISIONING,
         )
         print("Etapes de provisioning disponibles pour --target-os windows :")
         print("  " + ", ".join(WINDOWS_SUPPORTED_PROVISIONING))

@@ -70,6 +70,11 @@ def test_app_name_invalide_est_une_erreur(bad_name):
     assert any("app_name invalide" in e for e in errors)
 
 
+def test_namespace_invalide_est_une_erreur():
+    errors = validate_config(_base_config(namespace="Mon_NS"))
+    assert any("namespace invalide" in e for e in errors)
+
+
 def test_repo_url_manquant_est_une_erreur():
     config = _base_config()
     del config["repo_url"]
@@ -213,6 +218,15 @@ def test_flux_helmrelease_values_type_preserve():
     fichiers = generate_flux_manifests(config)
     hr_doc = yaml.safe_load(fichiers["flux-helmrelease.yaml"])
     assert hr_doc["spec"]["values"] == {"replicaCount": 3, "enabled": False}
+
+
+def test_flux_helmrelease_value_files_en_commentaire():
+    config = _base_config(
+        tool="flux", source_type="helm", helm_chart_name="mon-app",
+        helm_value_files=["values-prod.yaml"],
+    )
+    fichiers = generate_flux_manifests(config)
+    assert "values-prod.yaml" in fichiers["flux-helmrelease.yaml"]
 
 
 def test_flux_kustomization_prune():

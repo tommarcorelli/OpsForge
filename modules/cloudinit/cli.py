@@ -12,12 +12,14 @@ import sys
 
 from modules.cloudinit.core import (
     generate_cloud_config,
-    write_files,
-    list_presets,
     get_preset,
+    list_presets,
+    write_files,
 )
 from modules.cloudinit.ignition_core import (
     generate_ignition,
+)
+from modules.cloudinit.ignition_core import (
     write_files as write_ignition_files,
 )
 

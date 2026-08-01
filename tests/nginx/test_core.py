@@ -3,13 +3,13 @@
 import pytest
 
 from modules.nginx.core import (
-    generate_config,
-    validate_config,
-    list_presets,
-    get_preset,
-    SUPPORTED_MODES,
     LB_ALGORITHMS,
     PRESETS,
+    SUPPORTED_MODES,
+    generate_config,
+    get_preset,
+    list_presets,
+    validate_config,
 )
 
 
@@ -56,6 +56,17 @@ def test_mode_invalide_rejete():
     assert any("Mode non supporte" in e for e in errors)
 
 
+def test_target_non_supportee_rejetee():
+    errors = validate_config(_static_cfg(), target="apache")
+    assert any("Cible non supportee" in e for e in errors)
+
+
+def test_server_name_format_invalide_rejete():
+    cfg = _static_cfg(server_name="pas un domaine valide!!")
+    errors = validate_config(cfg)
+    assert any("invalide" in e for e in errors)
+
+
 def test_server_name_manquant_rejete():
     cfg = _static_cfg(server_name="")
     errors = validate_config(cfg)
@@ -86,10 +97,28 @@ def test_load_balancer_moins_de_deux_backends_rejete():
     assert any("Au moins 2 backends" in e for e in errors)
 
 
+def test_load_balancer_backend_hote_manquant_rejete():
+    cfg = _lb_cfg(backends=[{"host": "", "port": 3001}, {"host": "127.0.0.1", "port": 3002}])
+    errors = validate_config(cfg)
+    assert any("hote manquant" in e for e in errors)
+
+
+def test_load_balancer_backend_port_invalide_rejete():
+    cfg = _lb_cfg(backends=[{"host": "127.0.0.1", "port": "pas-un-port"}, {"host": "127.0.0.1", "port": 3002}])
+    errors = validate_config(cfg)
+    assert any("port invalide" in e for e in errors)
+
+
 def test_load_balancer_algorithme_invalide_rejete():
     cfg = _lb_cfg(lb_algorithm="magic")
     errors = validate_config(cfg)
     assert any("Algorithme de repartition invalide" in e for e in errors)
+
+
+def test_https_sans_server_name_rejete():
+    cfg = _static_cfg(server_name="", https=True)
+    errors = validate_config(cfg)
+    assert any("HTTPS necessite" in e for e in errors)
 
 
 def test_listen_port_invalide_rejete():

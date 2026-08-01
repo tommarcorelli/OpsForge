@@ -4,16 +4,16 @@ modules/dockerfile/routes.py
 Blueprint Flask du module Dockerfile (monte sous /dockerfile).
 """
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, jsonify, render_template, request
 
 from modules.cicd.detector import detect_stack
 from modules.dockerfile.core import (
+    DEFAULT_ENTRYPOINTS,
+    DEFAULT_PORTS,
+    SUPPORTED_LANGUAGES,
+    generate_docker_bake,
     generate_dockerfile,
     generate_dockerignore,
-    generate_docker_bake,
-    SUPPORTED_LANGUAGES,
-    DEFAULT_PORTS,
-    DEFAULT_ENTRYPOINTS,
 )
 
 bp = Blueprint("dockerfile", __name__, url_prefix="/dockerfile")

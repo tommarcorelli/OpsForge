@@ -11,11 +11,11 @@ import os
 import sys
 
 from modules.nginx.core import (
-    generate,
-    list_presets,
-    get_preset,
     SUPPORTED_MODES,
     SUPPORTED_TARGETS,
+    generate,
+    get_preset,
+    list_presets,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge

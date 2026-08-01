@@ -137,8 +137,7 @@ def valider_config(config):
                 erreurs.append(f"{ou} ({nom}) : IP {ip} déjà attribuée à « {ips_vues[ip]} ».")
             else:
                 ips_vues[ip] = nom
-                if not (ip.startswith("10.") or ip.startswith("192.168.")
-                        or re.match(r"^172\.(1[6-9]|2\d|3[01])\.", ip)):
+                if not (ip.startswith(("10.", "192.168.")) or re.match(r"^172\.(1[6-9]|2\d|3[01])\.", ip)):
                     avertissements.append(
                         f"{nom} : {ip} n'est pas une IP privée (RFC 1918), "
                         "risque de conflit avec le vrai réseau."

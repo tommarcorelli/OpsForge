@@ -1,20 +1,22 @@
 """Tests du coeur du module Monitoring d'OpsForge."""
 
+import json
+
 import pytest
 import yaml
 
 from modules.monitoring.core import (
-    generate_files,
-    generate_combined,
-    validate_config,
-    list_presets,
-    get_preset,
-    list_rules,
-    list_panels,
-    SUPPORTED_MODES,
-    RULES_CATALOG,
     PANEL_CATALOG,
     PRESETS,
+    RULES_CATALOG,
+    SUPPORTED_MODES,
+    generate_combined,
+    generate_files,
+    get_preset,
+    list_panels,
+    list_presets,
+    list_rules,
+    validate_config,
 )
 
 
@@ -91,6 +93,32 @@ def test_prometheus_interval_invalide_rejete():
     assert any("Duree invalide" in e for e in errors)
 
 
+def test_prometheus_job_sans_nom_rejete():
+    errors = validate_config(_prom_cfg(jobs=[{"targets": ["localhost:9100"]}]))
+    assert any("job_name" in e for e in errors)
+
+
+def test_prometheus_scrape_timeout_present_dans_le_global():
+    files = generate_files(_prom_cfg(scrape_timeout="10s"))
+    data = _yaml_body(files["prometheus.yml"])
+    assert data["global"]["scrape_timeout"] == "10s"
+
+
+def test_prometheus_job_avec_metrics_path_scheme_et_interval():
+    cfg = _prom_cfg(jobs=[{
+        "job_name": "app",
+        "targets": ["localhost:8080"],
+        "metrics_path": "/custom-metrics",
+        "scheme": "https",
+        "scrape_interval": "30s",
+    }])
+    data = _yaml_body(generate_files(cfg)["prometheus.yml"])
+    job = data["scrape_configs"][0]
+    assert job["metrics_path"] == "/custom-metrics"
+    assert job["scheme"] == "https"
+    assert job["scrape_interval"] == "30s"
+
+
 def test_alerts_sans_regle_rejete():
     errors = validate_config(_alerts_cfg(rules=[]))
     assert any("au moins une regle" in e.lower() for e in errors)
@@ -114,6 +142,11 @@ def test_grafana_sans_datasource_rejete():
 def test_grafana_datasource_sans_url_rejete():
     errors = validate_config(_grafana_cfg(datasources=[{"name": "P", "type": "prometheus", "url": ""}]))
     assert any("URL" in e for e in errors)
+
+
+def test_grafana_datasource_sans_nom_rejete():
+    errors = validate_config(_grafana_cfg(datasources=[{"name": "", "type": "prometheus", "url": "http://x"}]))
+    assert any("nom est requis" in e for e in errors)
 
 
 def test_grafana_type_inconnu_rejete():
@@ -264,6 +297,12 @@ def test_grafana_is_default_present_seulement_si_demande():
 def test_dashboards_produit_dashboard_json():
     files = generate_files(_dashboards_cfg())
     assert list(files.keys()) == ["dashboard.json"]
+
+
+def test_dashboards_panel_stat_options():
+    data = json.loads(generate_files(_dashboards_cfg(panels=["uptime"]))["dashboard.json"])
+    panel = data["panels"][0]
+    assert panel["options"] == {"colorMode": "value", "graphMode": "area"}
 
 
 def test_dashboards_json_valide_et_structure():

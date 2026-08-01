@@ -3,13 +3,14 @@
 import pytest
 
 from modules.terraform.core import (
-    generate_terraform,
-    generate_terraform_files,
-    valider_config,
-    obtenir_preset,
     PRESETS,
     RESOURCE_CATALOG,
     SUPPORTED_PROVIDERS,
+    _hcl_value,
+    generate_terraform,
+    generate_terraform_files,
+    obtenir_preset,
+    valider_config,
 )
 
 
@@ -95,6 +96,28 @@ def test_validation_provider_manquant():
     assert any("provider" in e.lower() for e in erreurs)
 
 
+def test_validation_type_manquant():
+    erreurs, _ = valider_config(_cfg(resources=[
+        {"name": "web", "args": {"ami": "a", "instance_type": "t"}}
+    ]))
+    assert any("type" in e for e in erreurs)
+
+
+def test_validation_ressource_en_double():
+    erreurs, _ = valider_config(_cfg(resources=[
+        {"type": "aws_instance", "name": "web", "args": {"ami": "a", "instance_type": "t"}},
+        {"type": "aws_instance", "name": "web", "args": {"ami": "b", "instance_type": "t"}},
+    ]))
+    assert any("double" in e for e in erreurs)
+
+
+def test_validation_type_non_catalogue_avertit():
+    _, avert = valider_config(_cfg(resources=[
+        {"type": "aws_type_qui_n_existe_pas", "name": "x", "args": {}}
+    ]))
+    assert any("non catalogué" in a for a in avert)
+
+
 def test_provider_inconnu_avertit():
     _, avert = valider_config({"provider": "scaleway", "resources": []})
     assert any("scaleway" in a for a in avert)
@@ -114,6 +137,19 @@ def test_tous_les_presets_generent():
         assert erreurs == [], f"Preset {nom} invalide : {erreurs}"
         tf = generate_terraform(config)
         assert "terraform {" in tf
+
+
+def test_obtenir_preset_inconnu_leve_keyerror():
+    with pytest.raises(KeyError):
+        obtenir_preset("preset-qui-n-existe-pas")
+
+
+def test_hcl_value_none_devient_null():
+    assert _hcl_value(None) == "null"
+
+
+def test_hcl_value_type_non_gere_reçoit_un_repli_texte():
+    assert _hcl_value((1, 2)) == '"(1, 2)"'
 
 
 def test_catalogue_coherent_avec_providers():

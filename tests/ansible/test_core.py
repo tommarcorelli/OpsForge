@@ -8,8 +8,8 @@ Lancement :
     pytest tests/ -v
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -17,18 +17,18 @@ import pytest
 import yaml
 
 from modules.ansible.core import (
-    generate_playbook,
-    generate_role_based_project,
-    generate_inventory,
-    generate_vault_vars_yaml,
-    generate_vault_file,
-    encrypt_vault_content,
-    generate_multi_group_playbook,
-    generate_multi_group_roles_project,
-    generate_multi_group_inventory,
-    SUPPORTED_LANGUAGES,
     DEPLOYMENT_STEPS,
     PROVISIONING_STEPS,
+    SUPPORTED_LANGUAGES,
+    encrypt_vault_content,
+    generate_inventory,
+    generate_multi_group_inventory,
+    generate_multi_group_playbook,
+    generate_multi_group_roles_project,
+    generate_playbook,
+    generate_role_based_project,
+    generate_vault_file,
+    generate_vault_vars_yaml,
 )
 
 
@@ -299,8 +299,8 @@ class TestVault:
 
     @requires_vault
     def test_decrypt_roundtrip(self):
-        from ansible.parsing.vault import VaultLib, VaultSecret
         from ansible.constants import DEFAULT_VAULT_ID_MATCH
+        from ansible.parsing.vault import VaultLib, VaultSecret
 
         secrets = {"db_password": "hunter2", "api_key": "abc123"}
         encrypted = generate_vault_file(secrets, "testpass")
@@ -312,12 +312,12 @@ class TestVault:
 
     @requires_vault
     def test_wrong_password_fails_to_decrypt(self):
-        from ansible.parsing.vault import VaultLib, VaultSecret
         from ansible.constants import DEFAULT_VAULT_ID_MATCH
+        from ansible.parsing.vault import VaultLib, VaultSecret
 
         encrypted = generate_vault_file({"a": "b"}, "correctpassword")
         vault = VaultLib(secrets=[(DEFAULT_VAULT_ID_MATCH, VaultSecret(b"wrongpassword"))])
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017 -- ansible-vault ne garantit pas un type precis
             vault.decrypt(encrypted.encode("utf-8"))
 
 

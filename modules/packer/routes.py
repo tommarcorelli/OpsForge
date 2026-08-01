@@ -7,17 +7,17 @@ Blueprint Flask du module Packer (monte sous /packer).
 import io
 import zipfile
 
-from flask import Blueprint, render_template, request, jsonify, send_file
+from flask import Blueprint, jsonify, render_template, request, send_file
 
 from modules.packer.core import (
-    generate_packer_template,
-    generate_split_files,
-    list_presets,
-    get_preset,
-    list_builders,
-    get_builder_info,
     BUILDER_CATALOG,
     OUTPUT_FILENAME,
+    generate_packer_template,
+    generate_split_files,
+    get_builder_info,
+    get_preset,
+    list_builders,
+    list_presets,
 )
 
 bp = Blueprint("packer", __name__, url_prefix="/packer")

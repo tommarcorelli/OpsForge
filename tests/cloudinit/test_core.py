@@ -4,12 +4,15 @@ import pytest
 import yaml
 
 from modules.cloudinit.core import (
-    generate_cloud_config,
-    validate_config,
-    list_presets,
-    get_preset,
     OUTPUT_FILENAME,
     PRESETS,
+    generate_cloud_config,
+    generate_combined,
+    generate_files,
+    get_preset,
+    list_presets,
+    validate_config,
+    write_files,
 )
 
 
@@ -199,3 +202,32 @@ def test_preset_secure_baseline_durci():
 def test_au_moins_un_preset_par_famille():
     assert "docker-host" in PRESETS
     assert "minimal" in PRESETS
+
+
+def test_write_file_avec_owner():
+    config = {"write_files": [{"path": "/etc/motd", "content": "hello", "owner": "root:root"}]}
+    data = _parse(generate_cloud_config(config))
+    assert data["write_files"][0]["owner"] == "root:root"
+
+
+def test_utilisateur_lock_passwd_sans_cles_ssh():
+    config = {"users": [{"name": "alice", "lock_passwd": False}]}
+    data = _parse(generate_cloud_config(config))
+    assert data["users"][0]["lock_passwd"] is False
+
+
+def test_generate_files_retourne_le_bon_nom_de_fichier():
+    fichiers = generate_files({"hostname": "srv-01"})
+    assert set(fichiers.keys()) == {OUTPUT_FILENAME}
+    assert fichiers[OUTPUT_FILENAME].startswith("#cloud-config\n")
+
+
+def test_generate_combined_identique_a_generate_cloud_config():
+    config = {"hostname": "srv-01"}
+    assert generate_combined(config) == generate_cloud_config(config)
+
+
+def test_write_files_cree_le_fichier(tmp_path):
+    written = write_files({"hostname": "srv-01"}, str(tmp_path))
+    assert written == [str(tmp_path / OUTPUT_FILENAME)]
+    assert (tmp_path / OUTPUT_FILENAME).is_file()

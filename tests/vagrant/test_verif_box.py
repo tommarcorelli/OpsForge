@@ -8,7 +8,7 @@ import json
 import sys
 import urllib.error
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
@@ -142,6 +142,31 @@ def test_versions_distantes_404():
         versions, erreur = recuperer_versions_distantes("box/nexistepas")
     assert versions is None
     assert "404" in erreur
+
+
+def test_versions_distantes_reseau_indisponible():
+    erreur_reseau = urllib.error.URLError("timed out")
+    with patch("urllib.request.urlopen", side_effect=erreur_reseau):
+        versions, erreur = recuperer_versions_distantes("box/x")
+    assert versions is None
+    assert "réseau indisponible" in erreur
+
+
+def test_versions_distantes_timeout():
+    with patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")):
+        versions, erreur = recuperer_versions_distantes("box/x")
+    assert versions is None
+    assert "réseau indisponible" in erreur
+
+
+def test_versions_distantes_json_invalide():
+    contexte = MagicMock()
+    contexte.__enter__.return_value.read.return_value = b"pas du json"
+    contexte.__exit__.return_value = False
+    with patch("urllib.request.urlopen", return_value=contexte):
+        versions, erreur = recuperer_versions_distantes("box/x")
+    assert versions is None
+    assert "JSON invalide" in erreur
 
 
 # --------------------------------------------------------------------------

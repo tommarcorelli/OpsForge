@@ -11,12 +11,12 @@ import os
 import sys
 
 from modules.systemd.core import (
-    generate_combined,
-    write_units,
-    list_presets,
-    get_preset,
-    SUPPORTED_MODES,
     SERVICE_TYPES,
+    SUPPORTED_MODES,
+    generate_combined,
+    get_preset,
+    list_presets,
+    write_units,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge

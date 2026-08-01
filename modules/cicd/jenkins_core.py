@@ -332,7 +332,7 @@ def generate_jenkinsfile(stacks, jobs=None, deploy=None, branches=None, schedule
     jobs = jobs or ["lint", "test", "build"]
     branches = branches or ["main"]
 
-    stack_blocks, last_stage_names = _build_stack_stages(stacks, jobs)
+    stack_blocks, _last_stage_names = _build_stack_stages(stacks, jobs)
     deploy_blocks = _build_deploy_stages(deploy, stacks, branches)
 
     all_blocks = stack_blocks + deploy_blocks

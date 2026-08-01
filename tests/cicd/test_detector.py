@@ -23,24 +23,6 @@ def test_invalid_path_raises_value_error():
         detect_stack("/chemin/qui/nexiste/vraiment/pas")
 
 
-def test_detect_ruby_gemfile(tmp_path):
-    (tmp_path / "Gemfile").write_text('ruby "3.2.1"\ngem "rails"\n')
-    result = detect_stack(str(tmp_path))
-    ruby = [s for s in result if s["language"] == "ruby"]
-    assert ruby and ruby[0]["package_manager"] == "bundler"
-    assert ruby[0]["version"] == "3.2"
-
-
-def test_detect_dotnet_csproj_glob(tmp_path):
-    # Detection par glob : un fichier *.csproj (nom arbitraire)
-    (tmp_path / "MonApp.csproj").write_text(
-        "<Project><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>"
-    )
-    result = detect_stack(str(tmp_path))
-    dn = [s for s in result if s["language"] == "dotnet"]
-    assert dn and dn[0]["package_manager"] == "dotnet"
-    assert dn[0]["version"] == "8.0"
-
 
 def test_detect_python_pip(tmp_path):
     (tmp_path / "requirements.txt").write_text("flask==3.0\n")
@@ -99,6 +81,20 @@ def test_detect_go_version_from_gomod(tmp_path):
     assert result[0]["version"] == "1.21"
 
 
+def test_detect_go_version_from_go_version_file(tmp_path):
+    # go.mod sans directive "go X.Y" -> repli sur .go-version
+    (tmp_path / "go.mod").write_text("module example.com/app\n")
+    (tmp_path / ".go-version").write_text("1.20.5\n")
+    result = detect_stack(str(tmp_path))
+    assert result[0]["version"] == "1.20"
+
+
+def test_detect_go_version_defaut(tmp_path):
+    (tmp_path / "go.mod").write_text("module example.com/app\n")
+    result = detect_stack(str(tmp_path))
+    assert result[0]["version"] == "1.22"
+
+
 def test_detect_rust_toolchain_toml(tmp_path):
     (tmp_path / "Cargo.toml").write_text('[package]\nname = "app"\n')
     (tmp_path / "rust-toolchain.toml").write_text(
@@ -107,6 +103,13 @@ def test_detect_rust_toolchain_toml(tmp_path):
     result = detect_stack(str(tmp_path))
     assert result[0]["language"] == "rust"
     assert result[0]["version"] == "1.75.0"
+
+
+def test_detect_rust_toolchain_legacy_file(tmp_path):
+    (tmp_path / "Cargo.toml").write_text('[package]\nname = "app"\n')
+    (tmp_path / "rust-toolchain").write_text("1.70.0\n")
+    result = detect_stack(str(tmp_path))
+    assert result[0]["version"] == "1.70.0"
 
 
 def test_detect_rust_default_stable(tmp_path):
@@ -127,10 +130,24 @@ def test_detect_java_maven_version(tmp_path):
     assert result[0]["version"] == "21"
 
 
+def test_detect_java_version_file(tmp_path):
+    # .java-version est verifie avant pom.xml/gradle
+    (tmp_path / "pom.xml").write_text("<project></project>")
+    (tmp_path / ".java-version").write_text("11\n")
+    result = detect_stack(str(tmp_path))
+    assert result[0]["version"] == "11"
+
+
 def test_detect_java_gradle(tmp_path):
     (tmp_path / "build.gradle").write_text("sourceCompatibility = '17'\n")
     result = detect_stack(str(tmp_path))
     assert result[0]["package_manager"] == "gradle"
+    assert result[0]["version"] == "17"
+
+
+def test_detect_java_version_defaut(tmp_path):
+    (tmp_path / "pom.xml").write_text("<project></project>")
+    result = detect_stack(str(tmp_path))
     assert result[0]["version"] == "17"
 
 
@@ -139,6 +156,75 @@ def test_detect_php_composer_constraint(tmp_path):
     result = detect_stack(str(tmp_path))
     assert result[0]["language"] == "php"
     assert result[0]["version"] == "8.2"
+
+
+def test_detect_php_version_file(tmp_path):
+    # .php-version est verifie avant composer.json
+    (tmp_path / "composer.json").write_text('{"require": {}}')
+    (tmp_path / ".php-version").write_text("8.1\n")
+    result = detect_stack(str(tmp_path))
+    assert result[0]["version"] == "8.1"
+
+
+def test_detect_php_version_defaut(tmp_path):
+    (tmp_path / "composer.json").write_text('{"require": {}}')
+    result = detect_stack(str(tmp_path))
+    assert result[0]["version"] == "8.3"
+
+
+def test_detect_ruby_gemfile(tmp_path):
+    (tmp_path / "Gemfile").write_text('ruby "3.2.1"\ngem "rails"\n')
+    result = detect_stack(str(tmp_path))
+    ruby = [s for s in result if s["language"] == "ruby"]
+    assert ruby and ruby[0]["package_manager"] == "bundler"
+    assert ruby[0]["version"] == "3.2"
+
+
+def test_detect_ruby_version_file(tmp_path):
+    # .ruby-version est verifie avant le Gemfile
+    (tmp_path / "Gemfile").write_text('gem "rails"\n')
+    (tmp_path / ".ruby-version").write_text("3.1.4\n")
+    result = detect_stack(str(tmp_path))
+    ruby = [s for s in result if s["language"] == "ruby"]
+    assert ruby[0]["version"] == "3.1"
+
+
+def test_detect_ruby_version_defaut(tmp_path):
+    (tmp_path / "Gemfile").write_text('gem "rails"\n')
+    result = detect_stack(str(tmp_path))
+    ruby = [s for s in result if s["language"] == "ruby"]
+    assert ruby[0]["version"] == "3.3"
+
+
+def test_detect_dotnet_csproj_glob(tmp_path):
+    # Detection par glob : un fichier *.csproj (nom arbitraire)
+    (tmp_path / "MonApp.csproj").write_text(
+        "<Project><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>"
+    )
+    result = detect_stack(str(tmp_path))
+    dn = [s for s in result if s["language"] == "dotnet"]
+    assert dn and dn[0]["package_manager"] == "dotnet"
+    assert dn[0]["version"] == "8.0"
+
+
+def test_detect_dotnet_global_json_sdk_version(tmp_path):
+    # global.json est verifie avant le TargetFramework du csproj
+    (tmp_path / "MonApp.csproj").write_text(
+        "<Project><PropertyGroup></PropertyGroup></Project>"
+    )
+    (tmp_path / "global.json").write_text('{"sdk": {"version": "7.0.100"}}')
+    result = detect_stack(str(tmp_path))
+    dn = [s for s in result if s["language"] == "dotnet"]
+    assert dn[0]["version"] == "7.0"
+
+
+def test_detect_dotnet_version_defaut(tmp_path):
+    (tmp_path / "MonApp.csproj").write_text(
+        "<Project><PropertyGroup></PropertyGroup></Project>"
+    )
+    result = detect_stack(str(tmp_path))
+    dn = [s for s in result if s["language"] == "dotnet"]
+    assert dn[0]["version"] == "8.0"
 
 
 def test_detect_multiple_stacks_in_same_project(tmp_path):

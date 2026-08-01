@@ -11,13 +11,13 @@ import sys
 
 from modules.cicd.detector import detect_stack
 from modules.dockerfile.core import (
+    SUPPORTED_LANGUAGES,
+    generate_docker_bake,
     generate_dockerfile,
     generate_dockerignore,
-    generate_docker_bake,
+    write_docker_bake,
     write_dockerfile,
     write_dockerignore,
-    write_docker_bake,
-    SUPPORTED_LANGUAGES,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge

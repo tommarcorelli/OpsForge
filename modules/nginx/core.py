@@ -155,23 +155,11 @@ def _proxy_headers_block(websocket):
 
 
 def _security_headers_block():
-    return "\n".join([
-        'add_header X-Frame-Options "SAMEORIGIN" always;',
-        'add_header X-Content-Type-Options "nosniff" always;',
-        'add_header X-XSS-Protection "1; mode=block" always;',
-        'add_header Referrer-Policy "strict-origin-when-cross-origin" always;',
-    ])
+    return 'add_header X-Frame-Options "SAMEORIGIN" always;\nadd_header X-Content-Type-Options "nosniff" always;\nadd_header X-XSS-Protection "1; mode=block" always;\nadd_header Referrer-Policy "strict-origin-when-cross-origin" always;'
 
 
 def _gzip_block():
-    return "\n".join([
-        "gzip on;",
-        "gzip_vary on;",
-        "gzip_min_length 256;",
-        "gzip_comp_level 5;",
-        "gzip_types text/plain text/css application/json application/javascript "
-        "text/xml application/xml application/xml+rss text/javascript;",
-    ])
+    return "gzip on;\ngzip_vary on;\ngzip_min_length 256;\ngzip_comp_level 5;\ngzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;"
 
 
 def _location_block(config):

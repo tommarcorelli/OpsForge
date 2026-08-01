@@ -3,7 +3,7 @@
 
 import os
 
-from modules.systemd.core import write_units, generate_units
+from modules.systemd.core import generate_units, write_units
 
 
 def _service_cfg(**overrides):

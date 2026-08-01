@@ -7,20 +7,20 @@ Blueprint Flask du module Ansible (monte sous /ansible).
 import io
 import zipfile
 
-from flask import Blueprint, render_template, request, jsonify, send_file
+from flask import Blueprint, jsonify, render_template, request, send_file
 
 from modules.ansible.core import (
-    generate_playbook,
-    generate_inventory,
-    generate_vault_file,
-    generate_role_based_project,
-    generate_multi_group_roles_project,
-    generate_multi_group_inventory,
+    MOLECULE_DRIVERS,
     SUPPORTED_LANGUAGES,
-    WINDOWS_SUPPORTED_PROVISIONING,
     WINDOWS_SUPPORTED_DEPLOYMENT,
     WINDOWS_SUPPORTED_LANGUAGES,
-    MOLECULE_DRIVERS,
+    WINDOWS_SUPPORTED_PROVISIONING,
+    generate_inventory,
+    generate_multi_group_inventory,
+    generate_multi_group_roles_project,
+    generate_playbook,
+    generate_role_based_project,
+    generate_vault_file,
 )
 
 bp = Blueprint("ansible", __name__, url_prefix="/ansible")

@@ -23,31 +23,47 @@ espaces de noms n'entre en collision avec les presets Terraform bruts.
 import io
 import zipfile
 
-from flask import Blueprint, render_template, request, jsonify, send_file
+from flask import Blueprint, jsonify, render_template, request, send_file
 
-from modules.terraform.core import (
-    generate_terraform,
-    generate_terraform_files,
-    valider_config,
-    obtenir_preset,
-    SUPPORTED_PROVIDERS,
-    RESOURCE_CATALOG,
-    PRESETS,
+from modules.terraform.cloudformation_core import (
+    PRESETS as PRESETS_CFN,
+)
+from modules.terraform.cloudformation_core import (
+    RESOURCE_CATALOG as RESOURCE_CATALOG_CFN,
 )
 from modules.terraform.cloudformation_core import (
     generate_cloudformation,
-    valider_config as valider_config_cfn,
+)
+from modules.terraform.cloudformation_core import (
     obtenir_preset as obtenir_preset_cfn,
-    RESOURCE_CATALOG as RESOURCE_CATALOG_CFN,
-    PRESETS as PRESETS_CFN,
+)
+from modules.terraform.cloudformation_core import (
+    valider_config as valider_config_cfn,
+)
+from modules.terraform.core import (
+    PRESETS,
+    RESOURCE_CATALOG,
+    SUPPORTED_PROVIDERS,
+    generate_terraform,
+    generate_terraform_files,
+    obtenir_preset,
+    valider_config,
 )
 from modules.terraform.pulumi_core import (
-    generate_pulumi,
-    valider_config as valider_config_pulumi,
-    obtenir_preset as obtenir_preset_pulumi,
-    PULUMI_PROVIDERS,
-    PRESETS as PRESETS_PULUMI,
     OUTPUT_FILENAME as PULUMI_FILENAME,
+)
+from modules.terraform.pulumi_core import (
+    PRESETS as PRESETS_PULUMI,
+)
+from modules.terraform.pulumi_core import (
+    PULUMI_PROVIDERS,
+    generate_pulumi,
+)
+from modules.terraform.pulumi_core import (
+    obtenir_preset as obtenir_preset_pulumi,
+)
+from modules.terraform.pulumi_core import (
+    valider_config as valider_config_pulumi,
 )
 
 bp = Blueprint("terraform", __name__, url_prefix="/terraform")

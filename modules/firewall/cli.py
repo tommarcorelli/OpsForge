@@ -1,8 +1,8 @@
 """
-modules/monitoring/cli.py
---------------------------
-Logique CLI du module Monitoring d'OpsForge.
-Appele via `python main.py monitoring ...`.
+modules/firewall/cli.py
+------------------------
+Logique CLI du module firewall d'OpsForge.
+Appele via `python main.py firewall ...`.
 """
 
 import argparse
@@ -10,12 +10,12 @@ import json
 import os
 import sys
 
-from modules.monitoring.core import (
-    SUPPORTED_MODES,
-    generate_combined,
+from modules.firewall.core import (
+    SUPPORTED_BACKENDS,
+    generate_firewall,
     get_preset,
     list_presets,
-    write_files,
+    write_firewall,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge
@@ -24,17 +24,17 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "output")
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        prog="opsforge monitoring",
+        prog="opsforge firewall",
         description=(
-            "Genere de la configuration de monitoring : prometheus.yml, "
-            "regles d'alerte Prometheus, datasources Grafana, ou dashboard.json."
+            "Genere des regles pare-feu (ufw ou nftables) + config fail2ban "
+            "en option, a partir d'un preset ou d'une config JSON."
         ),
     )
     parser.add_argument(
         "config_file",
         nargs="?",
         default=None,
-        help="Fichier JSON decrivant la config (voir --preset pour un depart rapide).",
+        help="Fichier JSON decrivant les regles (voir --preset pour un depart rapide).",
     )
     parser.add_argument(
         "--preset",
@@ -47,10 +47,20 @@ def build_parser():
         help="Affiche la liste des presets disponibles et quitte.",
     )
     parser.add_argument(
-        "--mode",
-        choices=SUPPORTED_MODES,
+        "--backend",
+        choices=SUPPORTED_BACKENDS,
         default=None,
-        help="Surcharge le mode (prometheus / alerts / grafana).",
+        help="Surcharge le backend (ufw / nftables).",
+    )
+    parser.add_argument(
+        "--fail2ban",
+        action="store_true",
+        help="Ajoute une config fail2ban (jail.local) a la sortie.",
+    )
+    parser.add_argument(
+        "--no-fail2ban",
+        action="store_true",
+        help="Desactive fail2ban meme si le preset l'active par defaut.",
     )
     parser.add_argument(
         "-o", "--output-dir",
@@ -60,7 +70,7 @@ def build_parser():
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Affiche la config generee sans rien ecrire sur disque.",
+        help="Affiche les fichiers generes sans rien ecrire sur disque.",
     )
     return parser
 
@@ -82,8 +92,12 @@ def _load_config(args):
         )
         sys.exit(1)
 
-    if args.mode:
-        config["mode"] = args.mode
+    if args.backend:
+        config["backend"] = args.backend
+    if args.fail2ban:
+        config["fail2ban"] = True
+    if args.no_fail2ban:
+        config["fail2ban"] = False
 
     return config
 
@@ -101,24 +115,35 @@ def main(argv=None):
 
     if args.dry_run:
         try:
-            content = generate_combined(config)
+            files = generate_firewall(config)
         except ValueError as e:
             print(f"Erreur : {e}")
             return 1
-        print("\n--- Apercu (dry-run) ---\n")
-        print(content)
+        for filename, content in files.items():
+            print(f"\n--- Apercu (dry-run) : {filename} ---\n")
+            print(content)
         print("--- Fin de l'apercu : rien n'a ete ecrit sur disque ---")
         return 0
 
     output_dir = args.output_dir or OUTPUT_DIR
 
     try:
-        paths = write_files(config, output_dir)
+        paths = write_firewall(config, output_dir)
     except ValueError as e:
         print(f"Erreur : {e}")
         return 1
 
-    print("\nFichier(s) de monitoring genere(s) avec succes :")
+    print("\nFichier(s) pare-feu genere(s) avec succes :")
     for path in paths:
         print(f"  - {path}")
+
+    backend = config.get("backend", "ufw")
+    if backend == "ufw":
+        print(f"\nPour appliquer : sudo bash {output_dir}/setup-firewall.sh")
+    else:
+        print(f"\nPour appliquer : sudo cp {output_dir}/nftables.conf /etc/nftables.conf && sudo systemctl enable --now nftables")
+
+    if config.get("fail2ban"):
+        print(f"Pour fail2ban : sudo cp {output_dir}/jail.local /etc/fail2ban/jail.local && sudo systemctl restart fail2ban")
+
     return 0

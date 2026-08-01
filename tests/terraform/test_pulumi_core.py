@@ -11,13 +11,16 @@ import ast
 import pytest
 
 from modules.terraform.pulumi_core import (
-    generate_pulumi,
-    valider_config,
-    obtenir_preset,
-    list_presets,
     PRESETS,
-    RESOURCE_TYPE_MAP,
     PULUMI_PROVIDERS,
+    RESOURCE_TYPE_MAP,
+    _py_value,
+    _var_name,
+    generate_pulumi,
+    list_presets,
+    obtenir_preset,
+    valider_config,
+    write_pulumi,
 )
 
 
@@ -59,6 +62,14 @@ def test_missing_name_is_an_error():
         "resources": [{"type": "aws_s3_bucket", "args": {}}],
     })
     assert any("name" in e for e in erreurs)
+
+
+def test_missing_type_is_an_error():
+    erreurs, _ = valider_config({
+        "provider": "aws",
+        "resources": [{"name": "site", "args": {}}],
+    })
+    assert any("type" in e for e in erreurs)
 
 
 def test_duplicate_type_and_name_is_an_error():
@@ -245,3 +256,24 @@ def test_google_and_docker_providers_generate_correct_import_alias():
     ast.parse(docker_text)
     assert "import pulumi_docker as docker" in docker_text
     assert "docker.Network(" in docker_text
+
+
+def test_var_name_prefixe_underscore_si_commence_par_un_chiffre():
+    assert _var_name("123type", "res").startswith("_")
+
+
+def test_py_value_none_devient_none_python():
+    assert _py_value(None) == "None"
+
+
+def test_py_value_type_non_gere_utilise_repr():
+    assert _py_value((1, 2)) == repr((1, 2))
+
+
+def test_write_pulumi_cree_le_fichier(tmp_path):
+    config = _valid_config()
+    output = tmp_path / "sub" / "__main__.py"
+    path = write_pulumi(config, str(output))
+    assert path == str(output)
+    assert output.is_file()
+    assert "import pulumi_aws as aws" in output.read_text(encoding="utf-8")

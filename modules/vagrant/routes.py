@@ -7,12 +7,12 @@ Le frontend genere deja 100 % cote client (JS) ; cette API est un bonus
 pour generer cote serveur ou scripter via HTTP (portee de VagrantForge).
 """
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, jsonify, render_template, request
 
 from modules.vagrant.core.generateur import construire_vagrantfile
-from modules.vagrant.core.schema import valider_config, BOX_PROVIDERS
-from modules.vagrant.core.presets import PRESETS, obtenir_preset
 from modules.vagrant.core.lint import linter_vagrantfile
+from modules.vagrant.core.presets import PRESETS, obtenir_preset
+from modules.vagrant.core.schema import BOX_PROVIDERS, valider_config
 from modules.vagrant.core.verif_box import verifier_catalogue
 
 bp = Blueprint("vagrant", __name__, url_prefix="/vagrant")

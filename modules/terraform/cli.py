@@ -29,27 +29,41 @@ import json
 import os
 import sys
 
-from modules.terraform.core import (
-    generate_terraform,
-    generate_terraform_files,
-    valider_config,
-    obtenir_preset,
-    SUPPORTED_PROVIDERS,
-    PRESETS,
+from modules.terraform.cloudformation_core import (
+    PRESETS as PRESETS_CFN,
 )
 from modules.terraform.cloudformation_core import (
     generate_cloudformation,
-    valider_config as valider_config_cfn,
+)
+from modules.terraform.cloudformation_core import (
     obtenir_preset as obtenir_preset_cfn,
-    PRESETS as PRESETS_CFN,
+)
+from modules.terraform.cloudformation_core import (
+    valider_config as valider_config_cfn,
+)
+from modules.terraform.core import (
+    PRESETS,
+    SUPPORTED_PROVIDERS,
+    generate_terraform,
+    generate_terraform_files,
+    obtenir_preset,
+    valider_config,
 )
 from modules.terraform.pulumi_core import (
-    generate_pulumi,
-    valider_config as valider_config_pulumi,
-    obtenir_preset as obtenir_preset_pulumi,
-    PULUMI_PROVIDERS,
-    PRESETS as PRESETS_PULUMI,
     OUTPUT_FILENAME as PULUMI_FILENAME,
+)
+from modules.terraform.pulumi_core import (
+    PRESETS as PRESETS_PULUMI,
+)
+from modules.terraform.pulumi_core import (
+    PULUMI_PROVIDERS,
+    generate_pulumi,
+)
+from modules.terraform.pulumi_core import (
+    obtenir_preset as obtenir_preset_pulumi,
+)
+from modules.terraform.pulumi_core import (
+    valider_config as valider_config_pulumi,
 )
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "output")

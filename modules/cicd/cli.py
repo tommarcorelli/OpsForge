@@ -9,37 +9,49 @@ import argparse
 import os
 import sys
 
-from modules.cicd.detector import detect_stack
-from modules.cicd.core import write_workflow, generate_workflow, generate_badge_markdown
-from modules.cicd.gitlab_core import (
-    write_gitlab_ci,
-    generate_gitlab_ci,
-    generate_badge_markdown as generate_gitlab_badge_markdown,
-)
-from modules.cicd.circleci_core import (
-    write_circleci_config,
-    generate_circleci_config,
-    generate_badge_markdown as generate_circleci_badge_markdown,
-)
-from modules.cicd.jenkins_core import (
-    write_jenkinsfile,
-    generate_jenkinsfile,
-    generate_badge_markdown as generate_jenkins_badge_markdown,
-)
-from modules.cicd.drone_core import (
-    write_drone_yaml,
-    generate_drone_yaml,
-    generate_badge_markdown as generate_drone_badge_markdown,
-)
 from modules.cicd.bitbucket_core import (
-    write_bitbucket_pipelines,
-    generate_bitbucket_pipelines,
     generate_badge_markdown as generate_bitbucket_badge_markdown,
 )
+from modules.cicd.bitbucket_core import (
+    generate_bitbucket_pipelines,
+    write_bitbucket_pipelines,
+)
+from modules.cicd.circleci_core import (
+    generate_badge_markdown as generate_circleci_badge_markdown,
+)
+from modules.cicd.circleci_core import (
+    generate_circleci_config,
+    write_circleci_config,
+)
+from modules.cicd.core import generate_badge_markdown, generate_workflow, write_workflow
+from modules.cicd.detector import detect_stack
+from modules.cicd.drone_core import (
+    generate_badge_markdown as generate_drone_badge_markdown,
+)
+from modules.cicd.drone_core import (
+    generate_drone_yaml,
+    write_drone_yaml,
+)
+from modules.cicd.gitlab_core import (
+    generate_badge_markdown as generate_gitlab_badge_markdown,
+)
+from modules.cicd.gitlab_core import (
+    generate_gitlab_ci,
+    write_gitlab_ci,
+)
+from modules.cicd.jenkins_core import (
+    generate_badge_markdown as generate_jenkins_badge_markdown,
+)
+from modules.cicd.jenkins_core import (
+    generate_jenkinsfile,
+    write_jenkinsfile,
+)
 from modules.cicd.teamcity_core import (
-    write_teamcity_kotlin_dsl,
-    generate_teamcity_kotlin_dsl,
     generate_badge_markdown as generate_teamcity_badge_markdown,
+)
+from modules.cicd.teamcity_core import (
+    generate_teamcity_kotlin_dsl,
+    write_teamcity_kotlin_dsl,
 )
 
 # Dossier de sortie par defaut : output/ a la racine du projet OpsForge

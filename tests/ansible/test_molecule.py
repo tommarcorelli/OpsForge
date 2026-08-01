@@ -1,7 +1,7 @@
 """Tests du scaffolding Molecule (module Ansible, mode 'roles')."""
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -9,9 +9,9 @@ import pytest
 import yaml
 
 from modules.ansible.core import (
-    generate_role_based_project,
-    generate_multi_group_roles_project,
     MOLECULE_DRIVERS,
+    generate_multi_group_roles_project,
+    generate_role_based_project,
 )
 
 

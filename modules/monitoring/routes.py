@@ -4,16 +4,16 @@ modules/monitoring/routes.py
 Blueprint Flask du module Monitoring (monte sous /monitoring).
 """
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, jsonify, render_template, request
 
 from modules.monitoring.core import (
-    generate_files,
-    list_presets,
-    get_preset,
-    list_rules,
-    list_panels,
-    SUPPORTED_MODES,
     DATASOURCE_TYPES,
+    SUPPORTED_MODES,
+    generate_files,
+    get_preset,
+    list_panels,
+    list_presets,
+    list_rules,
 )
 
 bp = Blueprint("monitoring", __name__, url_prefix="/monitoring")

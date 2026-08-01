@@ -71,11 +71,6 @@ def _yaml_scalar(value):
     return _yaml_str(value)
 
 
-def _indent(text, spaces):
-    pad = " " * spaces
-    return "\n".join(pad + line if line.strip() else line for line in text.split("\n"))
-
-
 # --------------------------------------------------------------------------
 # Validation
 # --------------------------------------------------------------------------

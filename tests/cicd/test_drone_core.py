@@ -9,7 +9,7 @@ Lancer avec : pytest tests/cicd/test_drone_core.py -v
 import pytest
 import yaml
 
-from modules.cicd.drone_core import generate_drone_yaml, generate_badge_markdown
+from modules.cicd.drone_core import generate_badge_markdown, generate_drone_yaml, write_drone_yaml
 
 
 def _parse(yaml_text):
@@ -117,6 +117,67 @@ def test_aws_s3_present_with_node_stack():
     step = next(s for s in parsed["steps"] if s["name"] == "deploy-aws_s3")
     assert step["image"] == "plugins/s3-sync"
     assert step["settings"]["bucket"] == "my-bucket"
+
+
+def test_vercel_deploy_step():
+    stacks = [{"language": "node", "version": "20", "package_manager": "npm"}]
+    yaml_text = generate_drone_yaml(stacks, jobs=["test"], deploy={"targets": ["vercel"]})
+    parsed = _parse(yaml_text)
+
+    step = next(s for s in parsed["steps"] if s["name"] == "deploy-vercel")
+    assert step["image"] == "node:20-slim"
+    assert "vercel --token $VERCEL_TOKEN" in " ".join(step["commands"])
+
+
+def test_deploy_cible_inconnue_ignoree():
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    yaml_text = generate_drone_yaml(
+        stacks, jobs=["test"], deploy={"targets": ["cible-inconnue", "docker_hub"]}
+    )
+    names = _step_names(_parse(yaml_text))
+    assert "deploy-docker_hub" in names
+
+
+def test_langage_non_pris_en_charge_ne_genere_aucun_step():
+    stacks = [{"language": "cobol", "version": "1.0", "package_manager": ""}]
+    with pytest.raises(ValueError, match="Aucun step genere"):
+        generate_drone_yaml(stacks, jobs=["test"])
+
+
+def test_langage_sans_commande_installation_utilise_le_repli():
+    from modules.cicd.drone_core import _get_install_cmd
+    assert _get_install_cmd("cobol", "") == "echo 'Aucune commande d-installation definie pour ce langage'"
+
+
+def test_package_manager_inconnu_utilise_la_premiere_commande_disponible():
+    from modules.cicd.drone_core import INSTALL_COMMANDS, _get_install_cmd
+    result = _get_install_cmd("python", "conda")
+    assert result in INSTALL_COMMANDS["python"].values()
+
+
+def test_cible_de_deploiement_cataloguee_mais_non_geree_est_ignoree(monkeypatch):
+    """Garde-fou defensif : voir teamcity_core/bitbucket_core, meme principe."""
+    from modules.cicd import drone_core
+    monkeypatch.setitem(
+        drone_core.DEPLOY_TARGETS, "mystere",
+        {"requires_language": None, "label": "Cible mystere"},
+    )
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    yaml_text = generate_drone_yaml(
+        stacks, jobs=["test"], deploy={"targets": ["mystere", "docker_hub"]}
+    )
+    names = _step_names(_parse(yaml_text))
+    assert "deploy-docker_hub" in names
+    assert "deploy-mystere" not in names
+
+
+def test_write_drone_yaml_cree_le_fichier(tmp_path):
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    output = tmp_path / "sub" / ".drone.yml"
+    path = write_drone_yaml(stacks, str(output), jobs=["test"])
+    assert path == str(output)
+    assert output.is_file()
+    assert "kind: pipeline" in output.read_text(encoding="utf-8")
 
 
 def test_deploy_filtered_to_branch():

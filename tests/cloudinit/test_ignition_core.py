@@ -5,15 +5,16 @@ import json
 
 import pytest
 
-from modules.cloudinit.ignition_core import (
-    generate_ignition,
-    generate_files,
-    write_files,
-    OUTPUT_FILENAME,
-    IGNITION_VERSION,
-    FIRSTBOOT_UNIT_NAME,
-)
 from modules.cloudinit.core import get_preset
+from modules.cloudinit.ignition_core import (
+    FIRSTBOOT_UNIT_NAME,
+    IGNITION_VERSION,
+    OUTPUT_FILENAME,
+    _mode_from_permissions,
+    generate_files,
+    generate_ignition,
+    write_files,
+)
 
 
 def _parse(text):
@@ -78,6 +79,15 @@ def test_write_files_encodes_en_base64():
     assert motd["mode"] == 0o600
 
 
+def test_mode_from_permissions_absente_retourne_le_defaut():
+    assert _mode_from_permissions(None) == 420
+    assert _mode_from_permissions("") == 420
+
+
+def test_mode_from_permissions_invalide_retourne_le_defaut():
+    assert _mode_from_permissions("pas-une-permission") == 420
+
+
 def test_runcmd_devient_unite_systemd_oneshot():
     config = {"hostname": "srv-01", "runcmd": ["systemctl enable --now nginx"]}
     doc = _parse(generate_ignition(config))
@@ -113,7 +123,8 @@ def test_generate_files_retourne_config_ign():
 def test_write_files_cree_le_fichier(tmp_path):
     paths = write_files({"hostname": "srv-01"}, str(tmp_path))
     assert len(paths) == 1
-    content = open(paths[0], encoding="utf-8").read()
+    with open(paths[0], encoding="utf-8") as f:
+        content = f.read()
     _parse(content)
 
 

@@ -15,11 +15,11 @@ import pytest
 import yaml
 
 from modules.ansible.core import (
+    generate_playbook,
+    write_multi_group_project,
     write_playbook,
     write_role_based_project,
-    write_multi_group_project,
     write_vault_file,
-    generate_playbook,
 )
 
 # Le chiffrement Vault s'appuie sur ansible-core, qui importe `fcntl` : ce

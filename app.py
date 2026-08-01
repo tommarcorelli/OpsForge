@@ -23,20 +23,21 @@ import sys
 
 from flask import Flask, render_template, send_from_directory
 
-from modules.cicd.routes import bp as cicd_bp
 from modules.ansible.routes import bp as ansible_bp
-from modules.vagrant.routes import bp as vagrant_bp
-from modules.terraform.routes import bp as terraform_bp
-from modules.dockerfile.routes import bp as dockerfile_bp
-from modules.k8s.routes import bp as k8s_bp
-from modules.nginx.routes import bp as nginx_bp
-from modules.systemd.routes import bp as systemd_bp
-from modules.monitoring.routes import bp as monitoring_bp
-from modules.cloudinit.routes import bp as cloudinit_bp
-from modules.packer.routes import bp as packer_bp
-from modules.vault.routes import bp as vault_bp
-from modules.gitops.routes import bp as gitops_bp
 from modules.backup.routes import bp as backup_bp
+from modules.cicd.routes import bp as cicd_bp
+from modules.cloudinit.routes import bp as cloudinit_bp
+from modules.dockerfile.routes import bp as dockerfile_bp
+from modules.firewall.routes import bp as firewall_bp
+from modules.gitops.routes import bp as gitops_bp
+from modules.k8s.routes import bp as k8s_bp
+from modules.monitoring.routes import bp as monitoring_bp
+from modules.nginx.routes import bp as nginx_bp
+from modules.packer.routes import bp as packer_bp
+from modules.systemd.routes import bp as systemd_bp
+from modules.terraform.routes import bp as terraform_bp
+from modules.vagrant.routes import bp as vagrant_bp
+from modules.vault.routes import bp as vault_bp
 
 # Chemin de base des templates/static : en dev c'est le dossier de ce fichier,
 # mais une fois empaquete par PyInstaller (voir desktop.py / opsforge.spec),
@@ -66,6 +67,7 @@ app.register_blueprint(packer_bp)
 app.register_blueprint(vault_bp)
 app.register_blueprint(gitops_bp)
 app.register_blueprint(backup_bp)
+app.register_blueprint(firewall_bp)
 
 
 @app.route("/")

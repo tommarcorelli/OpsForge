@@ -2,16 +2,17 @@
 
 import pytest
 
+from modules.dockerfile import core
 from modules.dockerfile.core import (
+    DEFAULT_ENTRYPOINTS,
+    DEFAULT_PORTS,
+    SUPPORTED_LANGUAGES,
+    generate_docker_bake,
     generate_dockerfile,
     generate_dockerignore,
-    generate_docker_bake,
+    write_docker_bake,
     write_dockerfile,
     write_dockerignore,
-    write_docker_bake,
-    SUPPORTED_LANGUAGES,
-    DEFAULT_PORTS,
-    DEFAULT_ENTRYPOINTS,
 )
 
 PLACEHOLDERS = ["{version}", "{port}", "{entrypoint}", "{workdir}", "{install_cmd}"]
@@ -241,3 +242,24 @@ def test_write_docker_bake_cree_le_fichier(tmp_path):
     assert output.is_file()
     content = output.read_text(encoding="utf-8")
     assert 'target "testapp"' in content
+
+
+def test_load_template_fichier_absent_retourne_none():
+    assert core._load_template("ce_fichier_n_existe_pas.dockerfile") is None
+
+
+def test_template_filename_for_langage_inconnu_leve_value_error():
+    with pytest.raises(ValueError, match="Langage non supporte"):
+        core._template_filename_for("cobol", "")
+
+
+def test_dockerfile_template_manquant_sur_disque_leve_value_error(monkeypatch):
+    monkeypatch.setattr(core, "_load_template", lambda relative_path: None)
+    with pytest.raises(ValueError, match="Template introuvable"):
+        generate_dockerfile(_stack("python"))
+
+
+def test_dockerignore_template_manquant_sur_disque_leve_value_error(monkeypatch):
+    monkeypatch.setattr(core, "_load_template", lambda relative_path: None)
+    with pytest.raises(ValueError, match="dockerignore introuvable"):
+        generate_dockerignore("python")

@@ -64,6 +64,11 @@ def test_config_non_dict_est_une_erreur():
     assert validate_config(None) != []
 
 
+def test_tool_manquant_est_une_erreur():
+    errors = validate_config({})
+    assert any("'tool' est obligatoire" in e for e in errors)
+
+
 def test_tool_inconnu_est_une_erreur():
     errors = validate_config(_base_config(tool="tarsnap"))
     assert any("tool inconnu" in e for e in errors)

@@ -1,7 +1,7 @@
 """Tests de la cible Windows/WinRM du module Ansible d'OpsForge."""
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -9,14 +9,14 @@ import pytest
 import yaml
 
 from modules.ansible.core import (
-    generate_playbook,
+    TARGET_OSES,
+    WINDOWS_SUPPORTED_LANGUAGES,
+    WINDOWS_SUPPORTED_PROVISIONING,
     generate_inventory,
     generate_multi_group_inventory,
-    generate_role_based_project,
     generate_multi_group_roles_project,
-    TARGET_OSES,
-    WINDOWS_SUPPORTED_PROVISIONING,
-    WINDOWS_SUPPORTED_LANGUAGES,
+    generate_playbook,
+    generate_role_based_project,
 )
 
 

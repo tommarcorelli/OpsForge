@@ -23,7 +23,7 @@ import webview
 
 from app import app
 
-DEFAULT_PORT = int(os.environ.get("PORT", 5050))
+DEFAULT_PORT = int(os.environ.get("PORT", "5050"))
 
 
 def _port_libre(port):

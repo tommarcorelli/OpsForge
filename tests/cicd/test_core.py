@@ -9,6 +9,7 @@ Lancer avec : pytest tests/test_core.py -v
 import pytest
 import yaml
 
+from modules.cicd import core
 from modules.cicd.core import generate_workflow
 
 
@@ -19,6 +20,12 @@ def _parse(yaml_text):
 def test_no_stacks_raises_error():
     with pytest.raises(ValueError):
         generate_workflow([], jobs=["test"])
+
+
+def test_no_recognized_jobs_raises_error():
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    with pytest.raises(ValueError, match="Aucun job genere"):
+        generate_workflow(stacks, jobs=["job_qui_n_existe_pas"])
 
 
 def test_concurrency_et_permissions_par_defaut():
@@ -200,3 +207,44 @@ def test_unknown_package_manager_falls_back_gracefully():
     # Ne doit pas lever d'exception, doit utiliser un fallback raisonnable
     yaml_text = generate_workflow(stacks, jobs=["test"])
     assert "pip install -r requirements.txt" in yaml_text
+
+
+def test_langage_sans_commande_installation_catalogue_utilise_le_repli():
+    from modules.cicd.core import _get_install_cmd
+    assert _get_install_cmd("rust", "cargo") == "echo 'Aucune commande d-installation definie pour ce langage'"
+
+
+def test_deploy_cible_inconnue_ignoree():
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    yaml_text = generate_workflow(stacks, jobs=["test"], deploy={"targets": ["cible-inconnue"]})
+    # Le job de test est genere normalement, la cible de deploiement inconnue est simplement ignoree.
+    assert "test-python:" in yaml_text
+
+
+def test_load_template_fichier_absent_retourne_none():
+    assert core._load_template("ce_fichier_n_existe_pas.yml") is None
+
+
+def test_stack_job_template_manquant_sur_disque_est_ignore(monkeypatch):
+    monkeypatch.setattr(core, "_load_template", lambda relative_path: None)
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    with pytest.raises(ValueError, match="Aucun job genere"):
+        generate_workflow(stacks, jobs=["test"])
+
+
+def test_deploy_job_template_manquant_sur_disque_est_ignore(monkeypatch):
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    original = core._load_template
+
+    def fake_load(relative_path):
+        if relative_path.startswith("deploy/"):
+            return None
+        return original(relative_path)
+
+    monkeypatch.setattr(core, "_load_template", fake_load)
+    yaml_text = generate_workflow(
+        stacks, jobs=["test"], deploy={"targets": ["docker_hub"], "docker_image": "x/y"},
+    )
+    assert "test-python:" in yaml_text
+    assert "docker_hub" not in yaml_text
+    assert "docker/login-action" not in yaml_text

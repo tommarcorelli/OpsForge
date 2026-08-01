@@ -4,16 +4,16 @@ modules/nginx/routes.py
 Blueprint Flask du module Nginx (monte sous /nginx).
 """
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, jsonify, render_template, request
 
 from modules.nginx.core import (
-    generate,
-    list_presets,
-    get_preset,
-    SUPPORTED_MODES,
     LB_ALGORITHMS,
+    SUPPORTED_MODES,
     SUPPORTED_TARGETS,
     TARGET_MODES,
+    generate,
+    get_preset,
+    list_presets,
 )
 
 bp = Blueprint("nginx", __name__, url_prefix="/nginx")

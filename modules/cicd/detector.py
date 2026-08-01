@@ -11,11 +11,10 @@ Usage basique :
     # result -> [{"language": "python", "package_manager": "poetry", ...}, ...]
 """
 
-import os
 import glob
 import json
+import os
 import re
-
 
 # --------------------------------------------------------------------------
 # Signatures de fichiers par langage.

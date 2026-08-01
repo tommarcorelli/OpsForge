@@ -12,7 +12,11 @@ Lancer avec : pytest tests/cicd/test_jenkins_core.py -v
 
 import pytest
 
-from modules.cicd.jenkins_core import generate_jenkinsfile, generate_badge_markdown
+from modules.cicd.jenkins_core import (
+    generate_badge_markdown,
+    generate_jenkinsfile,
+    write_jenkinsfile,
+)
 
 
 def _braces_balanced(text):
@@ -94,6 +98,73 @@ def test_aws_s3_skipped_without_node_stack():
 
     assert "Deploy AWS S3" not in text
     assert "Deploy Docker Hub" in text
+
+
+def test_aws_s3_present_with_node_stack():
+    stacks = [{"language": "node", "version": "20", "package_manager": "npm"}]
+    text = generate_jenkinsfile(
+        stacks, jobs=["test"], deploy={"targets": ["aws_s3"], "s3_bucket": "my-bucket"}
+    )
+    assert "Deploy AWS S3" in text
+    assert "my-bucket" in text
+    assert _braces_balanced(text)
+
+
+def test_vercel_deploy_stage():
+    stacks = [{"language": "node", "version": "20", "package_manager": "npm"}]
+    text = generate_jenkinsfile(stacks, jobs=["test"], deploy={"targets": ["vercel"]})
+    assert "Deploy Vercel" in text
+    assert "vercel --token $VERCEL_TOKEN" in text
+    assert _braces_balanced(text)
+
+
+def test_deploy_cible_inconnue_ignoree():
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    text = generate_jenkinsfile(
+        stacks, jobs=["test"], deploy={"targets": ["cible-inconnue", "docker_hub"]}
+    )
+    assert "Deploy Docker Hub" in text
+
+
+def test_langage_non_pris_en_charge_ne_genere_aucun_stage():
+    stacks = [{"language": "cobol", "version": "1.0", "package_manager": ""}]
+    with pytest.raises(ValueError, match="Aucun stage genere"):
+        generate_jenkinsfile(stacks, jobs=["test"])
+
+
+def test_langage_sans_commande_installation_utilise_le_repli():
+    from modules.cicd.jenkins_core import _get_install_cmd
+    assert _get_install_cmd("cobol", "") == "echo 'Aucune commande d-installation definie pour ce langage'"
+
+
+def test_package_manager_inconnu_utilise_la_premiere_commande_disponible():
+    from modules.cicd.jenkins_core import INSTALL_COMMANDS, _get_install_cmd
+    result = _get_install_cmd("python", "conda")
+    assert result in INSTALL_COMMANDS["python"].values()
+
+
+def test_cible_de_deploiement_cataloguee_mais_non_geree_est_ignoree(monkeypatch):
+    """Garde-fou defensif : voir teamcity_core/bitbucket_core/drone_core."""
+    from modules.cicd import jenkins_core
+    monkeypatch.setitem(
+        jenkins_core.DEPLOY_TARGETS, "mystere",
+        {"requires_language": None, "label": "Cible mystere"},
+    )
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    text = generate_jenkinsfile(
+        stacks, jobs=["test"], deploy={"targets": ["mystere", "docker_hub"]}
+    )
+    assert "Deploy Docker Hub" in text
+    assert "mystere" not in text.lower()
+
+
+def test_write_jenkinsfile_cree_le_fichier(tmp_path):
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    output = tmp_path / "sub" / "Jenkinsfile"
+    path = write_jenkinsfile(stacks, str(output), jobs=["test"])
+    assert path == str(output)
+    assert output.is_file()
+    assert "pipeline {" in output.read_text(encoding="utf-8")
 
 
 def test_deploy_stage_filtered_to_branch():

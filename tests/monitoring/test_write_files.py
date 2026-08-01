@@ -4,7 +4,7 @@ Grafana et les ecrit sur disque."""
 
 import os
 
-from modules.monitoring.core import write_files, generate_files
+from modules.monitoring.core import generate_files, write_files
 
 
 def _prom_cfg(**overrides):

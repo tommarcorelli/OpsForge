@@ -5,10 +5,10 @@ jusqu'ici) : write_terraform (fichier unique) et write_terraform_files
 import os
 
 from modules.terraform.core import (
-    write_terraform,
-    write_terraform_files,
     generate_terraform,
     generate_terraform_files,
+    write_terraform,
+    write_terraform_files,
 )
 
 

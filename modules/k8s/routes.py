@@ -7,15 +7,15 @@ Blueprint Flask du module Kubernetes/Helm (monte sous /k8s).
 import io
 import zipfile
 
-from flask import Blueprint, render_template, request, jsonify, send_file
+from flask import Blueprint, jsonify, render_template, request, send_file
 
 from modules.k8s.core import (
-    generate_manifests,
-    generate_manifests_combined,
+    SERVICE_TYPES,
     generate_helm_chart,
     generate_kustomize,
+    generate_manifests,
+    generate_manifests_combined,
     valider_config,
-    SERVICE_TYPES,
 )
 
 bp = Blueprint("k8s", __name__, url_prefix="/k8s")

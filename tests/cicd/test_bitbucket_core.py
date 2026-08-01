@@ -124,6 +124,54 @@ def test_aws_s3_present_with_node_stack():
     assert "mybucket" in yaml_text
 
 
+def test_vercel_deploy_step():
+    stacks = [{"language": "node", "version": "20", "package_manager": "npm"}]
+    yaml_text = generate_bitbucket_pipelines(stacks, jobs=["test"], deploy={"targets": ["vercel"]})
+    parsed = _parse(yaml_text)
+
+    names = _step_names(parsed["pipelines"]["branches"]["main"])
+    assert "deploy-vercel" in names
+    assert "vercel --token $VERCEL_TOKEN" in yaml_text
+
+
+def test_deploy_cible_inconnue_ignoree():
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    yaml_text = generate_bitbucket_pipelines(
+        stacks, jobs=["test"], deploy={"targets": ["cible-inconnue", "docker_hub"]}
+    )
+    parsed = _parse(yaml_text)
+    names = _step_names(parsed["pipelines"]["branches"]["main"])
+    assert "deploy-docker_hub" in names
+
+
+def test_langage_non_pris_en_charge_ne_genere_aucun_step():
+    stacks = [{"language": "cobol", "version": "1.0", "package_manager": ""}]
+    with pytest.raises(ValueError, match="Aucun step genere"):
+        generate_bitbucket_pipelines(stacks, jobs=["test"])
+
+
+def test_langage_sans_commande_installation_utilise_le_repli():
+    from modules.cicd.bitbucket_core import _get_install_cmd
+    assert _get_install_cmd("cobol", "") == "echo 'Aucune commande d-installation definie pour ce langage'"
+
+
+def test_cible_de_deploiement_cataloguee_mais_non_geree_est_ignoree(monkeypatch):
+    """Garde-fou defensif : voir teamcity_core, meme principe."""
+    from modules.cicd import bitbucket_core
+    monkeypatch.setitem(
+        bitbucket_core.DEPLOY_TARGETS, "mystere",
+        {"requires_language": None, "label": "Cible mystere"},
+    )
+    stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
+    yaml_text = generate_bitbucket_pipelines(
+        stacks, jobs=["test"], deploy={"targets": ["mystere", "docker_hub"]}
+    )
+    parsed = _parse(yaml_text)
+    names = _step_names(parsed["pipelines"]["branches"]["main"])
+    assert "deploy-docker_hub" in names
+    assert "deploy-mystere" not in names
+
+
 def test_deploy_steps_placed_under_branches_not_default():
     stacks = [{"language": "python", "version": "3.12", "package_manager": "pip"}]
     yaml_text = generate_bitbucket_pipelines(

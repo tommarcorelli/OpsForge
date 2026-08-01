@@ -122,6 +122,7 @@ def _verifier_avec_ruby(contenu, timeout=5):
             capture_output=True,
             text=True,
             timeout=timeout,
+            check=False,
         )
     except (subprocess.TimeoutExpired, OSError):
         return (None, None)

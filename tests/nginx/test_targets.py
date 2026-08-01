@@ -1,18 +1,18 @@
 """Tests des cibles Caddy et Traefik du module Nginx d'OpsForge."""
 
-import yaml
 import pytest
+import yaml
 
 from modules.nginx.core import (
-    generate,
-    generate_caddy,
-    generate_traefik,
-    generate_haproxy,
-    validate_config,
-    list_presets,
-    get_preset,
     SUPPORTED_TARGETS,
     TARGET_MODES,
+    generate,
+    generate_caddy,
+    generate_haproxy,
+    generate_traefik,
+    get_preset,
+    list_presets,
+    validate_config,
 )
 
 
@@ -116,6 +116,20 @@ def test_caddy_taille_max_body_convertie():
     assert "max_size 10MB" in conf
 
 
+def test_caddy_size_format_invalide_retourne_none():
+    from modules.nginx.core import _caddy_size
+    assert _caddy_size("beaucoup") is None
+
+
+def test_caddy_load_balancer_poids_ignore_avec_commentaire():
+    cfg = _lb_cfg(backends=[
+        {"host": "127.0.0.1", "port": 3001, "weight": 3},
+        {"host": "127.0.0.1", "port": 3002},
+    ])
+    conf = generate_caddy(cfg)
+    assert "Ponderation par backend ignoree" in conf
+
+
 def test_caddy_invalide_leve_valueerror():
     with pytest.raises(ValueError):
         generate_caddy({"mode": "static", "server_name": "", "root": ""})
@@ -137,9 +151,9 @@ def test_traefik_reverse_proxy_yaml_valide():
     yaml_part = "\n".join(line for line in conf.split("\n") if not line.startswith("#"))
     doc = yaml.safe_load(yaml_part)
     assert "http" in doc
-    router = list(doc["http"]["routers"].values())[0]
+    router = next(iter(doc["http"]["routers"].values()))
     assert router["rule"] == "Host(`api.example.com`)"
-    service = list(doc["http"]["services"].values())[0]
+    service = next(iter(doc["http"]["services"].values()))
     assert service["loadBalancer"]["servers"] == [{"url": "http://127.0.0.1:3000"}]
 
 
@@ -147,7 +161,7 @@ def test_traefik_load_balancer_plusieurs_serveurs():
     conf = generate_traefik(_lb_cfg())
     yaml_part = "\n".join(line for line in conf.split("\n") if not line.startswith("#"))
     doc = yaml.safe_load(yaml_part)
-    service = list(doc["http"]["services"].values())[0]
+    service = next(iter(doc["http"]["services"].values()))
     urls = [s["url"] for s in service["loadBalancer"]["servers"]]
     assert urls == ["http://127.0.0.1:3001", "http://127.0.0.1:3002"]
 
@@ -156,7 +170,7 @@ def test_traefik_ip_hash_devient_sticky_cookie():
     conf = generate_traefik(_lb_cfg(lb_algorithm="ip_hash"))
     yaml_part = "\n".join(line for line in conf.split("\n") if not line.startswith("#"))
     doc = yaml.safe_load(yaml_part)
-    service = list(doc["http"]["services"].values())[0]
+    service = next(iter(doc["http"]["services"].values()))
     assert "sticky" in service["loadBalancer"]
     assert service["loadBalancer"]["sticky"]["cookie"]["name"]
 
@@ -171,7 +185,7 @@ def test_traefik_https_entrypoint_et_tls():
     conf = generate_traefik(_proxy_cfg(https=True))
     yaml_part = "\n".join(line for line in conf.split("\n") if not line.startswith("#"))
     doc = yaml.safe_load(yaml_part)
-    router = list(doc["http"]["routers"].values())[0]
+    router = next(iter(doc["http"]["routers"].values()))
     assert router["entryPoints"] == ["websecure"]
     assert router["tls"]["certResolver"] == "letsencrypt"
 
@@ -180,7 +194,7 @@ def test_traefik_sans_https_entrypoint_web():
     conf = generate_traefik(_proxy_cfg(https=False))
     yaml_part = "\n".join(line for line in conf.split("\n") if not line.startswith("#"))
     doc = yaml.safe_load(yaml_part)
-    router = list(doc["http"]["routers"].values())[0]
+    router = next(iter(doc["http"]["routers"].values()))
     assert router["entryPoints"] == ["web"]
     assert "tls" not in router
 

@@ -40,20 +40,21 @@ Utilise `python main.py <module> --help` pour voir les options d'un module.
 
 import sys
 
-from modules.cicd import cli as cicd_cli
 from modules.ansible import cli as ansible_cli
-from modules.vagrant import cli as vagrant_cli
-from modules.terraform import cli as terraform_cli
-from modules.dockerfile import cli as dockerfile_cli
-from modules.k8s import cli as k8s_cli
-from modules.nginx import cli as nginx_cli
-from modules.systemd import cli as systemd_cli
-from modules.monitoring import cli as monitoring_cli
-from modules.cloudinit import cli as cloudinit_cli
-from modules.packer import cli as packer_cli
-from modules.vault import cli as vault_cli
-from modules.gitops import cli as gitops_cli
 from modules.backup import cli as backup_cli
+from modules.cicd import cli as cicd_cli
+from modules.cloudinit import cli as cloudinit_cli
+from modules.dockerfile import cli as dockerfile_cli
+from modules.firewall import cli as firewall_cli
+from modules.gitops import cli as gitops_cli
+from modules.k8s import cli as k8s_cli
+from modules.monitoring import cli as monitoring_cli
+from modules.nginx import cli as nginx_cli
+from modules.packer import cli as packer_cli
+from modules.systemd import cli as systemd_cli
+from modules.terraform import cli as terraform_cli
+from modules.vagrant import cli as vagrant_cli
+from modules.vault import cli as vault_cli
 
 MODULES = {
     "cicd": cicd_cli.main,
@@ -70,11 +71,12 @@ MODULES = {
     "vault": vault_cli.main,
     "gitops": gitops_cli.main,
     "backup": backup_cli.main,
+    "firewall": firewall_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault|gitops|backup} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault|gitops|backup|firewall} [options]")
     print()
     print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI / CircleCI / Jenkins / Drone / Bitbucket / TeamCity)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
@@ -90,6 +92,7 @@ def _usage():
     print("  vault      Genere une config HashiCorp Vault (config.hcl, policies ACL, bootstrap.sh)")
     print("  gitops     Genere des manifests GitOps (ArgoCD Application / FluxCD GitRepository+Kustomization ou HelmRelease)")
     print("  backup     Genere un script de sauvegarde/restauration idempotent (restic / Borg) + planification")
+    print("  firewall   Genere des regles pare-feu (ufw / nftables) + config fail2ban (jail.local)")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 

@@ -10,10 +10,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from modules.vagrant.core.generateur import construire_vagrantfile, nom_variable, echapper, construire_sections, est_box_windows
-from modules.vagrant.core.schema import valider_config
-from modules.vagrant.core.presets import PRESETS, obtenir_preset
+from modules.vagrant.core.generateur import (
+    construire_sections,
+    construire_vagrantfile,
+    echapper,
+    est_box_windows,
+    nom_variable,
+)
 from modules.vagrant.core.lint import linter_vagrantfile
+from modules.vagrant.core.presets import PRESETS, obtenir_preset
+from modules.vagrant.core.schema import valider_config
 
 
 def test_nom_variable_prefixe_les_chiffres():
@@ -103,6 +109,56 @@ def test_validation_memoire_invalide():
     assert any("memory" in e for e in erreurs)
 
 
+def test_validation_provider_global_inconnu():
+    config = {"provider": "hyperv-exotique", "vms": [
+        {"name": "web", "box": "debian/bookworm64", "memory": 1024, "cpus": 1},
+    ]}
+    erreurs, _ = valider_config(config)
+    assert any("Provider global inconnu" in e for e in erreurs)
+
+
+def test_validation_nom_de_vm_invalide():
+    config = {"provider": "virtualbox", "vms": [
+        {"name": "-invalide!", "box": "debian/bookworm64", "memory": 1024, "cpus": 1},
+    ]}
+    erreurs, _ = valider_config(config)
+    assert any("nom de VM invalide" in e for e in erreurs)
+
+
+def test_validation_avertit_ram_faible():
+    config = {"provider": "virtualbox", "vms": [
+        {"name": "web", "box": "debian/bookworm64", "memory": 256, "cpus": 1},
+    ]}
+    _, avertissements = valider_config(config)
+    assert any("très peu pour la plupart des OS" in a for a in avertissements)
+
+
+def test_validation_ip_invalide():
+    config = {"provider": "virtualbox", "vms": [
+        {"name": "web", "box": "debian/bookworm64", "memory": 1024, "cpus": 1,
+         "ip": "999.999.999.999"},
+    ]}
+    erreurs, _ = valider_config(config)
+    assert any("IP invalide" in e for e in erreurs)
+
+
+def test_validation_windows_sans_winrm_password_avertit():
+    config = obtenir_preset("solo")
+    config["vms"][0]["box"] = "gusztavvargadr/windows-server"
+    config["vms"][0]["winrm_username"] = "vagrant"
+    _, avertissements = valider_config(config)
+    assert any("winrm_password" in a for a in avertissements)
+
+
+def test_validation_windows_avec_ansible_avertit():
+    config = obtenir_preset("solo")
+    config["vms"][0]["box"] = "gusztavvargadr/windows-server"
+    config["vms"][0]["winrm_password"] = "vagrant"
+    config["vms"][0]["provision"] = {"type": "ansible", "script": "playbook.yml"}
+    _, avertissements = valider_config(config)
+    assert any("provisioning Ansible" in a for a in avertissements)
+
+
 def test_tous_les_presets_sont_valides():
     for nom in PRESETS:
         config = obtenir_preset(nom)
@@ -110,6 +166,13 @@ def test_tous_les_presets_sont_valides():
         assert erreurs == [], f"Preset « {nom} » invalide : {erreurs}"
         # et il doit se générer sans exploser
         assert construire_vagrantfile(config).strip().endswith("end")
+
+
+def test_obtenir_preset_inconnu_leve_keyerror():
+    import pytest as _pytest
+
+    with _pytest.raises(KeyError):
+        obtenir_preset("ce-preset-nexiste-pas")
 
 
 def test_catalogue_presets_attendu():
@@ -184,6 +247,63 @@ def test_lint_vagrantfile_vide():
     assert erreurs == ["le Vagrantfile généré est vide."]
 
 
+def test_lint_detecte_end_surnumeraire():
+    casse = 'Vagrant.configure("2") do |config|\n  config.vm.box = "x"\nend\nend\n'
+    erreurs, _ = linter_vagrantfile(casse, utiliser_ruby=False)
+    assert any("sans bloc ouvert correspondant" in e for e in erreurs)
+
+
+def test_lint_avertit_guillemets_impairs():
+    casse = 'Vagrant.configure("2") do |config|\n  config.vm.box = "debian\nend\n'
+    _, avertissements = linter_vagrantfile(casse, utiliser_ruby=False)
+    assert any("nombre impair de guillemets" in a for a in avertissements)
+
+
+def test_lint_ruby_absent_ne_bloque_pas():
+    from unittest.mock import patch
+
+    contenu = 'Vagrant.configure("2") do |config|\nend\n'
+    with patch("modules.vagrant.core.lint.shutil.which", return_value=None):
+        erreurs, avertissements = linter_vagrantfile(contenu, utiliser_ruby=True)
+    assert erreurs == []
+    assert not any("ruby -c" in a for a in (avertissements or []))
+
+
+def test_lint_ruby_syntaxe_valide():
+    from unittest.mock import MagicMock, patch
+
+    contenu = 'Vagrant.configure("2") do |config|\nend\n'
+    faux_resultat = MagicMock(returncode=0, stdout="", stderr="")
+    with patch("modules.vagrant.core.lint.shutil.which", return_value="/usr/bin/ruby"), \
+         patch("modules.vagrant.core.lint.subprocess.run", return_value=faux_resultat):
+        erreurs, avertissements = linter_vagrantfile(contenu, utiliser_ruby=True)
+    assert erreurs == []
+    assert any("syntaxe valide" in a for a in avertissements)
+
+
+def test_lint_ruby_syntaxe_invalide():
+    from unittest.mock import MagicMock, patch
+
+    contenu = 'Vagrant.configure("2") do |config|\nend\n'
+    faux_resultat = MagicMock(returncode=1, stdout="", stderr="erreur ligne 3")
+    with patch("modules.vagrant.core.lint.shutil.which", return_value="/usr/bin/ruby"), \
+         patch("modules.vagrant.core.lint.subprocess.run", return_value=faux_resultat):
+        erreurs, _ = linter_vagrantfile(contenu, utiliser_ruby=True)
+    assert any("ruby -c" in e and "erreur ligne 3" in e for e in erreurs)
+
+
+def test_lint_ruby_timeout_ne_plante_pas():
+    import subprocess as sp
+    from unittest.mock import patch
+
+    contenu = 'Vagrant.configure("2") do |config|\nend\n'
+    with patch("modules.vagrant.core.lint.shutil.which", return_value="/usr/bin/ruby"), \
+         patch("modules.vagrant.core.lint.subprocess.run",
+               side_effect=sp.TimeoutExpired(cmd="ruby", timeout=5)):
+        erreurs, _ = linter_vagrantfile(contenu, utiliser_ruby=True)
+    assert erreurs == []
+
+
 def test_windows_detecte_par_namespace_de_box():
     config = obtenir_preset("solo")
     config["vms"][0]["box"] = "gusztavvargadr/windows-server"
@@ -216,6 +336,93 @@ def test_windows_avertit_si_locale_ou_ssh_renseignes():
     texte = " ".join(avert)
     assert "locale" in texte and "ignorés" in texte
     assert "ssh_username" in texte
+
+
+def test_generation_provider_libvirt():
+    config = {"provider": "libvirt", "vms": [
+        {"name": "web", "box": "debian/bookworm64", "memory": 2048, "cpus": 2}
+    ]}
+    vf = construire_vagrantfile(config)
+    assert 'vm.provider "libvirt" do |lv|' in vf
+    assert "lv.memory = 2048" in vf
+    assert "lv.cpus = 2" in vf
+
+
+def test_generation_provider_vmware_desktop_avec_ip_statique():
+    config = {"provider": "vmware_desktop", "vms": [
+        {"name": "web", "box": "debian/bookworm64", "memory": 1024, "cpus": 1,
+         "ip": "192.168.56.20", "gui": True}
+    ]}
+    vf = construire_vagrantfile(config)
+    assert 'vm.provider "vmware_desktop" do |vw|' in vf
+    assert 'vw.gui = true' in vf
+    assert 'vw.vmx["memsize"] = "1024"' in vf
+    # IP statique -> adaptateur réseau vmxnet3 forcé pour éviter les soucis connus
+    assert 'ethernet0.virtualDev' in vf
+
+
+def test_provision_ansible_avec_root_password():
+    config = {"provider": "virtualbox", "vms": [
+        {"name": "web", "box": "debian/bookworm64", "memory": 512, "cpus": 1,
+         "root_password": "secret",
+         "provision": {"type": "ansible", "script": "playbook.yml"}}
+    ]}
+    vf = construire_vagrantfile(config)
+    assert 'ansible.playbook = "playbook.yml"' in vf
+    assert 'echo "root:secret" | chpasswd' in vf
+
+
+def test_provision_none_avec_root_password_seul():
+    config = {"provider": "virtualbox", "vms": [
+        {"name": "web", "box": "debian/bookworm64", "memory": 512, "cpus": 1,
+         "root_password": "secret"}
+    ]}
+    vf = construire_vagrantfile(config)
+    assert 'echo "root:secret" | chpasswd' in vf
+
+
+def test_provision_shell_windows_avec_root_password():
+    config = {"provider": "virtualbox", "vms": [
+        {"name": "web", "box": "gusztavvargadr/windows-10", "memory": 2048, "cpus": 2,
+         "root_password": "secret", "winrm_password": "vagrant",
+         "provision": {"type": "shell", "script": "Write-Host 'ok'\n"}}
+    ]}
+    vf = construire_vagrantfile(config)
+    assert "Set-LocalUser -Name \"Administrator\" -Password $mdp" in vf
+    assert "#ps1_sysnative" in vf
+
+
+def test_generation_box_version_reseau_public_et_dossier_sync_desactive():
+    config = {"provider": "virtualbox", "vms": [
+        {"name": "web", "box": "debian/bookworm64", "box_version": "12.1.0",
+         "memory": 1024, "cpus": 1, "public_network": True,
+         "disable_synced_folder": True}
+    ]}
+    vf = construire_vagrantfile(config)
+    assert 'vm.box_version = "12.1.0"' in vf
+    assert 'vm.network "public_network"' in vf
+    assert '"/vagrant", disabled: true' in vf
+
+
+def test_generation_ssh_username_et_password():
+    config = {"provider": "virtualbox", "vms": [
+        {"name": "web", "box": "debian/bookworm64", "memory": 1024, "cpus": 1,
+         "ssh_username": "deploy", "ssh_password": "changeit"}
+    ]}
+    vf = construire_vagrantfile(config)
+    assert 'ssh.username = "deploy"' in vf
+    assert 'ssh.password = "changeit"' in vf
+    assert "ssh.insert_key = false" in vf
+
+
+def test_generation_winrm_username_et_password():
+    config = {"provider": "virtualbox", "vms": [
+        {"name": "web", "box": "gusztavvargadr/windows-server", "memory": 2048, "cpus": 2,
+         "winrm_username": "vagrant", "winrm_password": "vagrant"}
+    ]}
+    vf = construire_vagrantfile(config)
+    assert 'winrm.username = "vagrant"' in vf
+    assert 'winrm.password = "vagrant"' in vf
 
 
 def test_guest_os_explicite_prend_le_pas_sur_le_nom_de_box():

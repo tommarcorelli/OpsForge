@@ -5,16 +5,16 @@ import os
 import pytest
 
 from modules.packer.core import (
+    BUILDER_CATALOG,
+    OUTPUT_FILENAME,
+    PRESETS,
     generate_packer_template,
     generate_split_files,
-    validate_config,
-    list_presets,
+    get_builder_info,
     get_preset,
     list_builders,
-    get_builder_info,
-    OUTPUT_FILENAME,
-    BUILDER_CATALOG,
-    PRESETS,
+    list_presets,
+    validate_config,
     write_files,
     write_split_files,
 )
@@ -139,6 +139,20 @@ def test_post_processor_docker_tag_sans_args_rejete():
     assert any("champs manquants" in e for e in errors)
 
 
+def test_post_processor_inconnu_rejete():
+    cfg = _valid_config("docker")
+    cfg["post_processors"] = ["ce-post-processor-nexiste-pas"]
+    errors = validate_config(cfg)
+    assert any("inconnu" in e for e in errors)
+
+
+def test_datasource_nom_manquant_rejete():
+    cfg = _valid_config("amazon-ebs")
+    cfg["datasources"] = [{"type": "amazon-ami", "args": {"filters": {"name": "*ubuntu*"}}}]
+    errors = validate_config(cfg)
+    assert any("le nom est requis" in e for e in errors)
+
+
 # --------------------------------------------------------------------------
 # Generation : structure generale
 # --------------------------------------------------------------------------
@@ -197,6 +211,26 @@ def test_provisioner_shell_script_rendu():
     cfg["provisioners"] = [{"type": "shell-script", "script": "setup.sh"}]
     text = generate_packer_template(cfg)
     assert 'script = "setup.sh"' in text
+
+
+def test_provisioner_shell_script_avec_env_vars_rendu():
+    cfg = _valid_config("docker")
+    cfg["provisioners"] = [
+        {"type": "shell-script", "script": "setup.sh", "env_vars": {"FOO": "bar"}}
+    ]
+    text = generate_packer_template(cfg)
+    assert "environment_vars" in text
+    assert "FOO=bar" in text
+
+
+def test_provisioner_ansible_avec_extra_arguments_rendu():
+    cfg = _valid_config("docker")
+    cfg["provisioners"] = [
+        {"type": "ansible", "playbook_file": "site.yml", "extra_arguments": ["-vvv"]}
+    ]
+    text = generate_packer_template(cfg)
+    assert 'provisioner "ansible" {' in text
+    assert "extra_arguments" in text and "-vvv" in text
 
 
 def test_provisioner_file_rendu():
@@ -301,7 +335,7 @@ def test_au_moins_un_preset_par_famille_de_builder():
 
 
 def test_chaque_builder_du_catalogue_a_un_label():
-    for key, info in BUILDER_CATALOG.items():
+    for info in BUILDER_CATALOG.values():
         assert info["label"]
         assert isinstance(info["required"], list)
 
@@ -502,6 +536,14 @@ def test_hcp_registry_avec_labels_rendu():
     assert 'team = "platform"' in text
 
 
+def test_hcp_registry_avec_build_labels_rendu():
+    cfg = _valid_config("docker")
+    cfg["hcp_registry"] = {"bucket_name": "mon-app", "build_labels": {"stage": "prod"}}
+    text = generate_packer_template(cfg)
+    assert "build_labels" in text
+    assert 'stage = "prod"' in text
+
+
 def test_preset_docker_app_image_publie_vers_hcp_registry():
     cfg = get_preset("docker-app-image")
     assert validate_config(cfg) == []
@@ -561,3 +603,23 @@ def test_write_split_files_avec_variables_inclut_variables_pkr_hcl(tmp_path):
 def test_write_split_files_leve_valueerror_si_invalide(tmp_path):
     with pytest.raises(ValueError):
         write_split_files({}, str(tmp_path))
+
+
+# --------------------------------------------------------------------------
+# generate_files / generate_combined (API utilisee par les routes web)
+# --------------------------------------------------------------------------
+
+def test_generate_files_retourne_le_bon_nom_de_fichier():
+    from modules.packer.core import generate_files
+
+    cfg = _valid_config("docker")
+    fichiers = generate_files(cfg)
+    assert set(fichiers) == {OUTPUT_FILENAME}
+    assert fichiers[OUTPUT_FILENAME] == generate_packer_template(cfg)
+
+
+def test_generate_combined_equivalent_a_generate_packer_template():
+    from modules.packer.core import generate_combined
+
+    cfg = _valid_config("docker")
+    assert generate_combined(cfg) == generate_packer_template(cfg)

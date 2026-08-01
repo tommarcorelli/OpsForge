@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Générateur pare-feu / fail2ban</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#DC2626" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='firewall/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+
+  <!-- Fond degrades doux -->
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· firewall</span></span>
+    </a>
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-circle-info"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — GÉNÉRATEUR PARE-FEU</p>
+    <h1>Protège ton serveur<br />avant de l'exposer</h1>
+    <p class="subtitle">Règles <code>ufw</code> ou <code>nftables</code> + config <code>fail2ban</code>, à partir d'un preset ou de tes propres règles. Validé par construction, rien n'est envoyé ailleurs qu'en local.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="field-group">
+        <label class="field-label" data-step="1">Presets</label>
+        <div class="preset-list" id="preset-list">
+          <!-- Chips generes dynamiquement en JS -->
+        </div>
+        <p class="field-hint">Choisis un point de départ, puis ajuste les règles ci-dessous si besoin.</p>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" data-step="2">Backend</label>
+        <div class="provider-switch" id="backend-switch">
+          <button type="button" class="provider-btn active" data-backend="ufw">ufw</button>
+          <button type="button" class="provider-btn" data-backend="nftables">nftables</button>
+        </div>
+      </div>
+
+      <div class="field-group" id="custom-rules-group">
+        <label class="field-label" data-step="3">Règles</label>
+        <div class="rule-head">
+          <span>Port</span><span>Proto</span><span>Source</span><span>Action</span><span></span>
+        </div>
+        <div class="rules-list" id="rules-list"></div>
+        <button type="button" id="add-rule-btn" class="btn btn-ghost">+ Ajouter une règle</button>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label">Protection SSH</label>
+        <div class="jobs-toggles">
+          <label class="toggle">
+            <input type="checkbox" id="fail2ban-checkbox" checked />
+            <span>Inclure fail2ban (jail.local)</span>
+          </label>
+        </div>
+        <p class="field-hint">Bannit automatiquement les IP après plusieurs échecs de connexion (SSH par défaut).</p>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top: 0;">
+          GÉNÉRER →
+        </button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink: 0;">
+          ↺
+        </button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="rules">
+          <span class="node-num">01</span>
+          <span class="node-label">RÈGLES</span>
+        </div>
+        <div class="connector flowing"></div>
+        <div class="node" data-stage="apply">
+          <span class="node-num">02</span>
+          <span class="node-label">APPLIQUER</span>
+        </div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Fichier(s) généré(s)</p>
+      <div class="file-tabs" id="file-tabs"></div>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le ou les fichiers générés apparaîtront ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============ DOCK FLOTTANT (statut) ============ -->
+  <footer class="title-block" id="title-block">
+    <div class="tb-cell"><span class="tb-key">PRESET</span><span class="tb-value" id="tb-preset">—</span></div>
+    <div class="tb-cell"><span class="tb-key">BACKEND</span><span class="tb-value" id="tb-backend">ufw</span></div>
+    <div class="tb-cell"><span class="tb-key">RÈGLES</span><span class="tb-value" id="tb-rules">0</span></div>
+    <div class="tb-cell"><span class="tb-key">RÉV.</span><span class="tb-value">A</span></div>
+  </footer>
+
+  <script>
+    window.OPSFORGE_FIREWALL = {
+      backends: {{ backends | tojson }},
+      presets: {{ presets | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='firewall/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "firewall",
+    icon: "fa-solid fa-shield-halved",
+    intro: "Les règles générées se déposent sur le serveur cible et s'activent avec les outils déjà présents (<code>ufw</code> ou <code>nftables</code>). <code>fail2ban</code> s'installe séparément la première fois.",
+    os: [
+      { id: "debian-ufw", label: "Debian / Ubuntu (ufw)", icon: "fa-brands fa-ubuntu", color: "#E95420", steps: [
+        { title: "Installer ufw (souvent déjà présent)", cmd: "sudo apt install -y ufw" },
+        { title: "Copier et exécuter le script", cmd: "sudo bash setup-firewall.sh" },
+        { title: "Vérifier l'état", cmd: "sudo ufw status verbose" },
+      ]},
+      { id: "fedora-nft", label: "Fedora / RHEL (nftables)", icon: "fa-brands fa-redhat", color: "#EE0000", steps: [
+        { title: "Copier la config", cmd: "sudo cp nftables.conf /etc/nftables.conf" },
+        { title: "Activer au démarrage", cmd: "sudo systemctl enable --now nftables" },
+        { title: "Vérifier", cmd: "sudo nft list ruleset" },
+      ]},
+      { id: "fail2ban", label: "fail2ban (toutes distros)", icon: "fa-solid fa-shield-halved", color: "#DC2626", steps: [
+        { title: "Installer fail2ban", cmd: "sudo apt install -y fail2ban   # ou : sudo dnf install -y fail2ban" },
+        { title: "Déposer la config", cmd: "sudo cp jail.local /etc/fail2ban/jail.local" },
+        { title: "Redémarrer le service", cmd: "sudo systemctl restart fail2ban" },
+        { title: "Vérifier les jails actives", cmd: "sudo fail2ban-client status" },
+      ]},
+      { id: "windows", label: "Windows", icon: "fa-brands fa-windows", color: "#0078D6", steps: [
+        { title: "ufw/nftables/fail2ban n'existent pas sous Windows natif", cmd: "wsl --install -d Ubuntu", note: "Utilise WSL ou une VM Linux, puis suis les étapes Debian/Ubuntu. Pour un vrai firewall Windows, préfère les règles natives (Windows Defender Firewall / New-NetFirewallRule)." },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>

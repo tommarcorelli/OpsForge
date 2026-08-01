@@ -1,16 +1,17 @@
 """Tests du cœur du module Kubernetes/Helm d'OpsForge."""
 
-import yaml
 import pytest
+import yaml
 
 from modules.k8s.core import (
+    SERVICE_TYPES,
+    _dump,
+    generate_helm_chart,
     generate_manifests,
     generate_manifests_combined,
-    generate_helm_chart,
-    write_manifests,
-    write_helm_chart,
     valider_config,
-    SERVICE_TYPES,
+    write_helm_chart,
+    write_manifests,
 )
 
 
@@ -69,6 +70,19 @@ def test_service_type_inconnu():
 def test_ingress_sans_host():
     erreurs, _ = valider_config(_config(ingress={"path": "/"}))
     assert any("host" in e for e in erreurs)
+
+
+def test_namespace_invalide_rejete():
+    erreurs, _ = valider_config(_config(namespace="Mon_NS"))
+    assert any("Namespace" in e for e in erreurs)
+
+
+def test_ingress_tls_avec_loadbalancer_avertit():
+    _, avertissements = valider_config(_config(
+        service_type="LoadBalancer",
+        ingress={"host": "app.example.com", "tls": True},
+    ))
+    assert any("LoadBalancer" in a for a in avertissements)
 
 
 def test_probe_path_sans_slash():
@@ -290,3 +304,13 @@ def test_write_helm_chart_arborescence(tmp_path):
     assert (tmp_path / "mon-app" / "Chart.yaml").is_file()
     assert (tmp_path / "mon-app" / "templates" / "deployment.yaml").is_file()
     assert (tmp_path / "mon-app" / ".helmignore").is_file()
+
+
+# --------------------------------------------------------------------------
+# Helper de serialisation
+# --------------------------------------------------------------------------
+
+def test_dump_sans_header_ne_prefixe_pas():
+    result = _dump({"a": 1})
+    assert not result.startswith("#")
+    assert "a: 1" in result

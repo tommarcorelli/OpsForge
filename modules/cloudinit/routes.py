@@ -4,17 +4,19 @@ modules/cloudinit/routes.py
 Blueprint Flask du module cloud-init (monte sous /cloudinit).
 """
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, jsonify, render_template, request
 
 from modules.cloudinit.core import (
-    generate_cloud_config,
-    list_presets,
-    get_preset,
     OUTPUT_FILENAME,
+    generate_cloud_config,
+    get_preset,
+    list_presets,
+)
+from modules.cloudinit.ignition_core import (
+    OUTPUT_FILENAME as IGNITION_FILENAME,
 )
 from modules.cloudinit.ignition_core import (
     generate_ignition,
-    OUTPUT_FILENAME as IGNITION_FILENAME,
 )
 
 bp = Blueprint("cloudinit", __name__, url_prefix="/cloudinit")
