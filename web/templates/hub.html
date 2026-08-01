@@ -28,6 +28,11 @@
       --r:24px;
     }
     *{box-sizing:border-box;margin:0;padding:0;}
+    /* Couleur de fond de repli : le fond visible est un calque
+       `position:fixed` en z-index:-2 (.wallpaper). Sans couleur sur <html>,
+       toute zone que le navigateur n'a pas encore repeinte pendant un scroll
+       apparait en blanc. Teinte mediane du degrade du wallpaper. */
+    html{background:#6f6bff;}
     body{
       font-family:var(--ui);color:var(--ink-2);line-height:1.55;min-height:100vh;
       -webkit-font-smoothing:antialiased;position:relative;
@@ -136,7 +141,12 @@
       --border:rgba(255,255,255,.10); --border-2:rgba(255,255,255,.08);
       --shadow:0 8px 32px rgba(0,0,0,.35); --shadow-lg:0 20px 56px rgba(0,0,0,.5);
     }
-    [data-theme="dark"] body{background:#0b0d14;}
+    /* Le selecteur porte sur <html> lui-meme : l'attribut data-theme y est
+       pose, donc "[data-theme=dark] html" ne matcherait jamais.
+       Et surtout : pas de fond sur <body> ici, il recouvrirait le calque
+       .wallpaper (z-index:-2, peint sous le fond de body) et la page
+       deviendrait noir plat au lieu de garder son degrade assombri. */
+    html[data-theme="dark"]{background:#0b0d14;}
     [data-theme="dark"] .wallpaper{filter:brightness(.5) saturate(.85);}
     [data-theme="dark"] code{background:rgba(255,255,255,.10);}
     [data-theme="dark"] .tag{background:rgba(255,255,255,.06);}

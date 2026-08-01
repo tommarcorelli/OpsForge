@@ -206,6 +206,9 @@ let presetRequestId = 0;
 async function applyPreset(name) {
   clearError();
   const requestId = ++presetRequestId;
+  // Le formulaire n'est pas encore garni : un clic sur GENERER pendant ce
+  // court instant ne produirait rien du tout.
+  el.generateBtn.disabled = true;
   try {
     const res = await fetch(`/ssh/api/preset/${encodeURIComponent(name)}`);
     const data = await res.json();
@@ -226,6 +229,10 @@ async function applyPreset(name) {
     markActivePreset(name);
   } catch (err) {
     showError("Impossible de contacter le serveur local.");
+  } finally {
+    // Seule la requete la plus recente rend la main : sinon une reponse
+    // tardive reactiverait le bouton pendant qu'un autre preset charge.
+    if (requestId === presetRequestId) el.generateBtn.disabled = false;
   }
 }
 

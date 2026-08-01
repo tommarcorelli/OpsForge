@@ -6,7 +6,7 @@
 // la generation doit toujours utiliser des donnees fraiches.
 // ============================================================================
 
-const CACHE_NAME = "opsforge-v11";
+const CACHE_NAME = "opsforge-v13";
 
 const STATIC_ASSETS = [
   "/",

@@ -104,7 +104,9 @@ textarea{font-family:var(--mono);font-size:13px;line-height:1.5;resize:vertical;
   --border:rgba(255,255,255,.10); --border-2:rgba(255,255,255,.08);
   --shadow:0 8px 32px rgba(0,0,0,.35); --shadow-lg:0 20px 56px rgba(0,0,0,.5);
 }
-[data-theme="dark"] body{background:#0b0d14;}
+/* Pas de fond sur <body> en sombre : il recouvrirait le calque de
+   degrade (z-index:-2, peint sous le fond de body). La couleur de base
+   sombre est posee sur <html>, plus bas dans l'ordre de peinture. */
 [data-theme="dark"] .wallpaper{filter:brightness(.5) saturate(.85);}
 [data-theme="dark"] code{background:rgba(255,255,255,.08);}
 [data-theme="dark"] .hero-sub code{background:rgba(255,255,255,.10);}
@@ -113,3 +115,10 @@ textarea{font-family:var(--mono);font-size:13px;line-height:1.5;resize:vertical;
 [data-theme="dark"] .theme-toggle:hover{background:rgba(255,255,255,.10);}
 [data-theme="dark"] select,[data-theme="dark"] textarea{color:var(--ink);}
 [data-theme="dark"] select option{background:#1e2030;color:var(--ink);}
+
+/* Couleur de fond de repli : le fond visible est un calque `position:fixed` en
+   z-index:-2. Sans couleur sur <html>, toute zone que le navigateur
+   n'a pas encore repeinte pendant un scroll apparait en blanc.
+   Teinte mediane du degrade ci-dessus. */
+html{background:#334155;}
+html[data-theme="dark"]{background:#0b0d14;}

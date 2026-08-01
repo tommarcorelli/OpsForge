@@ -53,7 +53,9 @@ code{font-family:var(--mono);background:rgba(15,23,42,.06);padding:1px 6px;borde
 .subtitle{font-family:var(--ui);font-size:clamp(14px,2vw,16px);color:rgba(255,255,255,.92);max-width:540px;margin:0 auto;line-height:1.6;font-weight:500;text-shadow:0 1px 12px rgba(15,23,42,.2);}
 
 /* Layout / panneaux */
-.layout{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:8px 24px 150px;display:grid;grid-template-columns:1fr 1fr;gap:26px;}
+/* padding bas ramene a 40px (comme les autres modules) : les 150px
+   servaient a degager le cartouche fixe, qui ne l'est plus. */
+.layout{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:8px 24px 40px;display:grid;grid-template-columns:1fr 1fr;gap:26px;}
 @media (max-width:860px){.layout{grid-template-columns:1fr;}}
 .panel{background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--border);border-radius:var(--r);padding:26px;position:relative;box-shadow:var(--shadow);}
 .preview-panel{position:sticky;top:88px;align-self:start;}
@@ -131,8 +133,11 @@ select.text-input{width:100%;padding:11px 13px;border-radius:12px;border:1px sol
 .result-actions{display:flex;gap:10px;margin-top:12px;}
 .badge-box{margin-top:16px;}
 
-/* Cartouche (footer) */
-.title-block{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;gap:1px;margin:0;padding:0;
+/* Cartouche (footer)
+   Anciennement position:fixed : il recouvrait en permanence une bande de
+   56px du formulaire pendant le scroll. Il fait maintenant partie du flux
+   et se pose apres le contenu — plus rien n'est masque. */
+.title-block{position:relative;z-index:40;display:flex;gap:1px;margin:0;padding:0;
   background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--border);box-shadow:0 -8px 30px rgba(15,23,42,.12);}
 .tb-cell{flex:1;display:flex;flex-direction:column;gap:2px;padding:9px 16px;border-right:1px solid var(--border-2);}
 .tb-cell:last-child{flex:0 0 auto;border-right:none;}
@@ -148,7 +153,9 @@ select.text-input{width:100%;padding:11px 13px;border-radius:12px;border:1px sol
   --border:rgba(255,255,255,.10); --border-2:rgba(255,255,255,.08);
   --shadow:0 8px 32px rgba(0,0,0,.35); --shadow-lg:0 20px 56px rgba(0,0,0,.5);
 }
-[data-theme="dark"] body{background:#0b0d14;}
+/* Pas de fond sur <body> en sombre : il recouvrirait le calque de
+   degrade (z-index:-2, peint sous le fond de body). La couleur de base
+   sombre est posee sur <html>, plus bas dans l'ordre de peinture. */
 [data-theme="dark"] .blueprint-grid{filter:brightness(.5) saturate(.85);}
 [data-theme="dark"] code{background:rgba(255,255,255,.08);}
 [data-theme="dark"] .provider-switch{background:rgba(255,255,255,.05);}
@@ -161,3 +168,10 @@ select.text-input{width:100%;padding:11px 13px;border-radius:12px;border:1px sol
 [data-theme="dark"] .theme-toggle:hover{background:rgba(255,255,255,.10);}
 [data-theme="dark"] .text-input,[data-theme="dark"] .input-row input,[data-theme="dark"] input[type=text],[data-theme="dark"] select.text-input{color:var(--ink);}
 [data-theme="dark"] .file-tab.active{background:rgba(0,122,255,.22);}
+
+/* Couleur de fond de repli : le fond visible est un calque `position:fixed` en
+   z-index:-2. Sans couleur sur <html>, toute zone que le navigateur
+   n'a pas encore repeinte pendant un scroll apparait en blanc.
+   Teinte mediane du degrade ci-dessus. */
+html{background:#6f6bff;}
+html[data-theme="dark"]{background:#0b0d14;}

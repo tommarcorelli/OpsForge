@@ -156,7 +156,9 @@ textarea.full-input{resize:vertical;line-height:1.5;}
   --border:rgba(255,255,255,.10); --border-2:rgba(255,255,255,.08);
   --shadow:0 8px 32px rgba(0,0,0,.35); --shadow-lg:0 20px 56px rgba(0,0,0,.5);
 }
-[data-theme="dark"] body{background:#0b0d14;}
+/* Pas de fond sur <body> en sombre : il recouvrirait le calque de
+   degrade (z-index:-2, peint sous le fond de body). La couleur de base
+   sombre est posee sur <html>, plus bas dans l'ordre de peinture. */
 [data-theme="dark"] .blueprint-grid{filter:brightness(.5) saturate(.85);}
 [data-theme="dark"] code{background:rgba(255,255,255,.08);}
 [data-theme="dark"] .btn-ghost:hover{background:rgba(255,255,255,.10);}
@@ -170,3 +172,10 @@ textarea.full-input{resize:vertical;line-height:1.5;}
 [data-theme="dark"] .builder-remove{background:rgba(255,255,255,.06);}
 [data-theme="dark"] .builder-remove:hover{background:rgba(209,84,63,.15);}
 [data-theme="dark"] .preset-chip.active{background:rgba(2,168,239,.20);}
+
+/* Couleur de fond de repli : le fond visible est un calque `position:fixed` en
+   z-index:-2. Sans couleur sur <html>, toute zone que le navigateur
+   n'a pas encore repeinte pendant un scroll apparait en blanc.
+   Teinte mediane du degrade ci-dessus. */
+html{background:#02A8EF;}
+html[data-theme="dark"]{background:#0b0d14;}
