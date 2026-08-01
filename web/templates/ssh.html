@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Générateur de configuration SSH</title>
+
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#4D7C0F" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='ssh/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· SSH</span></span>
+    </a>
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-circle-info"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — GÉNÉRATEUR DE CONFIGURATION SSH</p>
+    <h1>Les deux bouts<br />de la connexion</h1>
+    <p class="subtitle">Côté client, un <code>~/.ssh/config</code> avec alias, clés dédiées, rebond par bastion et tunnels. Côté serveur, un fragment <code>sshd_config.d/</code> durci qui n'écrase pas la config de ta distribution.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="role-switch" id="role-switch">
+        <button type="button" class="role-btn active" data-role="client">
+          Client
+          <span class="role-sub">~/.ssh/config</span>
+        </button>
+        <button type="button" class="role-btn" data-role="server">
+          Serveur
+          <span class="role-sub">durcissement sshd</span>
+        </button>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="1">Presets</label>
+        <div class="preset-list" id="preset-list"></div>
+        <p class="field-hint" id="preset-hint">Choisis un point de départ, puis ajuste les champs ci-dessous.</p>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ---------- FORMULAIRE CLIENT ---------- -->
+      <div id="client-form">
+
+        <div class="field-group">
+          <label class="field-label" data-step="2">Hôtes</label>
+          <div class="card-list" id="host-list"></div>
+          <button type="button" id="add-host-btn" class="btn btn-ghost btn-add">+ Ajouter un hôte</button>
+          <p class="field-hint">L'alias est ce que tu tapes : <code>ssh prod-web</code>. Le ProxyJump peut viser un alias défini plus haut (bastion).</p>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" data-step="3">Réglages communs (bloc <code>Host *</code>)</label>
+          <div class="toggles-list">
+            <label class="toggle-row">
+              <input type="checkbox" id="def-keepalive" checked />
+              <span class="t-label">Garder la connexion en vie
+                <span class="t-desc">ServerAliveInterval 60 — évite les coupures après quelques minutes d'inactivité</span>
+              </span>
+            </label>
+            <label class="toggle-row">
+              <input type="checkbox" id="def-add-keys" checked />
+              <span class="t-label">Ajouter les clés à l'agent
+                <span class="t-desc">AddKeysToAgent — la passphrase n'est demandée qu'une fois par session</span>
+              </span>
+            </label>
+            <label class="toggle-row">
+              <input type="checkbox" id="def-identities-only" checked />
+              <span class="t-label">N'essayer que la clé indiquée
+                <span class="t-desc">IdentitiesOnly — sans ça, ssh propose toutes tes clés et peut dépasser MaxAuthTries</span>
+              </span>
+            </label>
+            <label class="toggle-row">
+              <input type="checkbox" id="def-hash-known-hosts" checked />
+              <span class="t-label">Hacher le fichier known_hosts
+                <span class="t-desc">HashKnownHosts — masque la liste des serveurs que tu fréquentes</span>
+              </span>
+            </label>
+            <label class="toggle-row">
+              <input type="checkbox" id="def-control-master" />
+              <span class="t-label">Réutiliser la connexion (multiplexage)
+                <span class="t-desc">ControlMaster/ControlPersist — les connexions suivantes sont instantanées</span>
+              </span>
+            </label>
+            <label class="toggle-row">
+              <input type="checkbox" id="def-compression" />
+              <span class="t-label">Compression
+                <span class="t-desc">Utile sur liaison lente, inutile voire contre-productif en LAN</span>
+              </span>
+            </label>
+            <label class="toggle-row">
+              <input type="checkbox" id="def-forward-agent" />
+              <span class="t-label">Transférer l'agent SSH par défaut
+                <span class="t-desc">ForwardAgent — à n'activer que vers des serveurs de confiance (root y accède)</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ---------- FORMULAIRE SERVEUR ---------- -->
+      <div id="server-form" hidden>
+
+        <div class="field-group">
+          <label class="field-label" data-step="2">Écoute et authentification</label>
+          <div class="grid-2">
+            <div>
+              <label class="sub-label" for="srv-port">Port</label>
+              <input type="number" id="srv-port" class="text-input" value="22" min="1" max="65535" />
+            </div>
+            <div>
+              <label class="sub-label" for="srv-permit-root">Connexion root (PermitRootLogin)</label>
+              <select id="srv-permit-root" class="text-input">
+                {% for value in permit_root_values %}
+                <option value="{{ value }}">{{ value }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="toggles-list" style="margin-top:12px;">
+            <label class="toggle-row">
+              <input type="checkbox" id="srv-pubkey-auth" checked />
+              <span class="t-label">Authentification par clé publique
+                <span class="t-desc">PubkeyAuthentication — la méthode à garder</span>
+              </span>
+            </label>
+            <label class="toggle-row">
+              <input type="checkbox" id="srv-password-auth" />
+              <span class="t-label">Authentification par mot de passe
+                <span class="t-desc">PasswordAuthentication — décochée, elle coupe court aux attaques par force brute</span>
+              </span>
+            </label>
+          </div>
+          <div class="grid-2" style="margin-top:12px;">
+            <div>
+              <label class="sub-label" for="srv-allow-groups">Groupes autorisés (AllowGroups)</label>
+              <input type="text" id="srv-allow-groups" class="text-input" placeholder="ssh-users" />
+            </div>
+            <div>
+              <label class="sub-label" for="srv-allow-users">Utilisateurs autorisés (AllowUsers)</label>
+              <input type="text" id="srv-allow-users" class="text-input" placeholder="deploy, tom" />
+            </div>
+          </div>
+          <p class="field-hint">Séparés par une virgule. Si l'un des deux est renseigné, tout compte hors liste est refusé — même avec une clé valide.</p>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" data-step="3">Limites de session</label>
+          <div class="grid-3">
+            <div>
+              <label class="sub-label" for="srv-max-auth-tries">Essais d'auth. max</label>
+              <input type="number" id="srv-max-auth-tries" class="text-input" value="3" min="1" />
+            </div>
+            <div>
+              <label class="sub-label" for="srv-login-grace">Délai de login (s)</label>
+              <input type="number" id="srv-login-grace" class="text-input" value="30" min="0" />
+            </div>
+            <div>
+              <label class="sub-label" for="srv-alive-interval">Keepalive (s)</label>
+              <input type="number" id="srv-alive-interval" class="text-input" value="300" min="0" />
+            </div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" data-step="4">Redirections et durcissement</label>
+          <div>
+            <label class="sub-label" for="srv-tcp-forwarding">Redirection de ports (AllowTcpForwarding)</label>
+            <select id="srv-tcp-forwarding" class="text-input">
+              <option value="no">no — aucune (serveur applicatif classique)</option>
+              <option value="yes">yes — autorisée (bastion / tunnels)</option>
+              <option value="local">local — sortantes uniquement</option>
+              <option value="remote">remote — entrantes uniquement</option>
+            </select>
+          </div>
+          <div class="toggles-list" style="margin-top:12px;">
+            <label class="toggle-row">
+              <input type="checkbox" id="srv-agent-forwarding" />
+              <span class="t-label">Autoriser le transfert d'agent
+                <span class="t-desc">AllowAgentForwarding — un root malveillant sur ce serveur pourrait s'en servir</span>
+              </span>
+            </label>
+            <label class="toggle-row">
+              <input type="checkbox" id="srv-x11" />
+              <span class="t-label">Autoriser X11
+                <span class="t-desc">X11Forwarding — inutile sur un serveur sans interface graphique</span>
+              </span>
+            </label>
+            <label class="toggle-row">
+              <input type="checkbox" id="srv-modern-crypto" checked />
+              <span class="t-label">Algorithmes modernes uniquement
+                <span class="t-desc">Ciphers/MACs/KexAlgorithms sans CBC, SHA-1 ni courbes NIST — bloque les clients très anciens</span>
+              </span>
+            </label>
+          </div>
+          <div style="margin-top:12px;">
+            <label class="sub-label" for="srv-banner">Bannière affichée avant connexion (optionnel)</label>
+            <input type="text" id="srv-banner" class="text-input" placeholder="/etc/issue.net" />
+            <p class="field-hint">Le fichier doit exister sur le serveur, sinon sshd refuse de démarrer.</p>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" data-step="5">Dépôt SFTP chrooté (optionnel)</label>
+          <div class="grid-2">
+            <div>
+              <label class="sub-label" for="srv-sftp-group">Groupe SFTP</label>
+              <input type="text" id="srv-sftp-group" class="text-input" placeholder="sftponly" />
+            </div>
+            <div>
+              <label class="sub-label" for="srv-sftp-chroot">Répertoire de chroot</label>
+              <input type="text" id="srv-sftp-chroot" class="text-input" placeholder="/srv/sftp/%u" />
+            </div>
+          </div>
+          <p class="field-hint">Renseigne un groupe pour ajouter un bloc <code>Match Group</code> : ses membres n'obtiennent aucun shell, seulement du SFTP.</p>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" data-step="6">Clés autorisées (optionnel)</label>
+          <div class="card-list" id="key-list"></div>
+          <button type="button" id="add-key-btn" class="btn btn-ghost btn-add">+ Ajouter une clé</button>
+          <p class="field-hint">Génère en plus un <code>authorized_keys</code>. C'est le seul endroit où une restriction s'applique à <em>une</em> clé précise (IP source, commande forcée).</p>
+        </div>
+
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top:0;">GÉNÉRER →</button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink:0;">↺</button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="config"><span class="node-num">01</span><span class="node-label" id="node-1-label">CLIENT</span></div>
+        <div class="connector flowing"></div>
+        <div class="node" data-stage="apply"><span class="node-num">02</span><span class="node-label">GÉNÉRÉ</span></div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Fichier(s) généré(s)</p>
+      <div class="file-tabs" id="file-tabs"></div>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le ou les fichiers générés apparaîtront ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    window.OPSFORGE_SSH = {
+      roles: {{ roles | tojson }},
+      presets: {{ presets | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='ssh/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "ssh",
+    icon: "fa-solid fa-terminal",
+    intro: "Le fichier client se pose dans ton dossier personnel, le fragment serveur dans /etc/ssh/sshd_config.d/. Dans les deux cas, teste AVANT de fermer ta session en cours.",
+    os: [
+      { id: "client", label: "Client (~/.ssh/config)", icon: "fa-solid fa-laptop", color: "#4D7C0F", steps: [
+        { title: "Créer le dossier si besoin", cmd: "mkdir -p ~/.ssh && chmod 700 ~/.ssh" },
+        { title: "Déposer le fichier généré", cmd: "cp ssh_config ~/.ssh/config" },
+        { title: "Poser les permissions (obligatoire)", cmd: "chmod 600 ~/.ssh/config", note: "OpenSSH ignore un fichier lisible par d'autres comptes." },
+        { title: "Vérifier la config effective d'un alias", cmd: "ssh -G prod-web", note: "Affiche ce que ssh appliquerait, sans se connecter." },
+        { title: "Se connecter", cmd: "ssh prod-web" },
+      ]},
+      { id: "cles", label: "Générer une clé", icon: "fa-solid fa-key", color: "#B45309", steps: [
+        { title: "Créer une clé Ed25519 dédiée", cmd: "ssh-keygen -t ed25519 -C \"tom@laptop\" -f ~/.ssh/id_ed25519_prod", note: "Une clé par usage : révoquer l'une n'oblige pas à tout refaire." },
+        { title: "Copier la clé publique sur le serveur", cmd: "ssh-copy-id -i ~/.ssh/id_ed25519_prod.pub deploy@203.0.113.10" },
+        { title: "Vérifier que la connexion par clé marche", cmd: "ssh -i ~/.ssh/id_ed25519_prod deploy@203.0.113.10", note: "À faire AVANT de désactiver l'authentification par mot de passe côté serveur." },
+      ]},
+      { id: "serveur", label: "Serveur (sshd_config.d)", icon: "fa-solid fa-server", color: "#166534", steps: [
+        { title: "Déposer le fragment", cmd: "sudo cp 10-opsforge-durcissement.conf /etc/ssh/sshd_config.d/" },
+        { title: "Poser propriétaire et permissions", cmd: "sudo chown root:root /etc/ssh/sshd_config.d/10-opsforge-durcissement.conf\nsudo chmod 644 /etc/ssh/sshd_config.d/10-opsforge-durcissement.conf" },
+        { title: "Vérifier que sshd_config inclut bien le dossier", cmd: "grep -i '^Include' /etc/ssh/sshd_config", note: "Debian 12 / Ubuntu 22.04+ l'incluent d'origine. Sinon, ajoute 'Include /etc/ssh/sshd_config.d/*.conf' en 1re ligne." },
+        { title: "Tester la syntaxe", cmd: "sudo sshd -t", note: "Aucune sortie = tout va bien. N'enchaîne pas si une erreur s'affiche." },
+        { title: "Recharger le service", cmd: "sudo systemctl reload ssh", note: "reload, pas restart : les sessions ouvertes survivent." },
+        { title: "Tester une NOUVELLE connexion", cmd: "ssh -v deploy@ton-serveur", note: "Depuis un autre terminal, en gardant celui-ci ouvert : c'est ton filet de sécurité si la config verrouille l'accès." },
+      ]},
+      { id: "cles-autorisees", label: "authorized_keys", icon: "fa-solid fa-file-shield", color: "#0F766E", steps: [
+        { title: "Déposer le fichier sur le compte cible", cmd: "sudo -u deploy mkdir -p ~deploy/.ssh\nsudo cp authorized_keys ~deploy/.ssh/authorized_keys" },
+        { title: "Propriétaire et permissions", cmd: "sudo chown -R deploy:deploy ~deploy/.ssh\nsudo chmod 700 ~deploy/.ssh\nsudo chmod 600 ~deploy/.ssh/authorized_keys" },
+        { title: "Vérifier ce que sshd accepte", cmd: "sudo tail -f /var/log/auth.log", note: "Une clé refusée pour cause de permissions y apparaît explicitement." },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>

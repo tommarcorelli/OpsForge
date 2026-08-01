@@ -8,7 +8,10 @@ const SUPPORTED_LANGUAGES = ["python", "node", "go", "rust", "java", "php", "rub
 const state = {
   detectedStacks: null,   // resultat de /api/detect, ou null si pas encore lance
   manualLanguages: new Set(),
-  lastYaml: "",
+  // Fichiers generes : le pipeline en premier, puis les eventuels fichiers
+  // annexes (dependabot.yml / renovate.json). Un onglet par entree.
+  files: [],
+  activeFileIndex: 0,
   provider: "github",
 };
 
@@ -51,6 +54,13 @@ const el = {
   badgeText: document.getElementById("badge-text"),
   copyBadgeBtn: document.getElementById("copy-badge-btn"),
   pagesToggleLabel: document.getElementById("pages-toggle-label"),
+  fileTabs: document.getElementById("file-tabs"),
+  depsOptions: document.getElementById("deps-options"),
+  depsSchedule: document.getElementById("deps-schedule"),
+  depsGroup: document.getElementById("deps-group"),
+  depsDocker: document.getElementById("deps-docker"),
+  depsHint: document.getElementById("deps-hint"),
+  depsFileHint: document.getElementById("deps-file-hint"),
 };
 
 // ----------------------------------------------------------------------------
@@ -117,6 +127,7 @@ function switchProvider(provider) {
 
   rebuildInstallGuide(provider);
   updateDeployFieldsVisibility();
+  updateDepsVisibility();
 
   // Reinitialise le resultat affiche : un fichier genere pour un autre
   // provider n'a pas de sens une fois qu'on a bascule.
@@ -343,6 +354,38 @@ function getSelectedDeployTargets() {
 }
 
 // ----------------------------------------------------------------------------
+// Mises a jour de dependances (Dependabot / Renovate)
+// ----------------------------------------------------------------------------
+const DEPS_FILENAMES = {
+  dependabot: ".github/dependabot.yml",
+  renovate: "renovate.json",
+};
+
+function getSelectedDepsTool() {
+  const checked = document.querySelector('input[name="deps-tool"]:checked');
+  return checked ? checked.value : "";
+}
+
+function updateDepsVisibility() {
+  const tool = getSelectedDepsTool();
+  el.depsOptions.hidden = !tool;
+  if (tool) {
+    el.depsFileHint.innerHTML =
+      `Fichier généré : <code>${DEPS_FILENAMES[tool]}</code> — il apparaîtra dans un second onglet à droite.`;
+  }
+
+  // Dependabot est une fonctionnalite native de GitHub : ailleurs, le
+  // fichier genere ne serait jamais lu par la plateforme.
+  if (state.provider !== "github" && tool === "dependabot") {
+    el.depsHint.textContent =
+      "Dependabot n'existe que sur GitHub : sur cette plateforme, choisis plutôt Renovate (auto-hébergeable, compatible GitLab et Bitbucket).";
+  } else {
+    el.depsHint.textContent =
+      "Génère en plus un fichier qui ouvre des PR quand une dépendance sort en nouvelle version. Les écosystèmes surveillés sont déduits des stacks ci-dessus.";
+  }
+}
+
+// ----------------------------------------------------------------------------
 // Schema de pipeline : mise a jour visuelle selon les jobs coches
 // ----------------------------------------------------------------------------
 function updateSchematic() {
@@ -404,6 +447,12 @@ function handleReset() {
 
   document.querySelectorAll('input[name="jobs"]').forEach((cb) => (cb.checked = true));
   document.querySelectorAll('input[name="deploy"]').forEach((cb) => (cb.checked = false));
+
+  document.querySelector('input[name="deps-tool"][value=""]').checked = true;
+  el.depsSchedule.value = "weekly";
+  el.depsGroup.checked = true;
+  el.depsDocker.checked = false;
+  updateDepsVisibility();
 
   switchProvider("github");
   updateDeployFieldsVisibility();
@@ -483,6 +532,14 @@ async function handleGenerate() {
     payload.badge_repo = badgeRepo;
   }
 
+  const depsTool = getSelectedDepsTool();
+  if (depsTool) {
+    payload.deps_tool = depsTool;
+    payload.deps_schedule = el.depsSchedule.value;
+    payload.deps_include_docker = el.depsDocker.checked;
+    payload.deps_group_minor_patch = el.depsGroup.checked;
+  }
+
   if (deployTargets.length > 0) {
     payload.deploy_targets = deployTargets;
     payload.pages_dir = el.pagesDir.value.trim() || undefined;
@@ -512,9 +569,10 @@ async function handleGenerate() {
       return;
     }
 
-    state.lastYaml = data.yaml;
-    state.lastFilename = data.filename || "ci.yml";
-    renderResult(data.yaml);
+    state.files = [{ filename: data.filename || "ci.yml", content: data.yaml }];
+    (data.extra_files || []).forEach((file) => state.files.push(file));
+    state.activeFileIndex = 0;
+    renderResult();
     updateTitleBlock(stacks, jobs, deployTargets);
     savePrefs();
     flashSuccess();
@@ -535,13 +593,15 @@ async function handleGenerate() {
 }
 
 function resetResultBox(message) {
+  el.fileTabs.innerHTML = "";
   el.resultBox.innerHTML = "";
   const p = document.createElement("p");
   p.className = "result-placeholder";
   p.textContent = message || "Le fichier ci.yml généré apparaîtra ici.";
   el.resultBox.appendChild(p);
   el.resultActions.hidden = true;
-  state.lastYaml = "";
+  state.files = [];
+  state.activeFileIndex = 0;
 }
 
 function escapeHtml(str) {
@@ -577,10 +637,31 @@ function highlightYaml(text) {
   return highlighted.join("\n");
 }
 
-function renderResult(yamlText) {
+function renderFileTabs() {
+  el.fileTabs.innerHTML = "";
+  // Un seul fichier : pas d'onglet, ca n'apporterait rien.
+  if (state.files.length <= 1) return;
+  state.files.forEach((file, index) => {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "file-tab";
+    if (index === state.activeFileIndex) tab.classList.add("active");
+    tab.textContent = file.filename;
+    tab.addEventListener("click", () => {
+      state.activeFileIndex = index;
+      renderResult();
+    });
+    el.fileTabs.appendChild(tab);
+  });
+}
+
+function renderResult() {
+  renderFileTabs();
   el.resultBox.innerHTML = "";
+  const active = state.files[state.activeFileIndex];
+  if (!active) return;
   const pre = document.createElement("pre");
-  pre.innerHTML = highlightYaml(yamlText);
+  pre.innerHTML = highlightYaml(active.content);
   el.resultBox.appendChild(pre);
   el.resultActions.hidden = false;
 }
@@ -600,9 +681,10 @@ function updateTitleBlock(stacks, jobs, deployTargets) {
 // Actions resultat : copier / telecharger
 // ----------------------------------------------------------------------------
 async function handleCopy() {
-  if (!state.lastYaml) return;
+  const active = state.files[state.activeFileIndex];
+  if (!active) return;
   try {
-    await navigator.clipboard.writeText(state.lastYaml);
+    await navigator.clipboard.writeText(active.content);
     el.copyBtn.textContent = "Copié !";
     setTimeout(() => (el.copyBtn.textContent = "Copier"), 1500);
   } catch (err) {
@@ -623,12 +705,15 @@ async function handleCopyBadge() {
 }
 
 function handleDownload() {
-  if (!state.lastYaml) return;
-  const blob = new Blob([state.lastYaml], { type: "text/yaml" });
+  const active = state.files[state.activeFileIndex];
+  if (!active) return;
+  const blob = new Blob([active.content], { type: "text/yaml" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = state.lastFilename || "ci.yml";
+  // Le nom peut porter un dossier (.github/dependabot.yml) : on ne garde
+  // que la derniere partie pour le telechargement.
+  a.download = active.filename.split("/").pop();
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -669,6 +754,11 @@ document.querySelectorAll('input[name="deploy"]').forEach((cb) => {
   });
 });
 updateDeployFieldsVisibility();
+
+document.querySelectorAll('input[name="deps-tool"]').forEach((radio) => {
+  radio.addEventListener("change", updateDepsVisibility);
+});
+updateDepsVisibility();
 
 el.providerButtons.forEach((btn) => {
   btn.addEventListener("click", () => switchProvider(btn.dataset.provider));

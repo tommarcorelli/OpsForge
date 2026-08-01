@@ -26,6 +26,15 @@ from modules.cicd.core import (
 from modules.cicd.core import (
     generate_badge_markdown as generate_github_badge_markdown,
 )
+from modules.cicd.deps_core import (
+    SCHEDULES as DEPS_SCHEDULES,
+)
+from modules.cicd.deps_core import (
+    SUPPORTED_TOOLS as DEPS_TOOLS,
+)
+from modules.cicd.deps_core import (
+    generate_deps_config,
+)
 from modules.cicd.detector import detect_stack
 from modules.cicd.drone_core import (
     generate_badge_markdown as generate_drone_badge_markdown,
@@ -120,6 +129,8 @@ def index():
         "cicd.html",
         languages=SUPPORTED_LANGUAGES,
         deploy_targets=DEPLOY_TARGETS,
+        deps_tools=DEPS_TOOLS,
+        deps_schedules=DEPS_SCHEDULES,
     )
 
 
@@ -204,6 +215,27 @@ def api_generate():
 
     filename = provider_info["filename"]
     result = {"yaml": yaml_text, "filename": filename}
+
+    # Mises a jour de dependances (Dependabot / Renovate) : fichier a part,
+    # depose dans le meme depot que le pipeline, deduit des memes stacks.
+    deps_tool = data.get("deps_tool")
+    if deps_tool:
+        try:
+            deps_filename, deps_content = generate_deps_config(
+                normalized_stacks,
+                tool=deps_tool,
+                schedule=data.get("deps_schedule"),
+                open_pr_limit=data.get("deps_open_pr_limit"),
+                target_branch=branches[0],
+                # L'ecosysteme 'github-actions' n'a de sens que si les
+                # workflows sont bien sur GitHub.
+                include_github_actions=(provider == "github"),
+                include_docker=bool(data.get("deps_include_docker")),
+                group_minor_patch=data.get("deps_group_minor_patch", True),
+            )
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        result["extra_files"] = [{"filename": deps_filename, "content": deps_content}]
 
     badge_repo = data.get("badge_repo")
     if badge_repo:

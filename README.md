@@ -38,6 +38,7 @@ serveur externe.
 | **Vault** | **`config.hcl`** (storage file/raft/consul, seal shamir/awskms/transit, listener), **`policies/*.hcl`** (ACL), **`bootstrap.sh`** (activation auth methods et secrets engines : userpass/approle/kubernetes/ldap/github/oidc/jwt/aws/gcp/azure/cert, kv-v2/pki/database/transit/aws/ssh/gcp/azure/consul/nomad/totp…) | `/vault` | `python main.py vault …` |
 | **GitOps** | **ArgoCD** (`argocd-application.yaml`) ou **FluxCD** (`flux-gitrepository.yaml` + `flux-kustomization.yaml`/`flux-helmrelease.yaml`) — sources raw/Kustomize/Helm, sync auto ou manuelle | `/gitops` | `python main.py gitops …` |
 | **Backup** | **`backup.sh`**/**`restore.sh`** idempotents (**restic** ou **Borg**, backend local/SFTP/S3), planification **`*.service`+`*.timer`** ou **cron**, **`backup.env.example`** (secrets jamais en dur) | `/backup` | `python main.py backup …` |
+| **SSH** | **`~/.ssh/config`** côté client (alias, clés dédiées, rebond **ProxyJump**, tunnels) ou fragment **`sshd_config.d/`** de durcissement côté serveur (+ **`authorized_keys`** restreint par clé : `from=`, `command=`, `restrict`) | `/ssh` | `python main.py ssh …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -160,6 +161,29 @@ python main.py cicd . --provider teamcity --dry-run
 
 # Apercu sans rien ecrire sur disque
 python main.py cicd . --dry-run
+
+# Pipeline + mises a jour automatiques des dependances (fichier en plus)
+python main.py cicd . --deps dependabot
+python main.py cicd . --provider gitlab --deps renovate --deps-schedule daily --deps-docker
+```
+
+### Module SSH
+
+```bash
+# Liste les presets (client et serveur)
+python main.py ssh --list-presets
+
+# Cote client : ~/.ssh/config avec rebond par bastion
+python main.py ssh --preset acces-bastion -o output/ssh/
+
+# Cote serveur : fragment de durcissement sshd, port et groupes surcharges
+python main.py ssh --preset serveur-durci --port 2222 --allow-groups admins devops -o output/ssh/
+
+# Depuis une config JSON sur mesure
+python main.py ssh ma-config-ssh.json -o output/ssh/
+
+# Apercu sans rien ecrire sur disque
+python main.py ssh --preset sftp-only --dry-run
 ```
 
 ### Module Kubernetes / Helm / Kustomize
@@ -444,6 +468,34 @@ qui génèrent respectivement du Groovy et du Kotlin).
 > Note : la clé `on:` des workflows GitHub Actions est générée entre guillemets
 > (`"on":`) — YAML 1.1 interprète le mot nu `on` comme un booléen, ce qui
 > cassait le parsing PyYAML.
+
+### Mises à jour de dépendances (Dependabot / Renovate)
+
+Extension du module CI/CD, pas un module à part : le fichier produit se dépose
+dans le même dépôt que le pipeline et se déduit des **mêmes stacks détectées**.
+Coché dans le formulaire (ou `--deps` en CLI), il apparaît dans un **second
+onglet** à côté du pipeline.
+
+- **Dependabot** (`.github/dependabot.yml`, version 2) — natif GitHub, rien à
+  installer. Un bloc `updates:` par écosystème (`pip`, `npm`, `gomod`, `cargo`,
+  `maven`/`gradle` selon le package manager Java détecté, `composer`,
+  `bundler`, `nuget`), plus `github-actions` (toujours sur `/`, c'est là que
+  vivent les workflows) et `docker` en option.
+- **Renovate** (`renovate.json`) — plus configurable et **pas limité à
+  GitHub** (GitLab, Bitbucket, auto-hébergé). `extends: config:recommended`,
+  `enabledManagers` déduits des stacks, créneau horaire au lieu d'un simple
+  intervalle (Renovate tourne en continu et se bride par `schedule`).
+
+Dans les deux cas : les mises à jour **mineures et correctives sont
+regroupées** en une seule PR (sinon le dépôt est noyé sous une PR par
+dépendance), les **majeures restent isolées** (c'est là que ça casse), et les
+**alertes de sécurité ne sont pas soumises au créneau** (`vulnerabilityAlerts`
+en `at any time` côté Renovate). La branche cible reprend la première branche
+déclenchante du pipeline.
+
+Options CLI : `--deps dependabot|renovate`, `--deps-schedule daily|weekly|monthly`,
+`--deps-docker` (surveiller aussi les images de base), `--deps-no-group`
+(une PR par dépendance).
 
 ## Module Ansible — détails
 
@@ -974,6 +1026,58 @@ Usage typique : générer les fichiers, copier `backup.env.example` en
 
 ---
 
+## Module SSH — détails
+
+Deux rôles, symétriques aux deux bouts d'une connexion.
+
+**Côté client — `~/.ssh/config`** : un bloc `Host` par serveur (alias,
+`HostName`, `User`, `Port`, `IdentityFile`), rebond via **`ProxyJump`** vers un
+alias déclaré plus haut (accès à un réseau privé derrière un bastion),
+redirections de ports (**`LocalForward`**, `RemoteForward`, `DynamicForward`
+pour un proxy SOCKS), et un bloc `Host *` de réglages communs
+(`ServerAliveInterval`, `AddKeysToAgent`, `IdentitiesOnly`, `HashKnownHosts`,
+multiplexage `ControlMaster`/`ControlPersist`).
+
+> Deux pièges gérés à la génération : le bloc `Host *` est écrit **en fin de
+> fichier** (OpenSSH garde la *première* valeur trouvée pour chaque option —
+> placé en tête, il court-circuiterait tous les blocs suivants), et les
+> redirections sont écrites au format d'un fichier de config
+> (`LocalForward 5432 localhost:5432`, avec un espace) et non au format de la
+> ligne de commande `-L 5432:localhost:5432`.
+
+**Côté serveur — `sshd_config.d/10-opsforge-durcissement.conf`** : un fragment
+d'inclusion (mécanisme standard depuis Debian 12 / Ubuntu 22.04) plutôt qu'un
+`sshd_config` complet réécrit — rien n'est écrasé, et le durcissement se retire
+en supprimant le fichier. Le préfixe `10-` n'est pas décoratif : sshd garde la
+**première** valeur lue dans `sshd_config.d/`, un `99-` arriverait après les
+fragments de la distribution (`50-cloud-init.conf`…) et serait ignoré sur les
+directives qu'ils définissent déjà.
+
+Contenu : `PermitRootLogin`, `PasswordAuthentication`/`PubkeyAuthentication`,
+`AllowUsers`/`AllowGroups`, `MaxAuthTries`, `LoginGraceTime`, keepalive,
+`AllowTcpForwarding`/`AllowAgentForwarding`/`X11Forwarding`, `LogLevel`,
+bannière, algorithmes modernes en option (`Ciphers`/`MACs`/`KexAlgorithms` sans
+CBC, SHA-1 ni courbes NIST), et un bloc **`Match Group` SFTP chrooté**
+(`ChrootDirectory` + `ForceCommand internal-sftp`, aucun shell) — toujours placé
+en dernier, puisque tout ce qui suit un `Match` lui appartient.
+
+**`authorized_keys` (option, rôle serveur)** : c'est le seul endroit où une
+restriction s'applique à **une clé précise** — `from="203.0.113.0/24"`,
+`command="/usr/local/bin/deploy.sh"`, `restrict` — là où `sshd_config` ne sait
+raisonner que par utilisateur ou par groupe. Une clé privée collée par erreur
+(`-----BEGIN …`) est refusée explicitement, comme un type de clé inconnu.
+
+Presets : `poste-de-travail`, `acces-bastion`, `tunnels` (client),
+`serveur-durci`, `bastion`, `sftp-only`, `cle-restreinte` (serveur).
+
+Les fichiers écrits sur disque reçoivent les permissions attendues (`600` pour
+`ssh_config` et `authorized_keys`, qu'OpenSSH ignore s'ils sont lisibles par
+d'autres comptes). Avant de recharger sshd : `sudo sshd -t`, puis
+`systemctl reload ssh` **en gardant une session ouverte** le temps de tester une
+nouvelle connexion.
+
+---
+
 ## Tests
 
 ```bash
@@ -994,6 +1098,8 @@ pytest tests/packer/     # module Packer uniquement
 pytest tests/vault/      # module Vault uniquement
 pytest tests/gitops/     # module GitOps uniquement
 pytest tests/backup/     # module Backup uniquement
+pytest tests/ssh/        # module SSH uniquement (client ~/.ssh/config + durcissement sshd)
+pytest tests/cicd/test_deps_core.py tests/cicd/test_deps_routes.py   # Dependabot / Renovate
 ```
 
 > Sous Windows, 6 tests de chiffrement Vault sont **skippés proprement**
@@ -1006,7 +1112,7 @@ pytest tests/backup/     # module Backup uniquement
 
 ## Roadmap — reste à faire
 
-Les 14 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+Les 18 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
 
 - [x] ~~Module Backup~~ — fait (restic / Borg, voir plus bas).
 - [x] ~~Module GitOps~~ — fait (ArgoCD Application / FluxCD, voir plus bas).
@@ -1102,11 +1208,14 @@ prochaines pistes d'extension (nouveaux providers CI, nouvelles cibles IaC)
 sont plutôt des ajouts *dans* les modules existants que de nouveaux modules
 à part entière — CircleCI/Jenkins/Drone/Bitbucket/TeamCity (CI/CD),
 CloudFormation et Pulumi (Terraform), Kustomize (K8s), HAProxy (Nginx) ont
-déjà été traités ainsi. Plus aucune piste connue non traitée à ce jour : les
+déjà été traités ainsi. Deux pistes sont venues s'ajouter depuis, et illustrent
+bien la règle de partage : **SSH** avait assez de matière (deux rôles, sept
+presets, trois formats de fichier) pour devenir un **module à part entière**,
+alors que **Dependabot/Renovate** — un seul petit fichier de config, déduit des
+stacks déjà détectées — est resté une **extension du module CI/CD**. Les
 prochaines directions restent des ajouts de providers/cibles supplémentaires
 (ex : TeamCity/Bitbucket Pipelines pour le CI/CD, déjà faits ; d'autres
-pourraient suivre selon les besoins) — rien de spécifique demandé pour
-l'instant au-delà de ce qui est décrit plus bas.
+pourraient suivre selon les besoins).
 
 > À éviter (doublons d'autres projets) : docker-compose = DockerForge ;
 > réseau/firewall/VLAN = NetForge.
@@ -1155,8 +1264,18 @@ Autres extensions possibles, par module :
       genere selon le driver, case a cocher + selecteur de driver dans l'UI
       et `--molecule`/`--molecule-driver` en CLI).
 
-Un seul candidat à un **nouveau module à part entière** avait été identifié,
-et il est désormais traité :
+- [x] ~~**Mises à jour de dépendances** (module CI/CD)~~ — fait, et
+      volontairement **en extension du module CI/CD plutôt qu'en module à
+      part** : ça produit un seul petit fichier de config
+      (`.github/dependabot.yml` ou `renovate.json`), déduit des mêmes stacks
+      détectées et déposé dans le même dépôt que le pipeline — pas assez de
+      matière pour justifier une page et une CLI dédiées. Écosystèmes déduits
+      des stacks, mineures/correctives regroupées, majeures isolées, alertes de
+      sécurité hors créneau ; case dans l'UI (second onglet de résultat) et
+      `--deps`/`--deps-schedule`/`--deps-docker`/`--deps-no-group` en CLI.
+
+Deux candidats à un **nouveau module à part entière** avaient été identifiés,
+et ils sont désormais traités :
 
 - [x] ~~**HashiCorp Vault**~~ — fait (`config.hcl` : storage
       file/raft/consul, seal shamir/awskms/transit, listener TCP+TLS ;
@@ -1170,12 +1289,22 @@ et il est désormais traité :
       serveur Vault lui-même. 7 presets, sélecteurs storage/seal dans l'UI
       et `--preset`/`--list-*` en CLI).
 
+- [x] ~~**SSH**~~ — fait (deux rôles : `~/.ssh/config` côté client — alias,
+      clés dédiées, `ProxyJump` vers un bastion, `LocalForward`/
+      `DynamicForward`, bloc `Host *` en fin de fichier ; et fragment
+      `sshd_config.d/10-opsforge-durcissement.conf` côté serveur —
+      authentification par clé seule, `AllowGroups`, limites de session,
+      forwarding, algorithmes modernes, bloc `Match Group` SFTP chrooté —
+      plus un `authorized_keys` restreint par clé (`from=`, `command=`,
+      `restrict`) en option. 7 presets, sélecteur de rôle dans l'UI et
+      `--preset`/`--role`/`--port`/`--allow-groups` en CLI. Assez de matière
+      pour un module complet, contrairement aux mises à jour de dépendances,
+      traitées en extension du module CI/CD).
+
 Tous les modules candidats identifiés dans cette roadmap sont désormais
-implémentés — les 14 modules d'OpsForge couvrent l'ensemble des cibles
-envisagées au départ (GitOps et Backup, les deux derniers arrivés, ont
-rejoint la liste). Les prochaines pistes restent des ajouts *dans* les
-modules existants (nouveaux providers CI, nouvelles cibles IaC, nouveaux
-auth methods/secrets engines Vault) plutôt que de nouveaux modules à part
+implémentés. Les prochaines pistes restent des ajouts *dans* les modules
+existants (nouveaux providers CI, nouvelles cibles IaC, nouveaux auth
+methods/secrets engines Vault) plutôt que de nouveaux modules à part
 entière.
 
 ### Déjà fait (résumé)

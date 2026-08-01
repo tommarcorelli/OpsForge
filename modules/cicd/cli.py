@@ -24,6 +24,16 @@ from modules.cicd.circleci_core import (
     write_circleci_config,
 )
 from modules.cicd.core import generate_badge_markdown, generate_workflow, write_workflow
+from modules.cicd.deps_core import (
+    SCHEDULES as DEPS_SCHEDULES,
+)
+from modules.cicd.deps_core import (
+    SUPPORTED_TOOLS as DEPS_TOOLS,
+)
+from modules.cicd.deps_core import (
+    generate_deps_config,
+    write_deps_config,
+)
 from modules.cicd.detector import detect_stack
 from modules.cicd.drone_core import (
     generate_badge_markdown as generate_drone_badge_markdown,
@@ -248,6 +258,34 @@ def build_parser():
              "Pour Bitbucket : 'workspace/depot'. "
              "Pour TeamCity : 'url_teamcity,id_buildtype' (ex: 'https://ci.exemple.com,MonProjet_Test').",
     )
+    # ---- Mises a jour de dependances (Dependabot / Renovate) ----
+    parser.add_argument(
+        "--deps",
+        choices=DEPS_TOOLS,
+        default=None,
+        help="Genere en plus un fichier de mises a jour automatiques des dependances : "
+             "dependabot (.github/dependabot.yml, natif GitHub) ou renovate "
+             "(renovate.json, aussi valable sur GitLab/Bitbucket). Les ecosystemes "
+             "surveilles sont deduits des stacks detectees.",
+    )
+    parser.add_argument(
+        "--deps-schedule",
+        choices=DEPS_SCHEDULES,
+        default="weekly",
+        help="[--deps] Frequence des mises a jour (defaut : weekly).",
+    )
+    parser.add_argument(
+        "--deps-docker",
+        action="store_true",
+        help="[--deps] Surveille aussi les images de base (Dockerfile / docker-compose).",
+    )
+    parser.add_argument(
+        "--deps-no-group",
+        action="store_true",
+        help="[--deps] Une PR par dependance au lieu de regrouper les mises a jour "
+             "mineures et correctives (les majeures restent toujours seules).",
+    )
+
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -327,14 +365,34 @@ def main(argv=None):
 
     output_path = args.output or os.path.join(OUTPUT_DIR, provider_info["default_filename"])
 
+    deps_options = None
+    if args.deps:
+        deps_options = {
+            "schedule": args.deps_schedule,
+            "target_branch": args.branches[0],
+            # L'ecosysteme 'github-actions' n'a de sens que si les workflows
+            # sont bien sur GitHub.
+            "include_github_actions": args.provider == "github",
+            "include_docker": args.deps_docker,
+            "group_minor_patch": not args.deps_no_group,
+        }
+
     if args.dry_run:
         try:
             content = provider_info["generate"](stacks, args.jobs, deploy_config, args.branches, args.schedule_cron)
+            deps_preview = (
+                generate_deps_config(stacks, tool=args.deps, **deps_options)
+                if deps_options else None
+            )
         except ValueError as e:
             print(f"Erreur : {e}")
             sys.exit(1)
         print(f"\n--- Apercu (dry-run) : {output_path} ---\n")
         print(content)
+        if deps_preview:
+            deps_filename, deps_content = deps_preview
+            print(f"\n--- Apercu (dry-run) : {deps_filename} ---\n")
+            print(deps_content)
         print("--- Fin de l'apercu : rien n'a ete ecrit sur disque ---")
         return
 
@@ -347,6 +405,19 @@ def main(argv=None):
     print(f"\nPipeline genere avec succes : {output_path}")
     print(f"Emplacement reel attendu dans ton depot : {provider_info['real_path_hint']}")
     print(f"Jobs inclus : {', '.join(args.jobs)}")
+
+    if deps_options:
+        deps_filename, _ = generate_deps_config(stacks, tool=args.deps, **deps_options)
+        deps_path = os.path.join(os.path.dirname(output_path), os.path.basename(deps_filename))
+        try:
+            write_deps_config(stacks, deps_path, tool=args.deps, **deps_options)
+        except ValueError as e:
+            print(f"Erreur : {e}")
+            sys.exit(1)
+        print(f"\nMises a jour de dependances generees : {deps_path}")
+        print(f"Emplacement reel attendu dans ton depot : {deps_filename}")
+        print(f"Frequence : {args.deps_schedule}")
+
     if args.deploy:
         print(f"Deploiement inclus : {', '.join(args.deploy)}")
         print("N'oublie pas de configurer les secrets/variables/identifiants necessaires "

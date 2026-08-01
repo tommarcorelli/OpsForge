@@ -18,6 +18,7 @@ Sous-commandes :
     python main.py vault      ...   -> generateur de config HashiCorp Vault (config.hcl/policies/bootstrap)
     python main.py gitops     ...   -> generateur de manifests GitOps (ArgoCD Application / FluxCD)
     python main.py backup     ...   -> generateur de sauvegarde/restauration (restic / Borg)
+    python main.py ssh        ...   -> generateur de config SSH (client ~/.ssh/config ou durcissement sshd)
 
 Chaque sous-commande accepte ses propres options. Exemples :
     python main.py cicd . --provider gitlab --deploy docker_hub
@@ -34,6 +35,7 @@ Chaque sous-commande accepte ses propres options. Exemples :
     python main.py vault --preset app-secrets-kv -o output/vault/
     python main.py gitops --preset argocd-raw-manifests -o output/gitops/
     python main.py backup --preset restic-local-systemd -o output/backup/
+    python main.py ssh --preset acces-bastion -o output/ssh/
 
 Utilise `python main.py <module> --help` pour voir les options d'un module.
 """
@@ -48,10 +50,12 @@ from modules.dockerfile import cli as dockerfile_cli
 from modules.firewall import cli as firewall_cli
 from modules.gitops import cli as gitops_cli
 from modules.logging import cli as logging_cli
+from modules.precommit import cli as precommit_cli
 from modules.k8s import cli as k8s_cli
 from modules.monitoring import cli as monitoring_cli
 from modules.nginx import cli as nginx_cli
 from modules.packer import cli as packer_cli
+from modules.ssh import cli as ssh_cli
 from modules.systemd import cli as systemd_cli
 from modules.terraform import cli as terraform_cli
 from modules.vagrant import cli as vagrant_cli
@@ -74,11 +78,13 @@ MODULES = {
     "backup": backup_cli.main,
     "firewall": firewall_cli.main,
     "logging": logging_cli.main,
+    "precommit": precommit_cli.main,
+    "ssh": ssh_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault|gitops|backup|firewall|logging} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault|gitops|backup|firewall|logging|precommit|ssh} [options]")
     print()
     print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI / CircleCI / Jenkins / Drone / Bitbucket / TeamCity)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
@@ -96,6 +102,8 @@ def _usage():
     print("  backup     Genere un script de sauvegarde/restauration idempotent (restic / Borg) + planification")
     print("  firewall   Genere des regles pare-feu (ufw / nftables) + config fail2ban (jail.local)")
     print("  logging    Genere une config de collecte de logs (Fluent Bit / Vector) vers Loki/Elasticsearch")
+    print("  precommit  Genere des hooks Git pre-commit (framework pre-commit / Husky+lint-staged)")
+    print("  ssh        Genere une config SSH (~/.ssh/config client / durcissement sshd_config.d)")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 

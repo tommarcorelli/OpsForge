@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Générateur de hooks Git pre-commit</title>
+
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#6D28D9" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='precommit/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· pre-commit</span></span>
+    </a>
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-circle-info"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — GÉNÉRATEUR DE HOOKS GIT</p>
+    <h1>Rattrape les erreurs<br />avant qu'elles commitent</h1>
+    <p class="subtitle">Config <code>pre-commit</code> ou <code>Husky + lint-staged</code> : lint, format, hygiène générale et scan de secrets, avant que ça n'atterrisse dans l'historique.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="field-group">
+        <label class="field-label" data-step="1">Presets</label>
+        <div class="preset-list" id="preset-list"></div>
+        <p class="field-hint">Choisis un point de départ selon ton langage, puis coche/décoche des hooks ci-dessous.</p>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" data-step="2">Backend</label>
+        <div class="provider-switch" id="backend-switch">
+          <button type="button" class="provider-btn active" data-backend="pre-commit">pre-commit</button>
+          <button type="button" class="provider-btn" data-backend="husky">Husky</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="3">Hooks</label>
+        <div class="hooks-list" id="hooks-list"></div>
+        <p class="field-hint">Les hooks grisés ne sont pas disponibles pour le backend sélectionné.</p>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top: 0;">GÉNÉRER →</button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink: 0;">↺</button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="hooks"><span class="node-num">01</span><span class="node-label">HOOKS</span></div>
+        <div class="connector flowing"></div>
+        <div class="node" data-stage="apply"><span class="node-num">02</span><span class="node-label">GÉNÉRÉ</span></div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Fichier(s) généré(s)</p>
+      <div class="file-tabs" id="file-tabs"></div>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le ou les fichiers générés apparaîtront ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    window.OPSFORGE_PRECOMMIT = {
+      backends: {{ backends | tojson }},
+      presets: {{ presets | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='precommit/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "precommit",
+    icon: "fa-solid fa-code-commit",
+    intro: "La config générée se dépose à la racine du dépôt Git. pre-commit et Husky s'installent une fois, puis se déclenchent automatiquement à chaque commit.",
+    os: [
+      { id: "precommit", label: "pre-commit (toutes distros)", icon: "fa-brands fa-python", color: "#6D28D9", steps: [
+        { title: "Installer pre-commit", cmd: "pip install pre-commit" },
+        { title: "Copier la config générée à la racine du repo", cmd: "cp .pre-commit-config.yaml ." },
+        { title: "Activer les hooks sur ce dépôt", cmd: "pre-commit install" },
+        { title: "(optionnel) Lancer sur tous les fichiers existants", cmd: "pre-commit run --all-files" },
+      ]},
+      { id: "husky", label: "Husky + lint-staged (Node.js)", icon: "fa-brands fa-node-js", color: "#5FA04E", steps: [
+        { title: "Installer les dépendances", cmd: "npm install husky lint-staged --save-dev" },
+        { title: "Initialiser Husky", cmd: "npx husky install" },
+        { title: "Copier le script généré", cmd: "cp .husky/pre-commit .husky/pre-commit" },
+        { title: "Coller lint-staged.config.json dans package.json (clé \"lint-staged\")", cmd: "cat lint-staged.config.json" },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>

@@ -99,6 +99,8 @@
     .card.backup .go{color:#16A34A;}
     .card.firewall .go{color:#DC2626;}
     .card.logging .go{color:#B45309;}
+    .card.precommit .go{color:#6D28D9;}
+    .card.ssh .go{color:#4D7C0F;}
     .b-k8s{background:linear-gradient(135deg,#326CE5,#54a2f0);box-shadow:0 8px 18px -4px rgba(50,108,229,.6);}
     .b-nginx{background:linear-gradient(135deg,#009639,#4CC750);box-shadow:0 8px 18px -4px rgba(0,150,57,.6);}
     .b-systemd{background:linear-gradient(135deg,#0F9D8C,#2DD4BF);box-shadow:0 8px 18px -4px rgba(15,157,140,.6);}
@@ -110,6 +112,8 @@
     .b-backup{background:linear-gradient(135deg,#16A34A,#334155);box-shadow:0 8px 18px -4px rgba(22,163,74,.55);}
     .b-firewall{background:linear-gradient(135deg,#DC2626,#F87171);box-shadow:0 8px 18px -4px rgba(220,38,38,.6);}
     .b-logging{background:linear-gradient(135deg,#B45309,#FBBF24);box-shadow:0 8px 18px -4px rgba(180,83,9,.6);}
+    .b-precommit{background:linear-gradient(135deg,#6D28D9,#A78BFA);box-shadow:0 8px 18px -4px rgba(109,40,217,.6);}
+    .b-ssh{background:linear-gradient(135deg,#4D7C0F,#A3E635);box-shadow:0 8px 18px -4px rgba(77,124,15,.6);}
 
     footer{margin-top:42px;color:rgba(255,255,255,.85);font-size:13px;text-align:center;text-shadow:0 1px 10px rgba(15,23,42,.2);}
 
@@ -277,6 +281,22 @@
       <h2>Logging</h2>
       <p>Génère une config de collecte de logs (<strong>Fluent Bit</strong> ou <strong>Vector</strong>) à partir de presets (Docker, nginx, syslog, JSON applicatif) vers <code>Loki</code>, <code>Elasticsearch</code> ou stdout.</p>
       <div class="tags"><span class="tag">Fluent Bit</span><span class="tag">Vector</span><span class="tag">Loki</span><span class="tag">Elasticsearch</span></div>
+      <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
+    <a class="card precommit" href="{{ url_for('precommit.index') }}">
+      <span class="badge b-precommit"><i class="fa-solid fa-code-commit"></i></span>
+      <h2>Pre-commit</h2>
+      <p>Génère des hooks Git (<strong>pre-commit</strong> ou <strong>Husky+lint-staged</strong>) à partir de presets par langage : lint, format, hygiène générale, scan de secrets avant chaque commit.</p>
+      <div class="tags"><span class="tag">pre-commit</span><span class="tag">Husky</span><span class="tag">Gitleaks</span><span class="tag">Presets</span></div>
+      <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
+    <a class="card ssh" href="{{ url_for('ssh.index') }}">
+      <span class="badge b-ssh"><i class="fa-solid fa-terminal"></i></span>
+      <h2>SSH</h2>
+      <p>Génère un <code>~/.ssh/config</code> côté client (alias, clés dédiées, rebond <strong>ProxyJump</strong>, tunnels) ou un fragment <code>sshd_config.d/</code> de <strong>durcissement</strong> côté serveur, avec <code>authorized_keys</code> restreint en option.</p>
+      <div class="tags"><span class="tag">~/.ssh/config</span><span class="tag">Bastion</span><span class="tag">sshd durci</span><span class="tag">authorized_keys</span></div>
       <span class="go">Ouvrir le module <i class="fa-solid fa-arrow-right"></i></span>
     </a>
   </main>

@@ -31,10 +31,12 @@ from modules.dockerfile.routes import bp as dockerfile_bp
 from modules.firewall.routes import bp as firewall_bp
 from modules.gitops.routes import bp as gitops_bp
 from modules.logging.routes import bp as logging_bp
+from modules.precommit.routes import bp as precommit_bp
 from modules.k8s.routes import bp as k8s_bp
 from modules.monitoring.routes import bp as monitoring_bp
 from modules.nginx.routes import bp as nginx_bp
 from modules.packer.routes import bp as packer_bp
+from modules.ssh.routes import bp as ssh_bp
 from modules.systemd.routes import bp as systemd_bp
 from modules.terraform.routes import bp as terraform_bp
 from modules.vagrant.routes import bp as vagrant_bp
@@ -70,6 +72,8 @@ app.register_blueprint(gitops_bp)
 app.register_blueprint(backup_bp)
 app.register_blueprint(firewall_bp)
 app.register_blueprint(logging_bp)
+app.register_blueprint(precommit_bp)
+app.register_blueprint(ssh_bp)
 
 
 @app.route("/")

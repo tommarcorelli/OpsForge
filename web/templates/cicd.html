@@ -185,6 +185,47 @@
       <hr class="section-divider" />
 
       <div class="field-group">
+        <label class="field-label" data-step="6">Mises à jour de dépendances (optionnel)</label>
+        <div class="jobs-toggles" id="deps-tool-switch">
+          <label class="toggle">
+            <input type="radio" name="deps-tool" value="" checked />
+            <span>Aucune</span>
+          </label>
+          <label class="toggle">
+            <input type="radio" name="deps-tool" value="dependabot" />
+            <span>Dependabot</span>
+          </label>
+          <label class="toggle">
+            <input type="radio" name="deps-tool" value="renovate" />
+            <span>Renovate</span>
+          </label>
+        </div>
+        <p class="field-hint" id="deps-hint">Génère en plus un fichier qui ouvre des PR quand une dépendance sort en nouvelle version. Les écosystèmes surveillés sont déduits des stacks ci-dessus.</p>
+
+        <div class="field-group deploy-fields" id="deps-options" hidden style="margin-top:14px;">
+          <label class="field-label" for="deps-schedule">Fréquence</label>
+          <select id="deps-schedule" class="text-input">
+            <option value="daily">Quotidienne</option>
+            <option value="weekly" selected>Hebdomadaire</option>
+            <option value="monthly">Mensuelle</option>
+          </select>
+          <div class="jobs-toggles" style="margin-top:12px;">
+            <label class="toggle">
+              <input type="checkbox" id="deps-group" checked />
+              <span>Regrouper les mises à jour mineures</span>
+            </label>
+            <label class="toggle">
+              <input type="checkbox" id="deps-docker" />
+              <span>Surveiller aussi les images Docker</span>
+            </label>
+          </div>
+          <p class="field-hint" id="deps-file-hint">Fichier généré : <code>.github/dependabot.yml</code> — il apparaîtra dans un second onglet à droite.</p>
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
         <label class="field-label" for="badge-repo" id="badge-repo-label">Badge de statut pour ton README (optionnel)</label>
         <input type="text" id="badge-repo" class="text-input" placeholder="monuser/monrepo" />
         <p class="field-hint" id="badge-repo-hint">Génère un snippet Markdown à coller dans ton README, en plus du pipeline.</p>
@@ -232,6 +273,7 @@
         </div>
       </div>
 
+      <div class="file-tabs" id="file-tabs"></div>
       <div class="result-box" id="result-box">
         <p class="result-placeholder">Le fichier généré apparaîtra ici.</p>
       </div>
