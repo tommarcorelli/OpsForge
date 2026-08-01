@@ -39,6 +39,8 @@ serveur externe.
 | **GitOps** | **ArgoCD** (`argocd-application.yaml`) ou **FluxCD** (`flux-gitrepository.yaml` + `flux-kustomization.yaml`/`flux-helmrelease.yaml`) — sources raw/Kustomize/Helm, sync auto ou manuelle | `/gitops` | `python main.py gitops …` |
 | **Backup** | **`backup.sh`**/**`restore.sh`** idempotents (**restic** ou **Borg**, backend local/SFTP/S3), planification **`*.service`+`*.timer`** ou **cron**, **`backup.env.example`** (secrets jamais en dur) | `/backup` | `python main.py backup …` |
 | **SSH** | **`~/.ssh/config`** côté client (alias, clés dédiées, rebond **ProxyJump**, tunnels) ou fragment **`sshd_config.d/`** de durcissement côté serveur (+ **`authorized_keys`** restreint par clé : `from=`, `command=`, `restrict`) | `/ssh` | `python main.py ssh …` |
+| **Auth** | Authentification en frontal d'une appli déjà servie par un reverse proxy : **`oauth2-proxy.cfg`** (délégué à GitHub/Google/OIDC) + snippet Nginx, ou **`configuration.yml`** **Authelia** (comptes locaux, MFA, règles d'accès par domaine) + `users_database.yml` | `/authproxy` | `python main.py authproxy …` |
+| **SOPS** | **`.sops.yaml`** pour chiffrer les secrets versionnés dans un dépôt Git avec **SOPS + age** : une règle par chemin, un ou plusieurs destinataires, `encrypted_regex` pour ne chiffrer que certaines clés (ex : secrets Kubernetes) + fragment `.gitattributes` pour un diff Git lisible | `/sops` | `python main.py sops …` |
 
 La page d'accueil (`/`) est un **hub** qui renvoie vers les modules. Rien
 n'est jamais envoyé sur un serveur externe : tout tourne sur ta machine.
@@ -184,6 +186,32 @@ python main.py ssh ma-config-ssh.json -o output/ssh/
 
 # Apercu sans rien ecrire sur disque
 python main.py ssh --preset sftp-only --dry-run
+```
+
+### Module Auth (authentification en frontal)
+
+```bash
+# oauth2-proxy restreint a une organisation GitHub
+python main.py authproxy --preset github-org -o output/authproxy/
+
+# Authelia : deux facteurs sur les routes sensibles
+python main.py authproxy --preset two-factor-sensitive -o output/authproxy/
+
+# Apercu sans rien ecrire sur disque
+python main.py authproxy --preset homelab-simple --dry-run
+```
+
+### Module SOPS (secrets Git chiffres)
+
+```bash
+# Une cle par environnement (dev / staging / prod)
+python main.py sops --preset multi-env -o output/sops/
+
+# Secrets Kubernetes : seules les valeurs data/stringData sont chiffrees
+python main.py sops --preset k8s-secrets -o output/sops/
+
+# Apercu sans rien ecrire sur disque
+python main.py sops --preset solo-dev --dry-run
 ```
 
 ### Module Kubernetes / Helm / Kustomize
@@ -1078,6 +1106,64 @@ nouvelle connexion.
 
 ---
 
+## Module Auth — détails
+
+Deux moteurs pour protéger une appli déjà servie par le module `nginx` — celui-ci
+gère le *comment on y accède*, celui-là le *qui a le droit*.
+
+**oauth2-proxy** délègue l'authentification à un fournisseur externe (GitHub,
+Google, OIDC générique, GitLab). Génère `oauth2-proxy.cfg` (provider, upstream,
+identifiants, `cookie_secret` **généré aléatoirement** — contrairement à un
+jeton OAuth lié à une identité externe, un secret de session local n'a pas de
+« bonne » valeur à part aléatoire et unique, donc autant le produire tout de
+suite) et un snippet Nginx (`auth_request` + redirection vers `/oauth2/sign_in`)
+à coller dans le bloc `server{}` de l'appli protégée.
+
+**Authelia** est un portail d'authentification autonome : comptes locaux, MFA
+TOTP, règles d'accès **par domaine** avec plusieurs niveaux de politique
+(`bypass`, `one_factor`, `two_factor`, `deny`), évaluées dans l'ordre. Génère
+`configuration.yml` (backend fichier, stockage SQLite/PostgreSQL, notifications
+fichier local ou SMTP, secrets de session/JWT/stockage générés aléatoirement)
+et `users_database.yml`. Les mots de passe ne sont **jamais** générés en clair
+— Authelia exige un hash argon2id, produit avec
+`authelia crypto hash generate argon2`, le fichier ne contient qu'un
+placeholder explicite à remplacer avant déploiement.
+
+Presets : `github-org`, `google-domain`, `generic-oidc` (oauth2-proxy),
+`homelab-simple`, `two-factor-sensitive`, `multi-domain` (Authelia).
+
+---
+
+## Module SOPS — détails
+
+Comble un trou du module `gitops` : celui-ci génère des manifests ArgoCD/FluxCD
+qui pointent vers un dépôt Git, mais rien n'y protège les secrets qu'on
+voudrait y verser — `vault` gère les secrets **côté serveur**, pas ceux
+versionnés dans le dépôt lui-même.
+
+SOPS ne chiffre pas un fichier entier : il chiffre les **valeurs** d'un
+YAML/JSON, les **clés restent en clair** — un `git diff` reste lisible, on voit
+quelle clé a changé, pas sa nouvelle valeur. `.sops.yaml`, à la racine du
+dépôt, associe chaque fichier (par `path_regex`) aux destinataires **age**
+autorisés à le déchiffrer ; `sops` le lit tout seul, aucune option à répéter à
+la main. `encrypted_regex` restreint le chiffrement à certaines clés
+seulement (typiquement `^(data|stringData)$` pour un manifest Kubernetes
+`Secret` : les métadonnées restent lisibles et diffables, seules les valeurs
+sont illisibles).
+
+Comme pour les clés SSH, seule la clé **publique** age (le destinataire) a sa
+place dans une config versionnée — ce module ne génère ni ne manipule de clé
+privée, celle-ci se produit avec `age-keygen`, hors d'OpsForge. En bonus, un
+fragment `.gitattributes` (`sops-diff.gitattributes`, à fusionner à la main
+plutôt qu'à écraser) active un driver de diff Git lisible sur les fichiers
+chiffrés.
+
+Presets : `solo-dev` (une clé), `team-shared` (plusieurs destinataires),
+`multi-env` (une clé par environnement dev/staging/prod), `k8s-secrets`
+(`encrypted_regex` ciblé), `terraform-tfvars` (`*.tfvars.json`).
+
+---
+
 ## Tests
 
 ```bash
@@ -1099,6 +1185,8 @@ pytest tests/vault/      # module Vault uniquement
 pytest tests/gitops/     # module GitOps uniquement
 pytest tests/backup/     # module Backup uniquement
 pytest tests/ssh/        # module SSH uniquement (client ~/.ssh/config + durcissement sshd)
+pytest tests/authproxy/  # module Auth uniquement (oauth2-proxy / Authelia)
+pytest tests/sops/       # module SOPS uniquement (secrets Git chiffres SOPS + age)
 pytest tests/cicd/test_deps_core.py tests/cicd/test_deps_routes.py   # Dependabot / Renovate
 ```
 
@@ -1112,7 +1200,7 @@ pytest tests/cicd/test_deps_core.py tests/cicd/test_deps_routes.py   # Dependabo
 
 ## Roadmap — reste à faire
 
-Les 18 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
+Les 20 modules sont fonctionnels et complets. Ce qui reste, par ordre de priorité :
 
 - [x] ~~Module Backup~~ — fait (restic / Borg, voir plus bas).
 - [x] ~~Module GitOps~~ — fait (ArgoCD Application / FluxCD, voir plus bas).
@@ -1208,14 +1296,17 @@ prochaines pistes d'extension (nouveaux providers CI, nouvelles cibles IaC)
 sont plutôt des ajouts *dans* les modules existants que de nouveaux modules
 à part entière — CircleCI/Jenkins/Drone/Bitbucket/TeamCity (CI/CD),
 CloudFormation et Pulumi (Terraform), Kustomize (K8s), HAProxy (Nginx) ont
-déjà été traités ainsi. Deux pistes sont venues s'ajouter depuis, et illustrent
-bien la règle de partage : **SSH** avait assez de matière (deux rôles, sept
-presets, trois formats de fichier) pour devenir un **module à part entière**,
-alors que **Dependabot/Renovate** — un seul petit fichier de config, déduit des
-stacks déjà détectées — est resté une **extension du module CI/CD**. Les
-prochaines directions restent des ajouts de providers/cibles supplémentaires
-(ex : TeamCity/Bitbucket Pipelines pour le CI/CD, déjà faits ; d'autres
-pourraient suivre selon les besoins).
+déjà été traités ainsi. Plusieurs pistes sont venues s'ajouter depuis, et
+illustrent bien la règle de partage entre nouveau module et extension : **SSH**
+avait assez de matière (deux rôles, sept presets, trois formats de fichier)
+pour devenir un **module à part entière**, tout comme **Auth** (deux moteurs
+oauth2-proxy/Authelia, six presets, quatre formats de fichier) et **SOPS**
+(règles multiples, cinq presets, deux formats de fichier) — alors que
+**Dependabot/Renovate** — un seul petit fichier de config, déduit des stacks
+déjà détectées — est resté une **extension du module CI/CD**. Les prochaines
+directions restent des ajouts de providers/cibles supplémentaires (ex :
+TeamCity/Bitbucket Pipelines pour le CI/CD, déjà faits ; d'autres pourraient
+suivre selon les besoins).
 
 > À éviter (doublons d'autres projets) : docker-compose = DockerForge ;
 > réseau/firewall/VLAN = NetForge.
@@ -1300,6 +1391,25 @@ et ils sont désormais traités :
       `--preset`/`--role`/`--port`/`--allow-groups` en CLI. Assez de matière
       pour un module complet, contrairement aux mises à jour de dépendances,
       traitées en extension du module CI/CD).
+
+- [x] ~~**Auth** (authentification en frontal)~~ — fait (deux moteurs :
+      **oauth2-proxy** — délègue à GitHub/Google/OIDC générique/GitLab,
+      `oauth2-proxy.cfg` + snippet Nginx `auth_request`, `cookie_secret`
+      généré aléatoirement ; **Authelia** — portail autonome, comptes
+      locaux, MFA TOTP, `access_control.rules` par domaine avec politiques
+      `bypass`/`one_factor`/`two_factor`/`deny` évaluées dans l'ordre,
+      `configuration.yml` + `users_database.yml` avec hash argon2id en
+      placeholder explicite — jamais de mot de passe en clair. 6 presets,
+      sélecteur de moteur dans l'UI et `--preset`/`--engine` en CLI).
+- [x] ~~**SOPS** (chiffrement de secrets Git)~~ — fait (`.sops.yaml` :
+      règles `path_regex` → destinataires **age**, `encrypted_regex` pour
+      ne chiffrer que certaines clés — ex : `^(data|stringData)$` sur un
+      `Secret` Kubernetes, métadonnées en clair —, `input_type` par règle ;
+      + fragment `.gitattributes` pour un diff Git lisible (driver
+      `sopsdiffer`). Comble le trou laissé par le module GitOps existant
+      (manifests ArgoCD/FluxCD sans réponse sur les secrets versionnés) ;
+      ne génère ni ne manipule de clé privée, comme pour SSH. 5 presets,
+      cartes de règles dans l'UI et `--preset` en CLI).
 
 Tous les modules candidats identifiés dans cette roadmap sont désormais
 implémentés. Les prochaines pistes restent des ajouts *dans* les modules

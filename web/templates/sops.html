@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Chiffrement de secrets Git (SOPS + age)</title>
+
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#B45309" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='sops/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· SOPS</span></span>
+    </a>
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-circle-info"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — CHIFFREMENT DE SECRETS GIT</p>
+    <h1>Des secrets<br />dans un dépôt public</h1>
+    <p class="subtitle">Le module <code>gitops</code> pointe vers ton dépôt Git, mais rien n'y protège les valeurs sensibles. <code>.sops.yaml</code> dit à SOPS quels fichiers chiffrer et pour qui — les clés restent en clair, seules les valeurs sont illisibles sans la bonne clé <code>age</code>.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="field-group">
+        <label class="field-label" data-step="1">Presets</label>
+        <div class="preset-list" id="preset-list"></div>
+        <p class="field-hint" id="preset-hint">Choisis un point de départ, puis ajuste les règles ci-dessous.</p>
+      </div>
+
+      <hr class="section-divider" />
+
+      <div class="field-group">
+        <label class="field-label" data-step="2">Règles (chemin → destinataires)</label>
+        <div class="card-list" id="rule-list"></div>
+        <button type="button" id="add-rule-btn" class="btn btn-ghost btn-add">+ Ajouter une règle</button>
+        <p class="field-hint">Évaluées dans l'ordre : une règle plus précise doit venir avant une règle plus large qui la recouvrirait.</p>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top:0;">GÉNÉRER →</button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink:0;">↺</button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="config"><span class="node-num">01</span><span class="node-label">RÈGLES</span></div>
+        <div class="connector flowing"></div>
+        <div class="node" data-stage="apply"><span class="node-num">02</span><span class="node-label">GÉNÉRÉ</span></div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Fichier(s) généré(s)</p>
+      <div class="file-tabs" id="file-tabs"></div>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le ou les fichiers générés apparaîtront ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    window.OPSFORGE_SOPS = {
+      presets: {{ presets | tojson }},
+      inputTypes: {{ input_types | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='sops/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "sops",
+    icon: "fa-solid fa-vault",
+    intro: "SOPS chiffre les VALEURS d'un fichier YAML/JSON, pas le fichier entier : les clés restent lisibles, un diff Git reste compréhensible. .sops.yaml se place une fois à la racine du dépôt.",
+    os: [
+      { id: "cles", label: "Générer ta paire de clés", icon: "fa-solid fa-key", color: "#B45309", steps: [
+        { title: "Installer age", cmd: "apt install age   # ou : brew install age / scoop install age", note: "age-keygen est fourni avec le paquet age." },
+        { title: "Générer la paire", cmd: "age-keygen -o ~/.config/sops/age/keys.txt", note: "Affiche la clé PUBLIQUE (age1...) à l'écran : c'est elle qu'on met dans .sops.yaml. La clé privée reste dans ce fichier, jamais commitée." },
+        { title: "Remplacer les placeholders", cmd: "Colle ta clé publique à la place de chaque 'age1REMPLACE_PAR_...' dans le fichier généré." },
+      ]},
+      { id: "sops", label: "Installer et utiliser SOPS", icon: "fa-solid fa-lock", color: "#92400E", steps: [
+        { title: "Installer SOPS", cmd: "Télécharge le binaire depuis github.com/getsops/sops/releases" },
+        { title: "Déposer la config", cmd: "cp .sops.yaml <racine-du-depot>/" },
+        { title: "Créer ou éditer un secret", cmd: "sops secrets/mon-app.yaml", note: "Ouvre un éditeur avec le contenu en clair ; à la sauvegarde, SOPS chiffre automatiquement selon la règle qui matche le chemin du fichier." },
+        { title: "Déchiffrer en lecture seule", cmd: "sops -d secrets/mon-app.yaml" },
+        { title: "Variable d'environnement (age)", cmd: "export SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt", note: "Nécessaire pour que sops trouve automatiquement ta clé privée." },
+      ]},
+      { id: "diff", label: "Diff Git lisible (optionnel)", icon: "fa-solid fa-code-compare", color: "#78350F", steps: [
+        { title: "Fusionner le fragment généré", cmd: "Colle le contenu de sops-diff.gitattributes dans le .gitattributes du dépôt (ne l'écrase pas)." },
+        { title: "Activer le driver localement", cmd: "git config diff.sopsdiffer.textconv \"sops -d\"", note: "Config locale, pas versionnée : à refaire à chaque clone." },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>

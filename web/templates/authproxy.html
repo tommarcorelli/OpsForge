@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <script>(function(){try{var t=localStorage.getItem("opsforge-theme");if(!t){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsForge — Authentification en frontal (oauth2-proxy / Authelia)</title>
+
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <meta name="theme-color" content="#BE185D" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='opsforge-logo.svg') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="OpsForge" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='authproxy/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='install-guide.css') }}" />
+</head>
+<body>
+
+  <div class="blueprint-grid" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a class="logo" href="{{ url_for('hub') }}" title="Retour au hub OpsForge">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="38" height="38">
+      <span class="txt">OpsForge <span class="sub">· Auth</span></span>
+    </a>
+    <button class="btn btn-ghost" id="guide-install-btn" style="margin-left:auto"><i class="fa-solid fa-circle-info"></i> Guide d'installation</button>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le mode sombre" title="Mode sombre / clair">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <a class="btn btn-ghost nav-hub" href="{{ url_for('hub') }}" style="margin-left:10px"><i class="fa-solid fa-arrow-left"></i> Hub</a>
+  </nav>
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <img src="{{ url_for('static', filename='opsforge-logo.svg') }}" alt="" width="36" height="36" />
+    </div>
+    <p class="eyebrow">OPSFORGE — AUTHENTIFICATION EN FRONTAL</p>
+    <h1>Qui a le droit<br />d'entrer ?</h1>
+    <p class="subtitle">Ton reverse proxy (module <code>nginx</code>) sert déjà tes applis perso. Ici, on décide qui a le droit d'y accéder : délégué à <code>oauth2-proxy</code> (GitHub/Google/OIDC) ou géré en local avec <code>Authelia</code> (comptes, MFA, règles par domaine).</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ COLONNE FORMULAIRE ============ -->
+    <section class="panel form-panel">
+
+      <div class="engine-switch" id="engine-switch">
+        <button type="button" class="engine-btn active" data-engine="oauth2-proxy">
+          oauth2-proxy
+          <span class="engine-sub">délégué à un fournisseur</span>
+        </button>
+        <button type="button" class="engine-btn" data-engine="authelia">
+          Authelia
+          <span class="engine-sub">portail autonome + MFA</span>
+        </button>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" data-step="1">Presets</label>
+        <div class="preset-list" id="preset-list"></div>
+        <p class="field-hint" id="preset-hint">Choisis un point de départ, puis ajuste les champs ci-dessous.</p>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ---------- FORMULAIRE OAUTH2-PROXY ---------- -->
+      <div id="oauth2-form">
+
+        <div class="field-group">
+          <label class="field-label" data-step="2">Fournisseur</label>
+          <select id="o2-provider" class="text-input">
+            <option value="github">GitHub</option>
+            <option value="google">Google</option>
+            <option value="oidc">OIDC générique (Keycloak, Authentik, Auth0…)</option>
+            <option value="gitlab">GitLab</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" data-step="3">Appli à protéger et domaine d'accès</label>
+          <div class="grid-2">
+            <div>
+              <label class="sub-label" for="o2-upstream">Adresse locale de l'appli</label>
+              <input type="text" id="o2-upstream" class="text-input" placeholder="http://127.0.0.1:8080" />
+            </div>
+            <div>
+              <label class="sub-label" for="o2-cookie-domain">Domaine du cookie</label>
+              <input type="text" id="o2-cookie-domain" class="text-input" placeholder=".exemple.com" />
+            </div>
+          </div>
+          <label class="sub-label" for="o2-redirect" style="margin-top:10px;">URL de redirection (callback OAuth)</label>
+          <input type="text" id="o2-redirect" class="text-input" placeholder="https://auth.exemple.com/oauth2/callback" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" data-step="4">Identifiants OAuth</label>
+          <div class="grid-2">
+            <div>
+              <label class="sub-label" for="o2-client-id">Client ID</label>
+              <input type="text" id="o2-client-id" class="text-input" />
+            </div>
+            <div>
+              <label class="sub-label" for="o2-client-secret">Client secret</label>
+              <input type="text" id="o2-client-secret" class="text-input" />
+            </div>
+          </div>
+          <p class="field-hint">Créés côté fournisseur (OAuth App GitHub, identifiants Google Cloud, client OIDC…).</p>
+        </div>
+
+        <div class="field-group" id="o2-github-fields">
+          <label class="field-label" data-step="5">Restriction GitHub</label>
+          <div class="grid-2">
+            <div>
+              <label class="sub-label" for="o2-github-org">Organisation</label>
+              <input type="text" id="o2-github-org" class="text-input" placeholder="mon-organisation" />
+            </div>
+            <div>
+              <label class="sub-label" for="o2-github-team">Équipe (optionnel)</label>
+              <input type="text" id="o2-github-team" class="text-input" placeholder="mon-equipe" />
+            </div>
+          </div>
+          <p class="field-hint">Sans organisation, n'importe quel compte GitHub serait accepté.</p>
+        </div>
+
+        <div class="field-group" id="o2-oidc-fields">
+          <label class="sub-label" for="o2-oidc-issuer">URL de l'émetteur OIDC</label>
+          <input type="text" id="o2-oidc-issuer" class="text-input" placeholder="https://idp.exemple.com/realms/mon-realm" />
+        </div>
+
+        <div class="field-group" id="o2-email-fields">
+          <label class="sub-label" for="o2-email-domains">Domaines email autorisés</label>
+          <input type="text" id="o2-email-domains" class="text-input" placeholder="exemple.com" />
+          <p class="field-hint">Séparés par une virgule. <code>*</code> autorise n'importe quel compte du fournisseur.</p>
+        </div>
+
+      </div>
+
+      <!-- ---------- FORMULAIRE AUTHELIA ---------- -->
+      <div id="authelia-form" hidden>
+
+        <div class="field-group">
+          <label class="field-label" data-step="2">Domaine et stockage</label>
+          <div class="grid-2">
+            <div>
+              <label class="sub-label" for="au-domain">Domaine de base</label>
+              <input type="text" id="au-domain" class="text-input" placeholder="exemple.com" />
+            </div>
+            <div>
+              <label class="sub-label" for="au-storage">Stockage</label>
+              <select id="au-storage" class="text-input">
+                <option value="sqlite">SQLite (simple, un seul serveur)</option>
+                <option value="postgres">PostgreSQL</option>
+              </select>
+            </div>
+          </div>
+          <label class="sub-label" for="au-notifier" style="margin-top:10px;">Notifications</label>
+          <select id="au-notifier" class="text-input">
+            <option value="filesystem">Fichier local (aucun serveur mail requis)</option>
+            <option value="smtp">SMTP (vrais emails)</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" data-step="3">Utilisateurs</label>
+          <div class="card-list" id="user-list"></div>
+          <button type="button" id="add-user-btn" class="btn btn-ghost btn-add">+ Ajouter un utilisateur</button>
+          <p class="field-hint">Les mots de passe ne sont pas générés : <code>authelia crypto hash generate argon2</code> après coup.</p>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" data-step="4">Règles d'accès</label>
+          <div class="card-list" id="rule-list"></div>
+          <button type="button" id="add-rule-btn" class="btn btn-ghost btn-add">+ Ajouter une règle</button>
+          <p class="field-hint">Évaluées dans l'ordre : place les règles les plus précises en premier. <code>bypass</code> = aucune authentification, <code>deny</code> = toujours refusé.</p>
+        </div>
+
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button type="button" id="generate-btn" class="btn btn-stamp" style="margin-top:0;">GÉNÉRER →</button>
+        <button type="button" id="reset-btn" class="btn btn-ghost" title="Réinitialiser le formulaire" style="flex-shrink:0;">↺</button>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+    </section>
+
+    <!-- ============ COLONNE RESULTAT ============ -->
+    <section class="panel preview-panel">
+
+      <div class="pipeline-schematic" id="pipeline-schematic">
+        <div class="node active" data-stage="config"><span class="node-num">01</span><span class="node-label" id="node-1-label">OAUTH2-PROXY</span></div>
+        <div class="connector flowing"></div>
+        <div class="node" data-stage="apply"><span class="node-num">02</span><span class="node-label">GÉNÉRÉ</span></div>
+      </div>
+
+      <p class="field-label" style="margin-bottom:8px;">Fichier(s) généré(s)</p>
+      <div class="file-tabs" id="file-tabs"></div>
+      <div class="result-box" id="result-box">
+        <p class="result-placeholder">Le ou les fichiers générés apparaîtront ici.</p>
+      </div>
+
+      <div class="result-actions" id="result-actions" hidden>
+        <button type="button" id="copy-btn" class="btn btn-ghost">Copier</button>
+        <button type="button" id="download-btn" class="btn btn-ghost">Télécharger</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    window.OPSFORGE_AUTHPROXY = {
+      engines: {{ engines | tojson }},
+      presets: {{ presets | tojson }}
+    };
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='authproxy/script.js') }}"></script>
+
+  <script>
+  window.INSTALL_GUIDE = {
+    tool: "authproxy",
+    icon: "fa-solid fa-user-shield",
+    intro: "Les deux moteurs se placent devant une appli déjà servie par ton reverse proxy (module nginx). oauth2-proxy est un binaire unique et léger ; Authelia est plus complet mais demande un peu plus de mise en place.",
+    os: [
+      { id: "oauth2-proxy", label: "oauth2-proxy", icon: "fa-solid fa-key", color: "#BE185D", steps: [
+        { title: "Installer", cmd: "Télécharge le binaire depuis github.com/oauth2-proxy/oauth2-proxy/releases", note: "Ou via Docker : quay.io/oauth2-proxy/oauth2-proxy" },
+        { title: "Copier la config générée", cmd: "cp oauth2-proxy.cfg /etc/oauth2-proxy/" },
+        { title: "Lancer", cmd: "oauth2-proxy --config=/etc/oauth2-proxy/oauth2-proxy.cfg" },
+        { title: "Câbler avec Nginx", cmd: "Colle nginx-auth-snippet.conf dans le bloc server{} de l'appli à protéger (module nginx d'OpsForge), puis recharge Nginx.", note: "oauth2-proxy doit tourner AVANT de recharger Nginx." },
+      ]},
+      { id: "authelia", label: "Authelia", icon: "fa-solid fa-shield-halved", color: "#9D174D", steps: [
+        { title: "Installer", cmd: "Docker recommandé : docker run authelia/authelia", note: "Ou binaire natif depuis github.com/authelia/authelia/releases" },
+        { title: "Copier les fichiers générés", cmd: "cp configuration.yml users_database.yml /etc/authelia/" },
+        { title: "Générer les vrais hash de mot de passe", cmd: "authelia crypto hash generate argon2 --password 'ton-mot-de-passe'", note: "À faire pour CHAQUE utilisateur, puis remplacer le placeholder dans users_database.yml." },
+        { title: "Lancer", cmd: "authelia --config=/etc/authelia/configuration.yml" },
+        { title: "Câbler avec Nginx", cmd: "Authelia s'intègre via auth_request, comme oauth2-proxy — voir la documentation Authelia \"Nginx integration\" pour le snippet exact (dépend de ta topologie de domaines)." },
+      ]},
+    ],
+  };
+  </script>
+  <script src="{{ url_for('static', filename='install-guide.js') }}"></script>
+  <script>OpsForgeInstallGuide.init("guide-install-btn");</script>
+</body>
+</html>

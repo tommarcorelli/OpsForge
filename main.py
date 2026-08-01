@@ -19,6 +19,8 @@ Sous-commandes :
     python main.py gitops     ...   -> generateur de manifests GitOps (ArgoCD Application / FluxCD)
     python main.py backup     ...   -> generateur de sauvegarde/restauration (restic / Borg)
     python main.py ssh        ...   -> generateur de config SSH (client ~/.ssh/config ou durcissement sshd)
+    python main.py authproxy  ...   -> generateur d'authentification en frontal (oauth2-proxy / Authelia)
+    python main.py sops       ...   -> generateur de chiffrement de secrets Git (SOPS + age)
 
 Chaque sous-commande accepte ses propres options. Exemples :
     python main.py cicd . --provider gitlab --deploy docker_hub
@@ -36,6 +38,8 @@ Chaque sous-commande accepte ses propres options. Exemples :
     python main.py gitops --preset argocd-raw-manifests -o output/gitops/
     python main.py backup --preset restic-local-systemd -o output/backup/
     python main.py ssh --preset acces-bastion -o output/ssh/
+    python main.py authproxy --preset github-org -o output/authproxy/
+    python main.py sops --preset multi-env -o output/sops/
 
 Utilise `python main.py <module> --help` pour voir les options d'un module.
 """
@@ -43,6 +47,7 @@ Utilise `python main.py <module> --help` pour voir les options d'un module.
 import sys
 
 from modules.ansible import cli as ansible_cli
+from modules.authproxy import cli as authproxy_cli
 from modules.backup import cli as backup_cli
 from modules.cicd import cli as cicd_cli
 from modules.cloudinit import cli as cloudinit_cli
@@ -55,6 +60,7 @@ from modules.k8s import cli as k8s_cli
 from modules.monitoring import cli as monitoring_cli
 from modules.nginx import cli as nginx_cli
 from modules.packer import cli as packer_cli
+from modules.sops import cli as sops_cli
 from modules.ssh import cli as ssh_cli
 from modules.systemd import cli as systemd_cli
 from modules.terraform import cli as terraform_cli
@@ -80,11 +86,13 @@ MODULES = {
     "logging": logging_cli.main,
     "precommit": precommit_cli.main,
     "ssh": ssh_cli.main,
+    "authproxy": authproxy_cli.main,
+    "sops": sops_cli.main,
 }
 
 
 def _usage():
-    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault|gitops|backup|firewall|logging|precommit|ssh} [options]")
+    print("Usage : python main.py {cicd|ansible|vagrant|terraform|dockerfile|k8s|nginx|systemd|monitoring|cloudinit|packer|vault|gitops|backup|firewall|logging|precommit|ssh|authproxy|sops} [options]")
     print()
     print("  cicd       Genere un pipeline CI/CD (GitHub Actions / GitLab CI / CircleCI / Jenkins / Drone / Bitbucket / TeamCity)")
     print("  ansible    Genere un playbook Ansible (provisioning + deploiement)")
@@ -104,6 +112,8 @@ def _usage():
     print("  logging    Genere une config de collecte de logs (Fluent Bit / Vector) vers Loki/Elasticsearch")
     print("  precommit  Genere des hooks Git pre-commit (framework pre-commit / Husky+lint-staged)")
     print("  ssh        Genere une config SSH (~/.ssh/config client / durcissement sshd_config.d)")
+    print("  authproxy  Genere une authentification en frontal (oauth2-proxy / Authelia)")
+    print("  sops       Genere une config de chiffrement de secrets Git (SOPS + age)")
     print()
     print("Aide detaillee d'un module : python main.py <module> --help")
 

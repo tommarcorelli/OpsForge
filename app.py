@@ -24,6 +24,7 @@ import sys
 from flask import Flask, render_template, send_from_directory
 
 from modules.ansible.routes import bp as ansible_bp
+from modules.authproxy.routes import bp as authproxy_bp
 from modules.backup.routes import bp as backup_bp
 from modules.cicd.routes import bp as cicd_bp
 from modules.cloudinit.routes import bp as cloudinit_bp
@@ -36,6 +37,7 @@ from modules.k8s.routes import bp as k8s_bp
 from modules.monitoring.routes import bp as monitoring_bp
 from modules.nginx.routes import bp as nginx_bp
 from modules.packer.routes import bp as packer_bp
+from modules.sops.routes import bp as sops_bp
 from modules.ssh.routes import bp as ssh_bp
 from modules.systemd.routes import bp as systemd_bp
 from modules.terraform.routes import bp as terraform_bp
@@ -57,6 +59,8 @@ app = Flask(
 )
 
 app.register_blueprint(cicd_bp)
+app.register_blueprint(authproxy_bp)
+app.register_blueprint(sops_bp)
 app.register_blueprint(ansible_bp)
 app.register_blueprint(vagrant_bp)
 app.register_blueprint(terraform_bp)
